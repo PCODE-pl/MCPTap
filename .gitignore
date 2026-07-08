@@ -6,3 +6,5 @@
 /zips
 
 __pycache__
+.pre-commit-config.yaml
+

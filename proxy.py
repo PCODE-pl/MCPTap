@@ -2,7 +2,7 @@
 """Transparent LLM proxy that forces a model.
 
 Additionally supports transparent MCP tool interception: tools declared in
-MCP_TAP_INTERCEPT_JSON are exposed to the model as regular function tools, and when
+MCP_TAP_INTERCEPT_YAML are exposed to the model as regular function tools, and when
 the model calls them the proxy executes the real MCP tool locally, feeds the
 result back into the conversation, and only surfaces the final assistant
 response to the client. The client never sees the intercepted tool calls.
@@ -26,6 +26,7 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 
+import yaml
 from aiohttp import (  # type: ignore
     ClientError,
     ClientSession,
@@ -56,7 +57,7 @@ MCP_TAP_OPENROUTER_DISABLE_PROVIDER_FALLBACKS = os.environ.get(
 }
 MCP_TAP_PLAN_MODE_TRIGGER = os.environ.get("MCP_TAP_PLAN_MODE_TRIGGER", "max").strip()
 MCP_TAP_PLAN_MODE_MAX_INPUT_SIZE = int(os.environ.get("MCP_TAP_PLAN_MODE_MAX_INPUT_SIZE", 100000))
-MCP_TAP_INTERCEPT_JSON = os.environ.get("MCP_TAP_INTERCEPT_JSON", "").strip()
+MCP_TAP_INTERCEPT_YAML = os.environ.get("MCP_TAP_INTERCEPT_YAML", "").strip()
 MCP_TAP_INTERCEPT_MAX_ITERATIONS = int(os.environ.get("MCP_TAP_INTERCEPT_MAX_ITERATIONS", "8"))
 MCP_TAP_INTERCEPT_TOOL_TIMEOUT = float(os.environ.get("MCP_TAP_INTERCEPT_TOOL_TIMEOUT", "120"))
 MCP_TAP_LOG_LEVEL = os.environ.get("MCP_TAP_LOG_LEVEL", "INFO").upper()
@@ -402,39 +403,39 @@ def _serialize_mcp_result(result: Any) -> str:
 def _load_intercept_config() -> Optional[Dict[str, Any]]:
     """Return the intercept config as a validated dict, or None if disabled.
 
-    MCP_TAP_INTERCEPT_JSON is a JSON object describing a single MCP server plus a
+    MCP_TAP_INTERCEPT_YAML is a YAML object describing a single MCP server plus a
     list of mappings. Server fields (mcp_command/mcp_args/mcp_env/mcp_cwd) live
     on the top-level object; each entry in `mappings` carries `expose_as`,
     `mcp_tool`, and optionally `description`/`parameters`.
 
-    Value can be prefixed with `@` to load JSON from a file path.
+    Value can be prefixed with `@` to load YAML from a file path.
     """
-    if not MCP_TAP_INTERCEPT_JSON:
+    if not MCP_TAP_INTERCEPT_YAML:
         return None
-    payload = MCP_TAP_INTERCEPT_JSON
+    payload = MCP_TAP_INTERCEPT_YAML
     if payload.startswith("@"):
         path = payload[1:]
         with open(path, "r", encoding="utf-8") as fh:
             payload = fh.read()
-    data = json.loads(payload)
+    data = yaml.safe_load(payload)
 
     if not isinstance(data, dict):
-        raise RuntimeError("MCP_TAP_INTERCEPT_JSON must be a JSON object with 'mcp_command' and 'mappings'")
+        raise RuntimeError("MCP_TAP_INTERCEPT_YAML must be a YAML object with 'mcp_command' and 'mappings'")
     if "mcp_command" not in data:
-        raise RuntimeError("MCP_TAP_INTERCEPT_JSON must contain 'mcp_command'")
+        raise RuntimeError("MCP_TAP_INTERCEPT_YAML must contain 'mcp_command'")
     mappings = data.get("mappings")
     if not isinstance(mappings, list) or not mappings:
-        raise RuntimeError("MCP_TAP_INTERCEPT_JSON must contain a non-empty 'mappings' list")
+        raise RuntimeError("MCP_TAP_INTERCEPT_YAML must contain a non-empty 'mappings' list")
     seen: Set[str] = set()
     for mapping in mappings:
         if not isinstance(mapping, dict):
-            raise RuntimeError("Each mapping in MCP_TAP_INTERCEPT_JSON must be an object")
+            raise RuntimeError("Each mapping in MCP_TAP_INTERCEPT_YAML must be an object")
         for required in ("expose_as", "mcp_tool"):
             if required not in mapping:
                 raise RuntimeError(f"MCP intercept mapping missing required field: {required!r}")
         name = mapping["expose_as"]
         if name in seen:
-            raise RuntimeError(f"Duplicate expose_as in MCP_TAP_INTERCEPT_JSON: {name!r}")
+            raise RuntimeError(f"Duplicate expose_as in MCP_TAP_INTERCEPT_YAML: {name!r}")
         seen.add(name)
     return {
         "mcp_command": data["mcp_command"],
@@ -1140,7 +1141,7 @@ async def close_client_session(app: web.Application) -> None:
 async def start_mcp_intercept(app: web.Application) -> None:
     intercept: MCPInterceptor = app["mcp_intercept"]
     if not intercept.enabled:
-        LOGGER.info("MCP intercept disabled (MCP_TAP_INTERCEPT_JSON is empty)")
+        LOGGER.info("MCP intercept disabled (MCP_TAP_INTERCEPT_YAML is empty)")
         return
     try:
         await intercept.start()
@@ -1159,7 +1160,7 @@ def build_app() -> web.Application:
     try:
         intercept_config = _load_intercept_config()
     except Exception:
-        LOGGER.exception("Invalid MCP_TAP_INTERCEPT_JSON; disabling intercept")
+        LOGGER.exception("Invalid MCP_TAP_INTERCEPT_YAML; disabling intercept")
         intercept_config = None
     app["mcp_intercept"] = MCPInterceptor(intercept_config)
     app.on_startup.append(create_client_session)

@@ -240,7 +240,7 @@ exec "$VENV_DIR/bin/python" "$INSTALL_DIR/proxy.py" "\$@"
 EOF
     chmod 0755 "$BIN_DIR/mcptap"
 
-    for file in proxy.env openrouter.env requesty.env mcp-intercept.json; do
+    for file in proxy.env openrouter.env requesty.env mcp-intercept.yaml; do
         src_file="$source_dir/examples/$file"
         dst_file="$CONFIG_DIR/$file"
         [ -f "$src_file" ] || continue
@@ -396,8 +396,8 @@ Virtualenv:  $VENV_DIR
 Next steps:
   1. Edit $CONFIG_DIR/proxy.env
   2. Edit $CONFIG_DIR/openrouter.env or $CONFIG_DIR/requesty.env
-  3. If using MCP interception, edit $CONFIG_DIR/mcp-intercept.json and set:
-       MCP_TAP_INTERCEPT_JSON=@$CONFIG_DIR/mcp-intercept.json
+  3. If using MCP interception, edit $CONFIG_DIR/mcp-intercept.yaml and set:
+       MCP_TAP_INTERCEPT_YAML=@$CONFIG_DIR/mcp-intercept.yaml
 
 Health check after service start:
   curl http://127.0.0.1:8787/health
