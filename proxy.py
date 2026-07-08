@@ -33,7 +33,7 @@ from aiohttp import (  # type: ignore
     TCPConnector,
     web,
 )
-from dotenv import load_dotenv
+from dotenv import load_dotenv  # type: ignore
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -54,6 +54,7 @@ MCP_TAP_OPENROUTER_DISABLE_PROVIDER_FALLBACKS = os.environ.get(
     "no",
     "off",
 }
+MCP_TAP_PLAN_MODE_TRIGGER = os.environ.get("MCP_TAP_PLAN_MODE_TRIGGER", "max").strip()
 MCP_TAP_PLAN_MODE_MAX_INPUT_SIZE = int(os.environ.get("MCP_TAP_PLAN_MODE_MAX_INPUT_SIZE", 100000))
 MCP_TAP_INTERCEPT_JSON = os.environ.get("MCP_TAP_INTERCEPT_JSON", "").strip()
 MCP_TAP_INTERCEPT_MAX_ITERATIONS = int(os.environ.get("MCP_TAP_INTERCEPT_MAX_ITERATIONS", "8"))
@@ -168,7 +169,7 @@ def rewrite_json_payload(
     if not isinstance(reasoning, dict):
         reasoning = {}
     reasoning_effort = reasoning.get("effort", None)
-    if "max" == reasoning_effort:
+    if MCP_TAP_PLAN_MODE_TRIGGER == reasoning_effort:
         candidate_force_model = MCP_TAP_PLAN_MODE_MODEL
 
     if PROVIDER_REQUESTY == MCP_TAP_UPSTREAM_PROVIDER:
@@ -529,7 +530,7 @@ def _apply_model_and_provider(
     if not isinstance(reasoning, dict):
         reasoning = {}
     reasoning_effort = reasoning.get("effort", None)
-    if "max" == reasoning_effort:
+    if MCP_TAP_PLAN_MODE_TRIGGER == reasoning_effort:
         input_size = deep_getsizeof(payload.get("input", None))
         if input_size > MCP_TAP_PLAN_MODE_MAX_INPUT_SIZE:
             raise RuntimeError(
