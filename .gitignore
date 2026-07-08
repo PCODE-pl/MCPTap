@@ -1,5 +1,7 @@
-.clinerules
-.codex
+/.clinerules
+/.codex
+/.ruff_cache
+/_files
 /.VSCodeCounter
 /zips
 
