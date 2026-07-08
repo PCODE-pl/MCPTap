@@ -1,0 +1,41 @@
+mcp_command: /home/user/.venvs/llm-council/bin/llm-council
+mcp_args: []
+mcp_env: {}
+mcp_cwd: null
+mappings:
+  - expose_as: strong_expert
+    mcp_tool: consult_council
+    override:
+      description: |
+        # Strong Expert
+
+        Asks the strong expert LLM a question and returns response. Use this tool only when you are unsure, need a second opinion, review, decision support, ranking, or deeper reasoning.
+
+        Also use this tool when (for example) the tests are failing second time, after your correction, or you don't know what file to edit, or you are doing a very large refactor.
+
+        Calls to this tool are costly, so use it only when necessary.
+
+        Require expert response to be concise and to the point.
+
+        Include only relevant context/instructions/details/traces in the query.
+      parameters:
+        type: object
+        properties:
+          query:
+            type: string
+            description: The question to ask the strong expert.
+        required:
+          - query
+        additionalProperties: false
+      strict: false
+
+  - expose_as: strong_expert_health_check
+    mcp_tool: council_health_check
+    override:
+      description: "# Strong Expert Health Check\n\nChecks the strong expert LLM health."
+      parameters:
+        type: object
+        properties: {}
+        required: []
+        additionalProperties: false
+      strict: false
