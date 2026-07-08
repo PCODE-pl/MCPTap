@@ -19,9 +19,9 @@ wget -qO- https://raw.githubusercontent.com/PCODE-pl/MCPTap/master/setup.sh | sh
 Edit the configuration files after installation:
 
 ```sh
-${EDITOR:-vi} ~/.config/mcptap/proxy.env
-${EDITOR:-vi} ~/.config/mcptap/openrouter.env
-${EDITOR:-vi} ~/.config/mcptap/requesty.env
+~/.config/mcptap/proxy.env
+~/.config/mcptap/openrouter.env
+~/.config/mcptap/requesty.env
 ```
 
 Check the service:
