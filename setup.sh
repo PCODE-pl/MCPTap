@@ -261,7 +261,7 @@ install_systemd_user_service() {
 
     cat >"$service_file" <<EOF
 [Unit]
-Description=MCPTap local LLM proxy
+Description=MCPTap LLM proxy
 Documentation=https://github.com/${GITHUB_REPO}
 After=network-online.target
 
