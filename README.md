@@ -46,7 +46,6 @@ macOS logs:
 tail -f ~/Library/Logs/mcptap.log ~/Library/Logs/mcptap.error.log
 ```
 
-
 ## Configuration
 
 ### Codex
@@ -56,10 +55,14 @@ model_provider = "mcptap"
 model = "openai/gpt-5.5"
 model_context_window = 1000000
 
-# cannot be "max" - MCPTap selects MCP_TAP_MODEL from provider env file
+# cannot equal to MCP_TAP_PLAN_MODE_TRIGGER (defaults to: "max").
+# For this reasoning effort value MCPTap will use MCP_TAP_MODEL
+# from provider env file
 model_reasoning_effort = "xhigh"
 
-# has to be "max" - MCPTap selects MCP_TAP_PLAN_MODE_MODEL from provider env file
+# has to equal to MCP_TAP_PLAN_MODE_TRIGGER (defaults to: "max").
+# For this reasoning effort value MCPTap will use MCP_TAP_PLAN_MODE_MODEL
+# from provider env file
 plan_mode_reasoning_effort = "max"
 
 model_supports_reasoning_summaries = false
