@@ -190,7 +190,7 @@ EOF
     fi
 
     "$VENV_DIR/bin/python" -m pip install --upgrade pip setuptools wheel
-    "$VENV_DIR/bin/python" -m pip install --upgrade aiohttp python-dotenv mcp yaml
+    "$VENV_DIR/bin/python" -m pip install --upgrade aiohttp python-dotenv mcp pyyaml
 }
 
 use_local_source_if_available() {
