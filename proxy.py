@@ -60,6 +60,7 @@ MCP_TAP_PLAN_MODE_MAX_INPUT_SIZE = int(os.environ.get("MCP_TAP_PLAN_MODE_MAX_INP
 MCP_TAP_INTERCEPT_YAML = os.environ.get("MCP_TAP_INTERCEPT_YAML", "").strip()
 MCP_TAP_INTERCEPT_MAX_ITERATIONS = int(os.environ.get("MCP_TAP_INTERCEPT_MAX_ITERATIONS", "8"))
 MCP_TAP_INTERCEPT_TOOL_TIMEOUT = float(os.environ.get("MCP_TAP_INTERCEPT_TOOL_TIMEOUT", "120"))
+MCP_TAP_PER_MODEL_YAML = os.environ.get("MCP_TAP_PER_MODEL_YAML", "").strip()
 MCP_TAP_LOG_LEVEL = os.environ.get("MCP_TAP_LOG_LEVEL", "INFO").upper()
 MCP_TAP_LOG_FILE = os.environ.get("MCP_TAP_LOG_FILE", "").strip()
 LOG_FILE_REDACT_HEADERS = os.environ.get("LOG_FILE_REDACT_HEADERS", "0").lower() not in {
@@ -147,6 +148,43 @@ DEBUG_PAYLOAD_KEYS = [
     "tools",
 ]
 
+# Per-model configuration for instructions injection
+PER_MODEL_CONFIG: Dict[str, Dict[str, Any]] = {}
+
+
+def _load_per_model_config() -> Dict[str, Dict[str, Any]]:
+    """Load per-model configuration from MCP_TAP_PER_MODEL_YAML.
+
+    Returns a dict mapping model identifiers to their config (e.g. instructions).
+    Supports model names with suffixes like ':floor' (suffix is ignored for matching).
+    Also supports '@preset/name' and 'policy/name' entries.
+    """
+    if not MCP_TAP_PER_MODEL_YAML:
+        return {}
+
+    payload = MCP_TAP_PER_MODEL_YAML
+    if payload.startswith("@"):
+        path = payload[1:]
+        with open(path, "r", encoding="utf-8") as fh:
+            payload = fh.read()
+
+    data = yaml.safe_load(payload)
+    if not isinstance(data, dict):
+        LOGGER.warning("MCP_TAP_PER_MODEL_YAML must be a YAML dict")
+        return {}
+
+    # Process entries - strip suffixes from model names for matching
+    result: Dict[str, Dict[str, Any]] = {}
+    for model_key, cfg in data.items():
+        if not isinstance(cfg, dict):
+            continue
+        base_model = model_key.split(":")[0] if ":" in model_key else model_key
+        if isinstance(cfg.get("instructions"), str):
+            result[model_key] = cfg
+            if base_model != model_key:
+                result[base_model] = cfg
+    return result
+
 
 def rewrite_json_payload(
     request: web.Request,
@@ -164,6 +202,11 @@ def rewrite_json_payload(
 
     original_model, forced_model, reasoning_effort = _apply_model_and_provider(payload)
     _inject_tools(payload, intercept)
+    # Use original_model for per-model matching (may have suffix like :floor)
+    # Fall back to forced_model if original_model is None
+    model_for_instructions = original_model or forced_model
+    if model_for_instructions:
+        _inject_per_model_instructions(payload, model_for_instructions)
 
     candidate_force_model = MCP_TAP_MODEL
     reasoning = payload.get("reasoning", {})
@@ -577,6 +620,29 @@ def _inject_tools(payload: Dict[str, Any], intercept: MCPInterceptor) -> None:
     for tool in intercept.tools:
         tools.append(tool.to_tool_definition())
     payload["tools"] = tools
+
+
+def _inject_per_model_instructions(payload: Dict[str, Any], model: str) -> None:
+    """Inject instructions from per-model config into the payload.
+
+    Only injects on first request (no previous_response_id).
+    Instructions are taken from PER_MODEL_CONFIG matching the model.
+    Supports model names with suffixes (e.g., ':floor') - strips suffix for fallback match.
+    """
+    if payload.get("previous_response_id") is not None:
+        return
+
+    config = PER_MODEL_CONFIG.get(model)
+    if config is None:
+        if model:
+            base = model.split(":")[0]
+            config = PER_MODEL_CONFIG.get(base)
+        else:
+            return
+
+    if config and "instructions" in config:
+        payload["instructions"] = config["instructions"]
+        LOGGER.debug("Injected per-model instructions for model=%s", model)
 
 
 def deep_getsizeof(obj, seen=None):
@@ -1190,6 +1256,13 @@ def main() -> None:
         handle_signals=True,
     )
 
+
+# Load per-model config at module initialization time
+try:
+    PER_MODEL_CONFIG = _load_per_model_config()
+    LOGGER.info("Loaded per-model config with %d entries", len(PER_MODEL_CONFIG))
+except Exception as exc:
+    LOGGER.warning("Failed to load per-model config: %s", exc)
 
 if __name__ == "__main__":
     main()
