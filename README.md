@@ -85,13 +85,13 @@ pyyaml
 Install the latest release:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/PCODE-pl/MCPTap/master/setup.sh | sh
+curl -fsSL https://github.com/PCODE-pl/MCPTap/releases/latest/download/setup.sh | sh
 ```
 
 If `curl` is not available:
 
 ```sh
-wget -qO- https://raw.githubusercontent.com/PCODE-pl/MCPTap/master/setup.sh | sh
+wget -qO- https://github.com/PCODE-pl/MCPTap/releases/latest/download/setup.sh | sh
 ```
 
 The installer creates a local Python virtual environment, installs MCPTap files, copies example configuration files, and tries to install a user service.
