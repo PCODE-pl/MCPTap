@@ -1,0 +1,6 @@
+z-ai/glm-5.2:floor:
+deepseek/deepseek-v4-flash:floor:
+"@preset/free-fallback-to-paid":
+  instructions: |
+    AAA
+policy/free-fallback-to-paid:
