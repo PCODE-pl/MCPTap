@@ -26,7 +26,7 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 
-import yaml
+import yaml  # type: ignore
 from aiohttp import (  # type: ignore
     ClientError,
     ClientSession,
