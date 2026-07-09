@@ -4,7 +4,6 @@
 /_files
 /.VSCodeCounter
 /zips
+get_download_count.sh
 
 __pycache__
-.pre-commit-config.yaml
-
