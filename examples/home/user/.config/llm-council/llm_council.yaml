@@ -1,0 +1,96 @@
+council:
+  tiers:
+    default: high
+    pools:
+      high:
+        models: &high_pool_models
+          - z-ai/glm-5.2:floor
+
+          # # Coding Index: 49.3 / free / 1M context / 11 tok/s
+          # - nvidia/nemotron-3-ultra-550b-a55b:free
+
+          # # Coding Index: 43.4 / free / 256K context / 37 tok/s
+          # - google/gemma-4-31b-it:free
+
+          # # Coding Index: 39.3 / free / 256M context / 22 tok/s
+          # - google/gemma-4-26b-a4b-it:free
+
+          # # Coding Index: 37.7 / free / 1M context / 45 tok/s
+          # - nvidia/nemotron-3-super-120b-a12b:free
+
+          # # disabled: max model_reasoning_effort = "high" (we have xhigh set)
+          # # # Coding Index: 30.4 / free / 131K context / 21 tok/s
+          # # - openai/gpt-oss-120b:free
+        timeout_seconds: 600
+        per_model_timeout_seconds: 300
+        peer_review: standard
+
+  council:
+    chairman_disabled: true
+
+    #chairman: nvidia/nemotron-3-ultra-550b-a55b:free
+    chairman: z-ai/glm-5.2:floor
+
+    models: *high_pool_models
+    synthesis_mode: consensus
+    exclude_self_votes: true
+
+  gateways:
+    default: openrouter
+    # default: requesty
+    providers:
+      openrouter:
+        enabled: true
+
+      requesty:
+        enabled: true
+
+      direct:
+        enabled: false
+
+    # model_routing:
+    #   # "anthropic/*": openrouter
+    #   "anthropic/*": requesty
+
+    #   # "openai/*": openrouter
+    #   "openai/*": requesty
+
+    #   # "google/*": openrouter
+    #   "google/*": requesty
+
+    model_name_map:
+      requesty:
+        z-ai/glm-5.2:floor: zai/glm-5.2
+        nvidia/nemotron-3-ultra-550b-a55b:free: nvidia/nemotron-3-ultra-550b-a55b
+        google/gemma-4-31b-it:free: google/gemma-4-31b-it
+        google/gemma-4-26b-a4b-it:free: novita/google/gemma-4-26b-a4b-it
+        nvidia/nemotron-3-super-120b-a12b:free: nvidia/nemotron-3-super-120b-a12b
+        openai/gpt-oss-120b:free: nebius/openai/gpt-oss-120b
+
+    fallback:
+      enabled: true
+      chain:
+        - openrouter
+        - requesty
+        # - direct
+      retry_on:
+        - timeout
+        - rate_limit
+        - server_error
+      do_not_retry_on:
+        - auth_error
+        - invalid_request
+        - content_filter
+
+  credentials:
+    # not_diamond: "${NOT_DIAMOND_API_KEY}"
+
+    # openrouter: "${OPENROUTER_API_KEY}"
+    openrouter: "${LLM_COUNCIL_OPENROUTER_API_KEY}"
+
+    # requesty: "${REQUESTY_API_KEY}"
+    requesty: "${LLM_COUNCIL_REQUESTY_API_KEY}"
+
+    # anthropic: "${ANTHROPIC_API_KEY}"
+    # openai: "${OPENAI_API_KEY}"
+    # google: "${GOOGLE_API_KEY}"
