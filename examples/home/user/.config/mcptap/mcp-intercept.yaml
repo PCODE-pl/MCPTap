@@ -10,10 +10,10 @@ mappings:
         # Strong Expert
         Asks the strong expert LLM a question and returns response.
 
-        1. Use this tool when you are planning - ALWAYS reconcile your plans
+        1. Use `strong_expert` tool when you are planning - ALWAYS reconcile your plans
         with the `strong_expert` tool.
 
-        2. Also Use this tool when you are unsure, need a second opinion, review,
+        2. Also use `strong_expert` tool when you are unsure, need a second opinion, review,
         decision support, ranking, or deeper reasoning.
 
         3. Also as much as possible call `get_goal` tool and check if you spent
@@ -21,11 +21,11 @@ mappings:
         and (if you did spend more) use `strong_expert` tool - because you are
         doing poor work.
 
-        4. Also use this tool when (for example) the tests are failing second time,
+        4. Also use `strong_expert` tool when (for example) the tests are failing second time,
         after your correction, or you don't know what file to edit,
         or you are doing large refactor.
 
-        5. Also use this tool when you finished your work and provide to the
+        5. Also use `strong_expert` tool when you finished your work and provide to the
         `strong_expert` tool a summary of your work along with the question
         "Investigate whether this is done correctly".
 
