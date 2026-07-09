@@ -148,9 +148,6 @@ DEBUG_PAYLOAD_KEYS = [
     "tools",
 ]
 
-# Per-model configuration for instructions injection
-PER_MODEL_CONFIG: Dict[str, Dict[str, Any]] = {}
-
 
 def _load_per_model_config() -> Dict[str, Dict[str, Any]]:
     """Load per-model configuration from MCP_TAP_PER_MODEL_YAML.
@@ -190,6 +187,7 @@ def rewrite_json_payload(
     request: web.Request,
     payload: Dict[str, Any],
     intercept: "MCPInterceptor",
+    per_model_config: Dict[str, Dict[str, Any]],
 ) -> Tuple[Optional[str], str, Optional[str]]:
     """In-place rewrite. Returns (original_model, forced_model, reasoning_effort)."""
     if LOGGER.isEnabledFor(logging.DEBUG):
@@ -202,11 +200,8 @@ def rewrite_json_payload(
 
     original_model, forced_model, reasoning_effort = _apply_model_and_provider(payload)
     _inject_tools(payload, intercept)
-    # Use original_model for per-model matching (may have suffix like :floor)
-    # Fall back to forced_model if original_model is None
-    model_for_instructions = original_model or forced_model
-    if model_for_instructions:
-        _inject_per_model_instructions(payload, model_for_instructions)
+    if forced_model:
+        _inject_per_model_instructions(payload, forced_model, per_model_config)
 
     candidate_force_model = MCP_TAP_MODEL
     reasoning = payload.get("reasoning", {})
@@ -622,26 +617,29 @@ def _inject_tools(payload: Dict[str, Any], intercept: MCPInterceptor) -> None:
     payload["tools"] = tools
 
 
-def _inject_per_model_instructions(payload: Dict[str, Any], model: str) -> None:
+def _inject_per_model_instructions(
+    payload: Dict[str, Any],
+    model: str,
+    per_model_config: Dict[str, Dict[str, Any]],
+) -> None:
     """Inject instructions from per-model config into the payload.
 
     Only injects on first request (no previous_response_id).
-    Instructions are taken from PER_MODEL_CONFIG matching the model.
     Supports model names with suffixes (e.g., ':floor') - strips suffix for fallback match.
     """
     if payload.get("previous_response_id") is not None:
         return
 
-    config = PER_MODEL_CONFIG.get(model)
+    config = per_model_config.get(model)
     if config is None:
         if model:
             base = model.split(":")[0]
-            config = PER_MODEL_CONFIG.get(base)
+            config = per_model_config.get(base)
         else:
             return
 
     if config and "instructions" in config:
-        payload["instructions"] = config["instructions"]
+        payload["instructions"] = payload.get("instructions", "") + "\n\n" + config["instructions"]
         LOGGER.debug("Injected per-model instructions for model=%s", model)
 
 
@@ -843,6 +841,9 @@ async def health(_request: web.Request) -> web.Response:
         }
     else:
         intercept_info = None
+
+    per_model_config: Dict[str, Dict[str, Any]] = _request.app["per_model_config"]
+
     return web.json_response(
         {
             "status": "ok",
@@ -851,6 +852,7 @@ async def health(_request: web.Request) -> web.Response:
             "forced_provider": MCP_TAP_OPENROUTER_PROVIDER or None,
             "provider_fallbacks_disabled": MCP_TAP_OPENROUTER_DISABLE_PROVIDER_FALLBACKS,
             "mcp_intercept": intercept_info,
+            "per_model_config": per_model_config,
         }
     )
 
@@ -858,6 +860,7 @@ async def health(_request: web.Request) -> web.Response:
 async def proxy(request: web.Request) -> web.StreamResponse:
     session: ClientSession = request.app["client_session"]
     intercept: MCPInterceptor = request.app["mcp_intercept"]
+    per_model_config: Dict[str, Dict[str, Any]] = request.app["per_model_config"]
     path = upstream_path(request.path)
     target_url = UPSTREAM_BASE_URL + path
     if request.query_string:
@@ -882,7 +885,12 @@ async def proxy(request: web.Request) -> web.StreamResponse:
         return await _passthrough(request, session, target_url, request_headers, raw_body)
 
     try:
-        original_model, forced_model, reasoning_effort = rewrite_json_payload(request, payload, intercept)
+        original_model, forced_model, reasoning_effort = rewrite_json_payload(
+            request,
+            payload,
+            intercept,
+            per_model_config,
+        )
     except Exception as exc:
         LOGGER.exception(exc)
         return web.json_response(
@@ -1211,8 +1219,8 @@ async def start_mcp_intercept(app: web.Application) -> None:
         return
     try:
         await intercept.start()
-    except Exception:
-        LOGGER.exception("Failed to start MCP intercept; continuing without interception")
+    except Exception as exc:
+        LOGGER.exception("Failed to start MCP intercept; continuing without interception: %s", exc)
 
 
 async def stop_mcp_intercept(app: web.Application) -> None:
@@ -1225,10 +1233,18 @@ def build_app() -> web.Application:
     app = web.Application(client_max_size=100 * 1024 * 1024)
     try:
         intercept_config = _load_intercept_config()
-    except Exception:
-        LOGGER.exception("Invalid MCP_TAP_INTERCEPT_YAML; disabling intercept")
+    except Exception as exc:
+        LOGGER.exception("Invalid MCP_TAP_INTERCEPT_YAML; disabling intercept (%s)", exc)
         intercept_config = None
+
+    try:
+        per_model_config = _load_per_model_config()
+    except Exception as exc:
+        LOGGER.exception("Invalid MCP_TAP_INTERCEPT_YAML; disabling intercept (%s)", exc)
+        per_model_config = None
+
     app["mcp_intercept"] = MCPInterceptor(intercept_config)
+    app["per_model_config"] = per_model_config
     app.on_startup.append(create_client_session)
     app.on_startup.append(start_mcp_intercept)
     app.on_cleanup.append(stop_mcp_intercept)
@@ -1256,13 +1272,6 @@ def main() -> None:
         handle_signals=True,
     )
 
-
-# Load per-model config at module initialization time
-try:
-    PER_MODEL_CONFIG = _load_per_model_config()
-    LOGGER.info("Loaded per-model config with %d entries", len(PER_MODEL_CONFIG))
-except Exception as exc:
-    LOGGER.warning("Failed to load per-model config: %s", exc)
 
 if __name__ == "__main__":
     main()

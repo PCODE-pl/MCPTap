@@ -9,6 +9,12 @@
       "command": "systemctl --user restart mcptap.service",
       "problemMatcher": []
     },
+    {
+      "label": "MCPTap: stop service",
+      "type": "shell",
+      "command": "systemctl --user stop mcptap.service",
+      "problemMatcher": []
+    },
   ],
   "inputs": [
   ]
