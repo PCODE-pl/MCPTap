@@ -423,8 +423,8 @@ mcp_env:
   LLM_COUNCIL_CONFIG: /home/user/.config/llm-council/llm_council.yaml
 
 mappings:
-  - expose_as: strong_expert
-    mcp_tool: ask_expert
+  - expose_as: consult_council
+    mcp_tool: consult_council
     override:
       description: |
         Ask a stronger expert model for help when the current task is complex,
