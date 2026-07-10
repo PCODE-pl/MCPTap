@@ -848,7 +848,7 @@ ignored rules: E203, E501
 | `MCP_TAP_OPENROUTER_PROVIDER`                   |       empty | Optional OpenRouter provider slug.                        |
 | `MCP_TAP_OPENROUTER_DISABLE_PROVIDER_FALLBACKS` |         `1` | Disable OpenRouter provider fallback when true.           |
 | `MCP_TAP_PLAN_MODE_TRIGGER`                     |       `max` | Reasoning effort value that activates plan mode model.    |
-| `MCP_TAP_PLAN_MODE_MAX_INPUT_SIZE`              |    `100000` | Maximum accepted input size for plan mode.                |
+| `MCP_TAP_PLAN_MODE_MAX_INPUT_SIZE`              |    `300000` | Maximum accepted input size for plan mode.                |
 | `MCP_TAP_INTERCEPT_YAML`                        |       empty | MCP interception YAML or `@/path/to/file.yaml`.           |
 | `MCP_TAP_INTERCEPT_MAX_ITERATIONS`              |         `8` | Maximum hidden tool-call loop iterations.                 |
 | `MCP_TAP_INTERCEPT_TOOL_TIMEOUT`                |       `120` | Timeout for one MCP tool call, in seconds.                |
