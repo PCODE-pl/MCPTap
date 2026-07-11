@@ -4,6 +4,8 @@ MCPTap is a local LLM proxy for OpenAI-compatible clients using the Responses AP
 
 It sits between an AI client, such as Codex CLI, and an upstream LLM gateway, such as OpenRouter or Requesty. It can force selected models, route requests through a chosen provider, log traffic for debugging, and expose selected MCP tools (with name aliasing) to the model while keeping intercepted MCP tool calls hidden from the client.
 
+Works around issues that are, hopefully, temporary: in some configurations, the current version of Codex CLI does not see tools exposed directly by MCP servers. With a proxy layer, these calls can be intercepted, logged, aliased, and controlled more easily (see examples folder).
+
 In practice, MCPTap is useful when you want more control over how an agent talks to models and tools without modifying the agent itself.
 
 ## What MCPTap does
