@@ -1,14 +1,34 @@
 #!/usr/bin/env python3
-"""Transparent LLM proxy that forces a model.
+"""Transparent LLM proxy for the OpenAI Responses API.
 
-Additionally supports transparent MCP tool interception: tools declared in
-MCP_TAP_INTERCEPT_YAML are exposed to the model as regular function tools, and when
-the model calls them the proxy executes the real MCP tool locally, feeds the
-result back into the conversation, and only surfaces the final assistant
-response to the client. The client never sees the intercepted tool calls.
+Forces a single model on every request, with optional plan-mode switching
+based on reasoning effort. Supports OpenRouter and Requesty as upstream
+providers, with provider pinning and fallback control.
 
-Compatible with Python 3.10+;
-It supports normal JSON responses and streaming SSE responses.
+Features
+--------
+- **Model forcing**: every request is rewritten to use MCP_TAP_MODEL (or
+  MCP_TAP_PLAN_MODE_MODEL when the reasoning effort matches
+  MCP_TAP_PLAN_MODE_TRIGGER).
+- **Provider selection**: upstream is OpenRouter or Requesty, selected via
+  MCP_TAP_UPSTREAM_PROVIDER. OpenRouter provider pinning and fallback
+  disabling are configurable.
+- **Per-model instructions**: inject additional system instructions per model
+  via MCP_TAP_PER_MODEL_YAML (inline YAML or @path to a file).
+- **MCP tool interception**: tools declared in MCP_TAP_INTERCEPT_YAML are
+  exposed to the model as regular function tools. When the model calls them,
+  the proxy executes the real MCP tool locally, feeds the result back into the
+  conversation, and only surfaces the final assistant response. The client
+  never sees the intercepted tool calls.
+- **Tool-call hook gateway**: when MCP_TAP_USE_TOOL_HOOK points to a hook
+  script, the proxy intercepts client tool calls, injects a synthetic
+  ``get_goal`` call, and runs the hook to allow or block the response.
+- **Session tracking**: UUIDv7-based session tracking with token accumulation
+  and elapsed-time measurement per conversation.
+- **File logging**: optional request/response logging to MCP_TAP_LOG_FILE.
+
+Compatible with Python 3.10+.
+Supports normal JSON responses and streaming SSE responses.
 
 to see logs:
 journalctl --user -u mcptap.service -f
