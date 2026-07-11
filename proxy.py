@@ -1870,6 +1870,11 @@ def build_app() -> web.Application:
     session_tracker = SessionTracker()
     hook_gateway = ToolHookGateway(session_tracker)
 
+    if not per_model_config:
+        LOGGER.info("Per-model config disabled (MCP_TAP_PER_MODEL_YAML is empty)")
+    if not hook_gateway.enabled:
+        LOGGER.info("Tool hook disabled (MCP_TAP_USE_TOOL_HOOK is empty)")
+
     app["mcp_intercept"] = MCPInterceptor(intercept_config)
     app["per_model_config"] = per_model_config
     app["session_tracker"] = session_tracker
