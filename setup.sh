@@ -240,7 +240,7 @@ exec "$VENV_DIR/bin/python" "$INSTALL_DIR/proxy.py" "\$@"
 EOF
     chmod 0755 "$BIN_DIR/mcptap"
 
-    for file in proxy.env openrouter.env requesty.env mcp-intercept.yaml per-model.yaml; do
+    for file in proxy.env openrouter.env requesty.env mcp-intercept.yaml per-model.yaml use_tool_hook.py; do
         src_file="$source_dir/examples/home/user/.config/mcptap/$file"
         dst_file="$CONFIG_DIR/$file"
         [ -f "$src_file" ] || continue

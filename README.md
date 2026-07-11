@@ -20,7 +20,8 @@ MCPTap can:
 * return only the final assistant response to the client,
 * log upstream requests and responses,
 * support normal JSON responses and streaming SSE responses,
-* expose a local health endpoint.
+* expose a local health endpoint,
+* run a configurable hook before client tool calls to allow or block them.
 
 ## High-level flow
 
@@ -511,6 +512,107 @@ Notes:
 * Requesty policies such as `policy/name` are supported,
 * instructions are injected only on the first request, not on follow-up requests using `previous_response_id`.
 
+## Tool-call hook
+
+MCPTap can run a configurable Python script before allowing the model's client
+tool calls to execute. This lets you enforce policies based on session token
+usage, elapsed time, or the current goal state.
+
+### How it works
+
+When the model returns client function calls (tools executed by the client, not
+intercepted MCP tools):
+
+1. MCPTap saves the model's response.
+2. MCPTap returns a synthetic ``get_goal`` function call to the client.
+3. The client executes ``get_goal`` and sends the result back.
+4. MCPTap runs the configured hook script, passing session info, the
+   ``get_goal`` result, and the pending tool calls on stdin.
+5. If the hook returns ``allow``, MCPTap returns the saved model response so
+   the client can execute the tool calls.
+6. If the hook returns ``block``, MCPTap feeds the block message back to the
+   model and passes through the model's next response once without re-running
+   the hook.
+
+Hidden MCP intercepted tool calls (such as ``consult_council``) are excluded
+from the hook. When the model returns mixed calls (intercepted and client),
+MCPTap resolves the intercepted ones first and defers client calls to the hook.
+
+### Enable the tool-call hook
+
+In ``proxy.env``:
+
+```env
+MCP_TAP_USE_TOOL_HOOK=/home/user/.config/mcptap/use_tool_hook.py
+MCP_TAP_USE_TOOL_HOOK_TIMEOUT=30
+```
+
+### Hook contract
+
+The hook script receives a JSON object on stdin:
+
+```json
+{
+  "session_id": "...",
+  "forced_model": "...",
+  "used_tokens": 12345,
+  "used_time_seconds": 130.5,
+  "get_goal_result": {},
+  "tool_calls": [
+    {"call_id": "...", "name": "...", "arguments": {}}
+  ]
+}
+```
+
+The hook must print a JSON decision on stdout:
+
+```json
+{"action": "allow"}
+```
+
+or:
+
+```json
+{"action": "block", "message": "Instruction for the model"}
+```
+
+If the hook times out, exits with a non-zero code, or returns invalid JSON,
+MCPTap stops the turn with a ``use_tool_hook_error`` and the tool calls are
+not executed.
+
+### Example ``use_tool_hook.py``
+
+```python
+import json
+import sys
+
+data = json.load(sys.stdin)
+used_tokens = data.get("used_tokens", 0)
+used_time = data.get("used_time_seconds", 0.0)
+
+if used_tokens > 10000 or used_time > 120:
+    print(json.dumps({
+        "action": "block",
+        "message": "Use consult_council to review your approach.",
+    }))
+else:
+    print(json.dumps({"action": "allow"}))
+```
+
+This example blocks tool calls when the session exceeds 10000 tokens or 120
+seconds, instructing the model to use ``consult_council`` first.
+
+### Session tracking
+
+MCPTap tracks session token usage and elapsed time per session. The session ID
+is extracted from the ``session-id`` request header. If the ID is a UUIDv7,
+the embedded timestamp is used as the session start time; otherwise the first
+request time is used.
+
+Token usage is accumulated from ``usage.total_tokens`` in upstream responses.
+The counter resets when MCPTap restarts.
+
+
 ## Logging
 
 Runtime logs on Linux:
@@ -853,6 +955,8 @@ ignored rules: E203, E501
 | `MCP_TAP_INTERCEPT_MAX_ITERATIONS`              |         `8` | Maximum hidden tool-call loop iterations.                 |
 | `MCP_TAP_INTERCEPT_TOOL_TIMEOUT`                |       `120` | Timeout for one MCP tool call, in seconds.                |
 | `MCP_TAP_PER_MODEL_YAML`                        |       empty | Per-model instruction YAML or `@/path/to/file.yaml`.      |
+| `MCP_TAP_USE_TOOL_HOOK`                         |       empty | Path to a Python hook script run before client tool calls.|
+| `MCP_TAP_USE_TOOL_HOOK_TIMEOUT`                 |         `30` | Timeout for the hook script, in seconds.                  |
 | `MCP_TAP_LOG_LEVEL`                             |      `INFO` | Python logging level.                                     |
 | `MCP_TAP_LOG_FILE`                              |       empty | Optional communication log file path.                     |
 | `LOG_FILE_REDACT_HEADERS`                       |         `0` | Redact sensitive headers in communication logs when true. |

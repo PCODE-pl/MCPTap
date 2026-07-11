@@ -23,6 +23,8 @@ import json
 import logging
 import os
 import sys
+import time
+import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 
@@ -72,6 +74,15 @@ LOG_FILE_REDACT_HEADERS = os.environ.get("LOG_FILE_REDACT_HEADERS", "0").lower()
 LOG_PAYLOAD_KEYS = [
     "tools",
 ]
+
+MCP_TAP_USE_TOOL_HOOK = os.environ.get("MCP_TAP_USE_TOOL_HOOK", "").strip()
+MCP_TAP_USE_TOOL_HOOK_TIMEOUT = float(os.environ.get("MCP_TAP_USE_TOOL_HOOK_TIMEOUT", "30"))
+
+# Maximum age (seconds) for a pending state before it is cleaned up.
+MCP_TAP_USE_TOOL_HOOK_PENDING_TTL = 600.0
+
+SYNTHETIC_GET_GOAL_CALL_ID = "synthetic_get_goal"
+SYNTHETIC_GET_GOAL_TOOL_NAME = "get_goal"
 
 PROVIDER_OPENROUTER = "openrouter"
 PROVIDER_REQUESTY = "requesty"
@@ -485,6 +496,397 @@ def _load_intercept_config() -> Optional[Dict[str, Any]]:
 
 
 # ---------------------------------------------------------------------------
+# Session tracking and tool-call hook gateway
+# ---------------------------------------------------------------------------
+
+
+def _uuid_v7_timestamp(uuid_str: str) -> Optional[float]:
+    """Extract a Unix timestamp (seconds) from a UUIDv7 string.
+
+    UUIDv7 embeds a 48-bit Unix timestamp in milliseconds in the first 48 bits.
+    Returns None if the string is not a valid UUIDv7.
+    """
+    try:
+        u = uuid.UUID(uuid_str)
+    except (ValueError, AttributeError):
+        return None
+    if u.version != 7:
+        return None
+    bits = u.int
+    timestamp_ms = bits >> 80
+    return timestamp_ms / 1000.0
+
+
+class SessionTracker:
+    """Tracks per-session token usage and session start time.
+
+    Session ID is extracted from the ``session-id`` header.
+    If the UUID is v7, the embedded timestamp is used as session start;
+    otherwise the time of the first request is used.
+    """
+
+    def __init__(self) -> None:
+        self._sessions: Dict[str, Dict[str, Any]] = {}
+        self._lock = asyncio.Lock()
+
+    async def track_request(self, request: web.Request, forced_model: str) -> Dict[str, Any]:
+        """Return (or create) the session info dict for this request."""
+        session_id = request.headers.get("session-id", "").strip()
+        if not session_id:
+            session_id = "default"
+
+        async with self._lock:
+            info = self._sessions.get(session_id)
+            if info is None:
+                ts = _uuid_v7_timestamp(session_id)
+                start_time = ts if ts is not None else time.time()
+                info = {
+                    "session_id": session_id,
+                    "start_time": start_time,
+                    "total_tokens": 0,
+                    "forced_model": forced_model,
+                }
+                self._sessions[session_id] = info
+            else:
+                info["forced_model"] = forced_model
+            return dict(info)
+
+    async def add_usage(self, session_id: str, total_tokens: int) -> None:
+        if not session_id or total_tokens <= 0:
+            return
+        async with self._lock:
+            info = self._sessions.get(session_id)
+            if info is None:
+                ts = _uuid_v7_timestamp(session_id)
+                start_time = ts if ts is not None else time.time()
+                info = {
+                    "session_id": session_id,
+                    "start_time": start_time,
+                    "total_tokens": 0,
+                    "forced_model": MCP_TAP_MODEL,
+                }
+                self._sessions[session_id] = info
+            info["total_tokens"] += total_tokens
+
+    async def get_usage(self, session_id: str) -> int:
+        async with self._lock:
+            info = self._sessions.get(session_id)
+            return info["total_tokens"] if info else 0
+
+    async def get_session_info(self, session_id: str) -> Optional[Dict[str, Any]]:
+        async with self._lock:
+            info = self._sessions.get(session_id)
+            return dict(info) if info else None
+
+    async def get_elapsed_seconds(self, session_id: str) -> float:
+        async with self._lock:
+            info = self._sessions.get(session_id)
+            if info is None:
+                return 0.0
+            return time.time() - info["start_time"]
+
+    async def cleanup_expired(self) -> None:
+        now = time.time()
+        async with self._lock:
+            expired = [sid for sid, info in self._sessions.items() if now - info["start_time"] > 3600]
+            for sid in expired:
+                del self._sessions[sid]
+
+
+class PendingState:
+    """Stores a saved upstream response with client function calls awaiting hook decision."""
+
+    def __init__(
+        self,
+        session_id: str,
+        saved_status: int,
+        saved_headers: Dict[str, str],
+        saved_raw: bytes,
+        saved_body_json: Dict[str, Any],
+        client_tool_calls: List[Dict[str, Any]],
+        get_goal_result: Dict[str, Any],
+        forced_model: str,
+        used_tokens: int,
+        used_time_seconds: float,
+    ) -> None:
+        self.session_id = session_id
+        self.saved_status = saved_status
+        self.saved_headers = saved_headers
+        self.saved_raw = saved_raw
+        self.saved_body_json = saved_body_json
+        self.client_tool_calls = client_tool_calls
+        self.get_goal_result = get_goal_result
+        self.forced_model = forced_model
+        self.used_tokens = used_tokens
+        self.used_time_seconds = used_time_seconds
+        self.created_at = time.time()
+
+    def is_expired(self, ttl: float = MCP_TAP_USE_TOOL_HOOK_PENDING_TTL) -> bool:
+        return time.time() - self.created_at > ttl
+
+
+class ToolHookGateway:
+    """Manages pending tool-call batches and runs the hook script.
+
+    When the model returns client function calls (non-intercepted), the gateway:
+    1. Saves the upstream response.
+    2. Returns a synthetic ``get_goal`` call to the client.
+    3. On the next request (which contains the get_goal result), runs the hook.
+    4. Returns the saved response if allowed, or feeds the block message to the model.
+    """
+
+    def __init__(self, session_tracker: SessionTracker) -> None:
+        self.enabled = bool(MCP_TAP_USE_TOOL_HOOK)
+        self.session_tracker = session_tracker
+        self._pending: Dict[str, PendingState] = {}
+        self._lock = asyncio.Lock()
+
+    async def get_pending(self, session_id: str) -> Optional[PendingState]:
+        async with self._lock:
+            state = self._pending.get(session_id)
+            if state is None:
+                return None
+            if state.is_expired():
+                del self._pending[session_id]
+                return None
+            return state
+
+    async def set_pending(self, session_id: str, state: PendingState) -> None:
+        async with self._lock:
+            now = time.time()
+            expired = [
+                sid for sid, s in self._pending.items() if now - s.created_at > MCP_TAP_USE_TOOL_HOOK_PENDING_TTL
+            ]
+            for sid in expired:
+                del self._pending[sid]
+            self._pending[session_id] = state
+
+    async def clear_pending(self, session_id: str) -> None:
+        async with self._lock:
+            self._pending.pop(session_id, None)
+
+    async def run_hook(self, state: PendingState) -> Dict[str, Any]:
+        """Run the hook script and return its decision.
+
+        Returns {"action": "allow"} or {"action": "block", "message": "..."}.
+        On timeout, non-zero exit, or invalid JSON, raises RuntimeError.
+        """
+        hook_input = {
+            "session_id": state.session_id,
+            "forced_model": state.forced_model,
+            "used_tokens": state.used_tokens,
+            "used_time_seconds": state.used_time_seconds,
+            "get_goal_result": state.get_goal_result,
+            "tool_calls": state.client_tool_calls,
+        }
+        stdin_data = json.dumps(hook_input, ensure_ascii=False)
+
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                sys.executable,
+                MCP_TAP_USE_TOOL_HOOK,
+                stdin=asyncio.subprocess.PIPE,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+        except OSError as exc:
+            raise RuntimeError(f"Failed to start hook script: {exc}") from exc
+
+        try:
+            stdout_bytes, stderr_bytes = await asyncio.wait_for(
+                proc.communicate(stdin_data.encode("utf-8")),
+                timeout=MCP_TAP_USE_TOOL_HOOK_TIMEOUT,
+            )
+        except asyncio.TimeoutError:
+            proc.kill()
+            await proc.wait()
+            raise RuntimeError(f"Hook script timed out after {MCP_TAP_USE_TOOL_HOOK_TIMEOUT}s")
+
+        if proc.returncode != 0:
+            stderr_text = stderr_bytes.decode("utf-8", errors="replace")[:2000]
+            raise RuntimeError(f"Hook script exited with code {proc.returncode}: {stderr_text}")
+
+        stdout_text = stdout_bytes.decode("utf-8", errors="replace").strip()
+        try:
+            result = json.loads(stdout_text)
+        except json.JSONDecodeError as exc:
+            raise RuntimeError(f"Hook script returned invalid JSON: {stdout_text[:500]}") from exc
+
+        if not isinstance(result, dict) or result.get("action") not in ("allow", "block"):
+            raise RuntimeError(
+                f'Hook script must return {{"action": "allow"}} or '
+                f'{{"action": "block", "message": "..."}}, got: {stdout_text[:500]}'
+            )
+
+        return result
+
+
+def _extract_usage_total_tokens(body_json: Optional[Dict[str, Any]]) -> int:
+    """Extract usage.total_tokens from a Responses API response body."""
+    if not body_json:
+        return 0
+    usage = body_json.get("usage")
+    if not isinstance(usage, dict):
+        return 0
+    total = usage.get("total_tokens")
+    if isinstance(total, (int, float)):
+        return int(total)
+    return 0
+
+
+def _extract_client_tool_calls(
+    body_json: Dict[str, Any],
+    intercept_names: Set[str],
+) -> List[Dict[str, Any]]:
+    """Extract function_call items that are NOT intercepted MCP tools.
+
+    Returns a list of dicts with keys: call_id, name, arguments.
+    """
+    result = []
+    for item, call_id, name, arguments in _iter_function_calls(body_json):
+        if name in intercept_names:
+            continue
+        if not call_id:
+            continue
+        try:
+            parsed_args = json.loads(arguments) if isinstance(arguments, str) else (arguments or {})
+            if not isinstance(parsed_args, dict):
+                parsed_args = {}
+        except json.JSONDecodeError:
+            parsed_args = {}
+        result.append(
+            {
+                "call_id": call_id,
+                "name": name,
+                "arguments": parsed_args,
+            }
+        )
+    return result
+
+
+def _has_intercepted_calls(body_json: Dict[str, Any], intercept_names: Set[str]) -> bool:
+    """Check if the response contains any intercepted MCP tool calls."""
+    for _, call_id, name, _ in _iter_function_calls(body_json):
+        if name in intercept_names and call_id:
+            return True
+    return False
+
+
+def _has_client_tool_calls(body_json: Dict[str, Any], intercept_names: Set[str]) -> bool:
+    """Check if the response contains any client (non-intercepted) function calls."""
+    for _, call_id, name, _ in _iter_function_calls(body_json):
+        if name not in intercept_names and call_id:
+            return True
+    return False
+
+
+def _extract_get_goal_result(working_payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Extract the get_goal result from the input items sent back by the client.
+
+    The client executes the synthetic get_goal call and returns a
+    function_call_output item with call_id == SYNTHETIC_GET_GOAL_CALL_ID.
+    """
+    input_items = working_payload.get("input") or []
+    if not isinstance(input_items, list):
+        return {}
+    for item in input_items:
+        if not isinstance(item, dict):
+            continue
+        if item.get("type") == "function_call_output" and item.get("call_id") == SYNTHETIC_GET_GOAL_CALL_ID:
+            output = item.get("output")
+            if isinstance(output, dict):
+                return output
+            if isinstance(output, str):
+                try:
+                    parsed = json.loads(output)
+                    if isinstance(parsed, dict):
+                        return parsed
+                except json.JSONDecodeError:
+                    pass
+            return {"output": output}
+    return {}
+
+
+def _strip_synthetic_get_goal(input_items: List[Any]) -> List[Any]:
+    """Remove synthetic get_goal function_call and its function_call_output from input items."""
+    result = []
+    synthetic_call_ids = {SYNTHETIC_GET_GOAL_CALL_ID}
+    for item in input_items:
+        if not isinstance(item, dict):
+            result.append(item)
+            continue
+        call_id = item.get("call_id")
+        if call_id in synthetic_call_ids:
+            continue
+        result.append(item)
+    return result
+
+
+def _build_synthetic_get_goal_response(
+    forced_model: str,
+) -> Dict[str, Any]:
+    """Build a synthetic response containing a single get_goal function_call.
+
+    The client (Codex CLI) will execute get_goal and send the result back,
+    which MCPTap intercepts to run the hook.
+    """
+    return {
+        "id": f"resp_{uuid.uuid4().hex[:24]}",
+        "object": "response",
+        "created_at": int(time.time()),
+        "model": forced_model,
+        "status": "incompleted",
+        "output": [
+            {
+                "type": "function_call",
+                "id": f"fc_{uuid.uuid4().hex[:24]}",
+                "call_id": SYNTHETIC_GET_GOAL_CALL_ID,
+                "name": SYNTHETIC_GET_GOAL_TOOL_NAME,
+                "arguments": "{}",
+            }
+        ],
+        "usage": None,
+    }
+
+
+def _build_hook_error_response(error_message: str, forced_model: str) -> Dict[str, Any]:
+    """Build an error response for use_tool_hook_error."""
+    return {
+        "id": f"resp_{uuid.uuid4().hex[:24]}",
+        "object": "response",
+        "created_at": int(time.time()),
+        "model": forced_model,
+        "status": "failed",
+        "error": {
+            "message": error_message,
+            "type": "use_tool_hook_error",
+        },
+        "output": [],
+        "usage": None,
+    }
+
+
+def _build_sse_from_response(response: Dict[str, Any]) -> bytes:
+    """Build a minimal SSE byte stream from a response dict.
+
+    Emits response.created, response.output_item.added, response.completed events
+    so the client can parse the response.
+    """
+    lines = []
+    created_payload = {"type": "response.created", "response": response}
+    lines.append("event: response.created")
+    lines.append(f"data: {json.dumps(created_payload, ensure_ascii=False)}")
+    lines.append("")
+    completed_payload = {"type": "response.completed", "response": response}
+    lines.append("event: response.completed")
+    lines.append(f"data: {json.dumps(completed_payload, ensure_ascii=False)}")
+    lines.append("")
+    lines.append("data: [DONE]")
+    lines.append("")
+    return "\n".join(lines).encode("utf-8")
+
+
+# ---------------------------------------------------------------------------
 # Request / response rewriting
 # ---------------------------------------------------------------------------
 
@@ -853,6 +1255,11 @@ async def health(_request: web.Request) -> web.Response:
             "provider_fallbacks_disabled": MCP_TAP_OPENROUTER_DISABLE_PROVIDER_FALLBACKS,
             "mcp_intercept": intercept_info,
             "per_model_config": per_model_config,
+            "use_tool_hook": {
+                "enabled": bool(MCP_TAP_USE_TOOL_HOOK),
+                "hook_script": MCP_TAP_USE_TOOL_HOOK or None,
+                "timeout": MCP_TAP_USE_TOOL_HOOK_TIMEOUT,
+            },
         }
     )
 
@@ -861,6 +1268,8 @@ async def proxy(request: web.Request) -> web.StreamResponse:
     session: ClientSession = request.app["client_session"]
     intercept: MCPInterceptor = request.app["mcp_intercept"]
     per_model_config: Dict[str, Dict[str, Any]] = request.app["per_model_config"]
+    hook_gateway: ToolHookGateway = request.app["hook_gateway"]
+    session_tracker: SessionTracker = request.app["session_tracker"]
     path = upstream_path(request.path)
     target_url = UPSTREAM_BASE_URL + path
     if request.query_string:
@@ -932,6 +1341,8 @@ async def proxy(request: web.Request) -> web.StreamResponse:
         payload,
         intercept,
         client_wanted_stream,
+        hook_gateway,
+        session_tracker,
     )
 
 
@@ -1060,9 +1471,26 @@ async def _handle_responses_with_intercept(
     payload: Dict[str, Any],
     intercept: MCPInterceptor,
     client_wanted_stream: bool,
+    hook_gateway: ToolHookGateway,
+    session_tracker: SessionTracker,
 ) -> web.StreamResponse:
     """Talk to upstream in a loop, resolving intercepted tool calls locally
-    until the model returns a final response with no intercepted calls."""
+    until the model returns a final response with no intercepted calls.
+
+    When MCP_TAP_USE_TOOL_HOOK is configured, batches of client function calls
+    are intercepted: a synthetic get_goal call is returned to the client, and
+    on the next request the hook script decides whether to allow or block.
+    """
+
+    session_id = request.headers.get("session-id", "").strip() or "default"
+    forced_model = payload.get("model", MCP_TAP_MODEL)
+
+    # Track session
+    session_info = await session_tracker.track_request(request, forced_model)
+    session_id = session_info["session_id"]
+
+    # Check for a pending hook state from a previous synthetic get_goal
+    pending_state = await hook_gateway.get_pending(session_id) if hook_gateway.enabled else None
 
     working_payload = copy.deepcopy(payload)
     working_payload.pop("stream", None)
@@ -1070,19 +1498,39 @@ async def _handle_responses_with_intercept(
     # `input` in Responses API is either a string or a list of items. We must
     # append function_call + function_call_output turns as items, so promote a
     # string input to a list first.
-    def _ensure_input_list() -> List[Any]:
-        raw_input = working_payload.get("input")
+    def _ensure_input_list(pl: Optional[Dict[str, Any]] = None) -> List[Any]:
+        target = pl if pl is not None else working_payload
+        raw_input = target.get("input")
         if raw_input is None:
-            working_payload["input"] = []
+            target["input"] = []
         elif isinstance(raw_input, str):
-            working_payload["input"] = [{"role": "user", "content": [{"type": "input_text", "text": raw_input}]}]
+            target["input"] = [{"role": "user", "content": [{"type": "input_text", "text": raw_input}]}]
         elif not isinstance(raw_input, list):
-            working_payload["input"] = [raw_input]
-        return working_payload["input"]
+            target["input"] = [raw_input]
+        return target["input"]
+
+    # If there is a pending hook state, the client just returned the get_goal result.
+    if pending_state is not None:
+        return await _handle_hook_decision(
+            request,
+            session,
+            path,
+            request_headers,
+            working_payload,
+            intercept,
+            client_wanted_stream,
+            hook_gateway,
+            session_tracker,
+            session_id,
+            pending_state,
+            _ensure_input_list,
+        )
 
     last_status = 200
     last_headers: Dict[str, str] = {}
     last_body_raw: bytes = b""
+
+    intercept_names = intercept.tool_names() if intercept.enabled else set()
 
     for iteration in range(MCP_TAP_INTERCEPT_MAX_ITERATIONS):
         try:
@@ -1121,40 +1569,97 @@ async def _handle_responses_with_intercept(
             LOGGER.warning("Upstream response could not be parsed during intercept loop; forwarding as-is")
             break
 
-        hits = _extract_intercepted_calls(body_json, intercept)
-        if not hits:
-            break
+        # Accumulate token usage
+        tokens = _extract_usage_total_tokens(body_json)
+        if tokens > 0:
+            await session_tracker.add_usage(session_id, tokens)
 
-        LOGGER.info(
-            "Intercept iteration=%d hits=%d names=%r",
-            iteration,
-            len(hits),
-            [name for _, _, name, _ in hits],
-        )
+        has_intercepted = _has_intercepted_calls(body_json, intercept_names)
+        has_client = _has_client_tool_calls(body_json, intercept_names)
 
-        # Continue with explicit input items. This is more reliable than
-        # previous_response_id through OpenRouter, especially when store=false.
-        _ensure_input_list()
-        working_payload.pop("previous_response_id", None)
-        for out_item in body_json.get("output") or []:
-            if isinstance(out_item, dict):
-                working_payload["input"].append(out_item)
-
-        for _, call_id, name, arguments in hits:
-            try:
-                parsed_args = json.loads(arguments) if isinstance(arguments, str) else (arguments or {})
-                if not isinstance(parsed_args, dict):
-                    parsed_args = {}
-            except json.JSONDecodeError:
-                parsed_args = {}
-            output_text = await intercept.call(name, parsed_args)
-            working_payload["input"].append(
-                {
-                    "type": "function_call_output",
-                    "call_id": call_id,
-                    "output": output_text,
-                }
+        # If there are mixed calls, resolve intercepted ones first, then defer client calls.
+        if has_intercepted:
+            hits = _extract_intercepted_calls(body_json, intercept)
+            LOGGER.info(
+                "Intercept iteration=%d hits=%d names=%r",
+                iteration,
+                len(hits),
+                [name for _, _, name, _ in hits],
             )
+
+            _ensure_input_list()
+            working_payload.pop("previous_response_id", None)
+            for out_item in body_json.get("output") or []:
+                if isinstance(out_item, dict):
+                    working_payload["input"].append(out_item)
+
+            for _, call_id, name, arguments in hits:
+                try:
+                    parsed_args = json.loads(arguments) if isinstance(arguments, str) else (arguments or {})
+                    if not isinstance(parsed_args, dict):
+                        parsed_args = {}
+                except json.JSONDecodeError:
+                    parsed_args = {}
+                output_text = await intercept.call(name, parsed_args)
+                working_payload["input"].append(
+                    {
+                        "type": "function_call_output",
+                        "call_id": call_id,
+                        "output": output_text,
+                    }
+                )
+
+            # After resolving intercepted calls, loop again to check if the
+            # model now produces client calls or more intercepted calls.
+            continue
+
+        # No intercepted calls. Check for client tool calls that need the hook.
+        if has_client and hook_gateway.enabled:
+            client_calls = _extract_client_tool_calls(body_json, intercept_names)
+            if client_calls:
+                used_tokens = await session_tracker.get_usage(session_id)
+                used_time = await session_tracker.get_elapsed_seconds(session_id)
+
+                state = PendingState(
+                    session_id=session_id,
+                    saved_status=status,
+                    saved_headers=resp_headers,
+                    saved_raw=raw,
+                    saved_body_json=body_json,
+                    client_tool_calls=client_calls,
+                    get_goal_result={},
+                    forced_model=forced_model,
+                    used_tokens=used_tokens,
+                    used_time_seconds=used_time,
+                )
+                await hook_gateway.set_pending(session_id, state)
+
+                LOGGER.info(
+                    "Tool hook: deferring %d client tool calls for session=%s; returning synthetic get_goal",
+                    len(client_calls),
+                    session_id,
+                )
+
+                # Build and return the synthetic get_goal response
+                synthetic = _build_synthetic_get_goal_response(forced_model)
+                if client_wanted_stream:
+                    sse_raw = _build_sse_from_response(synthetic)
+                    return await _emit_buffered_response(
+                        request,
+                        status=200,
+                        headers={},
+                        raw=sse_raw,
+                    )
+                else:
+                    return await _emit_buffered_response(
+                        request,
+                        status=200,
+                        headers={"Content-Type": "application/json"},
+                        raw=json.dumps(synthetic, ensure_ascii=False).encode("utf-8"),
+                    )
+
+        # No intercepted calls, no client calls needing hook, or hook disabled.
+        break
     else:
         LOGGER.warning(
             "Intercept loop reached MCP_TAP_INTERCEPT_MAX_ITERATIONS=%d without a final answer",
@@ -1168,6 +1673,125 @@ async def _handle_responses_with_intercept(
         status=last_status,
         headers=last_headers,
         raw=last_body_raw,
+    )
+
+
+async def _handle_hook_decision(
+    request: web.Request,
+    session: ClientSession,
+    path: str,
+    request_headers: Dict[str, str],
+    working_payload: Dict[str, Any],
+    intercept: MCPInterceptor,
+    client_wanted_stream: bool,
+    hook_gateway: ToolHookGateway,
+    session_tracker: SessionTracker,
+    session_id: str,
+    pending_state: PendingState,
+    ensure_input_list_fn,
+) -> web.StreamResponse:
+    """Handle the request that follows a synthetic get_goal call.
+
+    The client has executed get_goal and the result is in the input items.
+    MCPTap extracts the result, runs the hook, and either returns the saved
+    response (allow) or feeds the block message to the model (block).
+    """
+
+    # Extract get_goal result from input items
+    get_goal_result = _extract_get_goal_result(working_payload)
+
+    # Update the pending state with the actual result
+    pending_state.get_goal_result = get_goal_result
+
+    # Run the hook script
+    try:
+        decision = await hook_gateway.run_hook(pending_state)
+    except RuntimeError as exc:
+        LOGGER.error("Tool hook error for session=%s: %s", session_id, exc)
+        await hook_gateway.clear_pending(session_id)
+        error_resp = _build_hook_error_response(str(exc), pending_state.forced_model)
+        if client_wanted_stream:
+            sse_raw = _build_sse_from_response(error_resp)
+            return await _emit_buffered_response(request, status=200, headers={}, raw=sse_raw)
+        else:
+            return await _emit_buffered_response(
+                request,
+                status=200,
+                headers={"Content-Type": "application/json"},
+                raw=json.dumps(error_resp, ensure_ascii=False).encode("utf-8"),
+            )
+
+    action = decision.get("action")
+
+    if action == "allow":
+        LOGGER.info("Tool hook allowed tool calls for session=%s", session_id)
+        await hook_gateway.clear_pending(session_id)
+        # Return the saved upstream response
+        return await _emit_buffered_response(
+            request,
+            status=pending_state.saved_status,
+            headers=pending_state.saved_headers,
+            raw=pending_state.saved_raw,
+        )
+
+    # action == "block"
+    block_message = decision.get("message", "Tool calls blocked by hook")
+    LOGGER.info("Tool hook blocked tool calls for session=%s: %s", session_id, block_message)
+    await hook_gateway.clear_pending(session_id)
+
+    # Feed the block message to the model and pass through once without hook.
+    # Strip the synthetic get_goal call/result from input, add the model's
+    # original function calls back, and append the block message as instructions.
+    ensure_input_list_fn(working_payload)
+
+    # Remove synthetic get_goal items from input
+    working_payload["input"] = _strip_synthetic_get_goal(working_payload["input"])
+
+    # Add the original model output items (function calls) back
+    for out_item in pending_state.saved_body_json.get("output") or []:
+        if isinstance(out_item, dict):
+            working_payload["input"].append(out_item)
+
+    # Add the block message as a system instruction
+    existing_instructions = working_payload.get("instructions", "") or ""
+    block_instruction = f"\n\n[TOOL CALL BLOCKED] {block_message}"
+    working_payload["instructions"] = existing_instructions + block_instruction
+
+    # Make one upstream request with pass-through (no hook)
+    working_payload.pop("previous_response_id", None)
+
+    try:
+        status, resp_headers, raw, body_json = await _post_upstream_buffered(
+            session,
+            path,
+            request_headers,
+            working_payload,
+            stream=client_wanted_stream,
+        )
+    except (ClientError, OSError) as exc:
+        LOGGER.exception("Upstream request failed after block: %s", exc)
+        return web.json_response(
+            {
+                "error": {
+                    "message": "OpenRouter proxy could not reach the upstream API",
+                    "type": "proxy_upstream_error",
+                }
+            },
+            status=502,
+        )
+
+    # Accumulate tokens from the post-block response
+    if body_json:
+        tokens = _extract_usage_total_tokens(body_json)
+        if tokens > 0:
+            await session_tracker.add_usage(session_id, tokens)
+
+    # Pass through this response without running the hook again
+    return await _emit_buffered_response(
+        request,
+        status=status,
+        headers=resp_headers,
+        raw=raw,
     )
 
 
@@ -1240,11 +1864,16 @@ def build_app() -> web.Application:
     try:
         per_model_config = _load_per_model_config()
     except Exception as exc:
-        LOGGER.exception("Invalid MCP_TAP_INTERCEPT_YAML; disabling intercept (%s)", exc)
+        LOGGER.exception("Invalid MCP_TAP_PER_MODEL_YAML; disabling per-model config (%s)", exc)
         per_model_config = None
+
+    session_tracker = SessionTracker()
+    hook_gateway = ToolHookGateway(session_tracker)
 
     app["mcp_intercept"] = MCPInterceptor(intercept_config)
     app["per_model_config"] = per_model_config
+    app["session_tracker"] = session_tracker
+    app["hook_gateway"] = hook_gateway
     app.on_startup.append(create_client_session)
     app.on_startup.append(start_mcp_intercept)
     app.on_cleanup.append(stop_mcp_intercept)
