@@ -1,4 +1,6 @@
 function cx() {
+    set -x
+
     local profile=""
     local cwd=$(pwd)
 
@@ -22,4 +24,6 @@ function cx() {
     else
         codex "$@"
     fi
+
+    set +x
 }
