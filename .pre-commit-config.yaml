@@ -78,20 +78,20 @@ repos:
         types: [text]
         stages: [pre-commit]
 
-      # - id: stabilize-tests
-      #   name: Stabilize tests
-      #   description: >-
-      #     Runs the full shared test suite.
-      #   entry: ../mcp-tap-extras/hooks/wrap_hook.sh
-      #     --hook-id stabilize-tests
-      #     --stages pre-commit
-      #     --real-entry ../mcp-tap-extras/hooks/stabilize_tests.sh
-      #     --
-      #   language: system
-      #   fail_fast: true
-      #   #always_run: true
-      #   pass_filenames: false
-      #   stages: [pre-commit]
+      - id: stabilize-tests
+        name: Stabilize tests
+        description: >-
+          Runs the full shared test suite.
+        entry: ../mcp-tap-extras/hooks/wrap_hook.sh
+          --hook-id stabilize-tests
+          --stages pre-commit
+          --real-entry ../mcp-tap-extras/hooks/stabilize_tests.sh
+          --
+        language: system
+        fail_fast: true
+        #always_run: true
+        pass_filenames: false
+        stages: [pre-commit]
 
       - id: append-pre-commit-hooks-to-message
         name: Append pre-commit hook list to commit message
