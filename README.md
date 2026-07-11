@@ -612,7 +612,6 @@ request time is used.
 Token usage is accumulated from ``usage.total_tokens`` in upstream responses.
 The counter resets when MCPTap restarts.
 
-
 ## Logging
 
 Runtime logs on Linux:
@@ -956,7 +955,7 @@ ignored rules: E203, E501
 | `MCP_TAP_INTERCEPT_TOOL_TIMEOUT`                |       `120` | Timeout for one MCP tool call, in seconds.                |
 | `MCP_TAP_PER_MODEL_YAML`                        |       empty | Per-model instruction YAML or `@/path/to/file.yaml`.      |
 | `MCP_TAP_USE_TOOL_HOOK`                         |       empty | Path to a Python hook script run before client tool calls.|
-| `MCP_TAP_USE_TOOL_HOOK_TIMEOUT`                 |         `30` | Timeout for the hook script, in seconds.                  |
+| `MCP_TAP_USE_TOOL_HOOK_TIMEOUT`                 |        `30` | Timeout for the hook script, in seconds.                  |
 | `MCP_TAP_LOG_LEVEL`                             |      `INFO` | Python logging level.                                     |
 | `MCP_TAP_LOG_FILE`                              |       empty | Optional communication log file path.                     |
 | `LOG_FILE_REDACT_HEADERS`                       |         `0` | Redact sensitive headers in communication logs when true. |
