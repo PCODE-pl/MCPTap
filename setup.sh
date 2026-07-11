@@ -4,13 +4,14 @@ set -eu
 PRODUCT_NAME="MCPTap"
 SERVICE_NAME="mcptap"
 GITHUB_REPO="PCODE-pl/MCPTap"
-DEFAULT_RELEASE_URL="https://github.com/${GITHUB_REPO}/releases/latest/download/mcptap-release.tar.gz"
+GITHUB_API_BASE="https://api.github.com/repos/${GITHUB_REPO}"
+GITHUB_LATEST_API="${GITHUB_API_BASE}/releases/latest"
 
 INSTALL_DIR="${MCPTAP_INSTALL_DIR:-$HOME/.local/share/mcptap}"
 BIN_DIR="${MCPTAP_BIN_DIR:-$HOME/.local/bin}"
 CONFIG_DIR="${MCPTAP_CONFIG_DIR:-$HOME/.config/mcptap}"
 VENV_DIR="${MCPTAP_VENV_DIR:-$INSTALL_DIR/.venv}"
-RELEASE_URL="${MCPTAP_RELEASE_URL:-$DEFAULT_RELEASE_URL}"
+RELEASE_URL="${MCPTAP_RELEASE_URL:-}"
 PYTHON_BIN="${PYTHON:-}"
 TMP_DIR=""
 SOURCE_DIR=""
@@ -23,7 +24,7 @@ Usage:
   sh setup.sh [options]
 
 Options:
-  --release-url URL       Download this GitHub Release asset instead of latest.
+  --release-url URL       Download this tarball URL instead of the latest GitHub release source.
   --install-dir PATH      Install application files here. Default: $INSTALL_DIR
   --config-dir PATH       Install example configuration here. Default: $CONFIG_DIR
   --venv-dir PATH         Create Python virtualenv here. Default: $VENV_DIR
@@ -34,6 +35,9 @@ Options:
 
 Environment variables matching the options are also supported:
   MCPTAP_RELEASE_URL, MCPTAP_INSTALL_DIR, MCPTAP_CONFIG_DIR, MCPTAP_VENV_DIR, PYTHON
+
+  If --release-url / MCPTAP_RELEASE_URL is not set, the installer fetches the source
+  tarball from the latest GitHub release via the GitHub API.
 
 Notes:
   A Python virtualenv cannot be created without an existing Python interpreter.
@@ -129,6 +133,17 @@ download_file() {
     fi
 }
 
+download_to_stdout() {
+    url="$1"
+    if command_exists curl; then
+        curl -fsSL "$url"
+    elif command_exists wget; then
+        wget -q "$url" -O-
+    else
+        die "curl or wget is required to query the GitHub API"
+    fi
+}
+
 find_python() {
     if [ -n "$PYTHON_BIN" ]; then
         [ -x "$PYTHON_BIN" ] || die "Python executable not found or not executable: $PYTHON_BIN"
@@ -202,14 +217,28 @@ use_local_source_if_available() {
     return 1
 }
 
+resolve_release_url() {
+    if [ -n "$RELEASE_URL" ]; then
+        TARBALL_URL="$RELEASE_URL"
+        return
+    fi
+    log "Querying GitHub API for latest release tarball URL"
+    api_response=$(download_to_stdout "$GITHUB_LATEST_API")
+    TARBALL_URL=$(printf '%s\n' "$api_response" | grep -o '"tarball_url": *"[^"]*"' | head -n 1 | sed 's/.*"tarball_url": *"//;s/"$//')
+    if [ -z "$TARBALL_URL" ]; then
+        die "Could not determine tarball_url from GitHub API response"
+    fi
+}
+
 download_release_source() {
     TMP_DIR=$(mktemp -d "${TMPDIR:-/tmp}/mcptap.XXXXXX")
     archive="$TMP_DIR/mcptap-release.tar.gz"
     src="$TMP_DIR/src"
     mkdir -p "$src"
 
-    log "Downloading release asset: $RELEASE_URL"
-    download_file "$RELEASE_URL" "$archive"
+    resolve_release_url
+    log "Downloading source tarball: $TARBALL_URL"
+    download_file "$TARBALL_URL" "$archive"
     tar -xzf "$archive" -C "$src"
 
     if [ -f "$src/proxy.py" ] && [ -d "$src/examples" ]; then
@@ -223,7 +252,7 @@ download_release_source() {
         return
     fi
 
-    die "Release asset does not contain proxy.py and examples/"
+    die "Source tarball does not contain proxy.py and examples/"
 }
 
 install_files() {
