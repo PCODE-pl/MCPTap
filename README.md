@@ -523,7 +523,9 @@ usage, elapsed time, or the current goal state.
 ### How it works
 
 When the model returns client function calls (tools executed by the client, not
-intercepted MCP tools):
+intercepted MCP tools), MCPTap has two modes:
+
+**Synthetic tool mode** (default, ``MCP_TAP_USE_TOOL_HOOK_SYNTHETIC_TOOL=get_goal``):
 
 1. MCPTap saves the model's response.
 2. MCPTap returns a synthetic ``get_goal`` function call to the client.
@@ -535,6 +537,22 @@ intercepted MCP tools):
 6. If the hook returns ``block``, MCPTap feeds the block message back to the
    model and passes through the model's next response once without re-running
    the hook.
+
+**Direct hook mode** (``MCP_TAP_USE_TOOL_HOOK_SYNTHETIC_TOOL=`` empty):
+
+1. MCPTap saves the model's response.
+2. MCPTap runs the configured hook script immediately, passing session info
+   and the pending tool calls on stdin (no synthetic tool call injected).
+3. If the hook returns ``allow``, MCPTap returns the saved model response.
+4. If the hook returns ``block``, MCPTap feeds the block message back to the
+   model and passes through the model's next response once without re-running
+   the hook.
+
+In both modes, the hook can optionally return a ``blocked_files`` list in an
+``allow`` response. When ``MCP_TAP_FILE_BLOCK_LIB`` is configured, MCPTap writes
+the list to a control file and injects an instruction telling the model to
+prefix all shell commands with ``LD_PRELOAD=<lib> MCPTAP_BLOCKED_FILES_FILE=<path>``.
+This blocks access to the listed files at the libc level.
 
 Hidden MCP intercepted tool calls (such as ``consult_council``) are excluded
 from the hook. When the model returns mixed calls (intercepted and client),
@@ -572,6 +590,12 @@ The hook must print a JSON decision on stdout:
 {"action": "allow"}
 ```
 
+or with file access blocking:
+
+```json
+{"action": "allow", "blocked_files": ["/path/to/secret.py", "~/.git-credentials"]}
+```
+
 or:
 
 ```json
@@ -582,11 +606,21 @@ If the hook times out, exits with a non-zero code, or returns invalid JSON,
 MCPTap stops the turn with a ``use_tool_hook_error`` and the tool calls are
 not executed.
 
+When ``blocked_files`` is present in an ``allow`` response and
+``MCP_TAP_FILE_BLOCK_LIB`` points to the ``libmcptap_fileblock.so`` shared
+library, MCPTap writes the list to a per-session control file and injects an
+instruction into the response telling the model to use ``LD_PRELOAD`` for all
+shell commands. The library intercepts ``open``, ``openat``, ``fopen``,
+``access``, ``stat``, ``lstat``, ``statx``, ``readlink``, and ``realpath``
+calls, returning ``EACCES`` for blocked paths.
+
 ### Example ``use_tool_hook.py``
 
 ```python
 import json
 import sys
+
+SENSITIVE_FILES = ["~/.git-credentials", "~/.ssh/id_rsa"]
 
 data = json.load(sys.stdin)
 used_tokens = data.get("used_tokens", 0)
@@ -598,11 +632,38 @@ if used_tokens > 10000 or used_time > 120:
         "message": "Use consult_council to review your approach.",
     }))
 else:
-    print(json.dumps({"action": "allow"}))
+    print(json.dumps({
+        "action": "allow",
+        "blocked_files": SENSITIVE_FILES,
+    }))
 ```
 
 This example blocks tool calls when the session exceeds 10000 tokens or 120
-seconds, instructing the model to use ``consult_council`` first.
+seconds, instructing the model to use ``consult_council`` first. When allowed,
+it also blocks access to sensitive files via LD_PRELOAD.
+
+### File access blocking setup
+
+1. Build the LD_PRELOAD library:
+
+```shell
+cd mcp-tap-extras/file_block
+make
+make install  # installs to ~/.local/lib/libmcptap_fileblock.so
+```
+
+2. Configure MCPTap:
+
+```env
+MCP_TAP_USE_TOOL_HOOK=/home/user/.config/mcptap/use_tool_hook.py
+MCP_TAP_FILE_BLOCK_LIB=/home/user/.local/lib/libmcptap_fileblock.so
+# Optional: use direct hook mode (no synthetic get_goal call)
+MCP_TAP_USE_TOOL_HOOK_SYNTHETIC_TOOL=
+```
+
+3. In your hook script, return ``blocked_files`` in the ``allow`` response.
+   The library reads the control file (specified by
+   ``MCPTAP_BLOCKED_FILES_FILE``) and blocks access to listed paths.
 
 ### Session tracking
 
@@ -958,6 +1019,9 @@ ignored rules: E203, E501
 | `MCP_TAP_PER_MODEL_YAML`                        |       empty | Per-model instruction YAML or `@/path/to/file.yaml`.      |
 | `MCP_TAP_USE_TOOL_HOOK`                         |       empty | Path to a Python hook script run before client tool calls.|
 | `MCP_TAP_USE_TOOL_HOOK_TIMEOUT`                 |        `30` | Timeout for the hook script, in seconds.                  |
+| `MCP_TAP_USE_TOOL_HOOK_SYNTHETIC_TOOL`          |  `get_goal` | Synthetic tool name to inject before the hook. Empty = direct mode. |
+| `MCP_TAP_FILE_BLOCK_LIB`                        |       empty | Path to `libmcptap_fileblock.so` for LD_PRELOAD file blocking. |
+| `MCP_TAP_BLOCKLIST_DIR`                         |  `/tmp/mcptap_blocklists` | Directory for per-session blocklist control files. |
 | `MCP_TAP_LOG_LEVEL`                             |      `INFO` | Python logging level.                                     |
 | `MCP_TAP_LOG_FILE`                              |       empty | Optional communication log file path.                     |
 | `LOG_FILE_REDACT_HEADERS`                       |         `0` | Redact sensitive headers in communication logs when true. |

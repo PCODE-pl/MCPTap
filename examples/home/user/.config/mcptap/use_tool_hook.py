@@ -20,14 +20,29 @@ Input (stdin):
 Output (stdout):
     {"action": "allow"}
     or
+    {"action": "allow", "blocked_files": ["/path/to/secret.py", "~/.git-credentials"]}
+    or
     {"action": "block", "message": "Instruction for the model"}
 
-This example blocks tool calls when the session has used more than 10000 tokens
-or more than 120 seconds, instructing the model to use consult_council instead.
+When ``blocked_files`` is present in an ``allow`` response and
+``MCP_TAP_FILE_BLOCK_LIB`` is configured, MCPTap writes the list to a
+control file and injects an instruction telling the model to prefix all
+shell commands with ``LD_PRELOAD=<lib> MCPTAP_BLOCKED_FILES_FILE=<path>``.
+
+This example:
+- Blocks tool calls when the session exceeds 10000 tokens or 120 seconds.
+- Always blocks access to sensitive files when tool calls are allowed.
 """
 
 import json
 import sys
+
+# Files that should never be accessible by the model's tool calls.
+SENSITIVE_FILES = [
+    "~/.git-credentials",
+    "~/.ssh/id_rsa",
+    "~/.ssh/id_ed25519",
+]
 
 
 def main() -> None:
@@ -51,7 +66,14 @@ def main() -> None:
             )
         )
     else:
-        print(json.dumps({"action": "allow"}))
+        print(
+            json.dumps(
+                {
+                    "action": "allow",
+                    "blocked_files": SENSITIVE_FILES,
+                }
+            )
+        )
 
 
 if __name__ == "__main__":
