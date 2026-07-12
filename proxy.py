@@ -98,6 +98,17 @@ LOG_PAYLOAD_KEYS = [
 MCP_TAP_USE_TOOL_HOOK = os.environ.get("MCP_TAP_USE_TOOL_HOOK", "").strip()
 MCP_TAP_USE_TOOL_HOOK_TIMEOUT = float(os.environ.get("MCP_TAP_USE_TOOL_HOOK_TIMEOUT", "30"))
 
+# When set, the proxy injects a synthetic call to this tool name before
+# running the hook.  When empty, the hook runs immediately upon detecting
+# client tool calls, without injecting any synthetic tool.
+MCP_TAP_USE_TOOL_HOOK_SYNTHETIC_TOOL = os.environ.get("MCP_TAP_USE_TOOL_HOOK_SYNTHETIC_TOOL", "get_goal").strip()
+
+# Path to the LD_PRELOAD library used for file access blocking.
+MCP_TAP_FILE_BLOCK_LIB = os.environ.get("MCP_TAP_FILE_BLOCK_LIB", "").strip()
+
+# Directory for per-session blocklist control files.
+MCP_TAP_BLOCKLIST_DIR = os.environ.get("MCP_TAP_BLOCKLIST_DIR", "/tmp/mcptap_blocklists").strip()
+
 # Maximum age (seconds) for a pending state before it is cleaned up.
 MCP_TAP_USE_TOOL_HOOK_PENDING_TTL = 600.0
 
@@ -842,12 +853,12 @@ def _strip_synthetic_get_goal(input_items: List[Any]) -> List[Any]:
     return result
 
 
-def _build_synthetic_get_goal_response(
+def _build_synthetic_tool_response(
     forced_model: str,
+    tool_name: str,
 ) -> Dict[str, Any]:
-    """Build a synthetic response containing a single get_goal function_call.
-
-    The client (Codex CLI) will execute get_goal and send the result back,
+    """Build a synthetic response containing a single function_call to the
+    given tool name.  The client executes the tool and sends the result back,
     which MCPTap intercepts to run the hook.
     """
     return {
@@ -861,12 +872,19 @@ def _build_synthetic_get_goal_response(
                 "type": "function_call",
                 "id": f"fc_{uuid.uuid4().hex[:24]}",
                 "call_id": SYNTHETIC_GET_GOAL_CALL_ID,
-                "name": SYNTHETIC_GET_GOAL_TOOL_NAME,
+                "name": tool_name,
                 "arguments": "{}",
             }
         ],
         "usage": None,
     }
+
+
+def _build_synthetic_get_goal_response(
+    forced_model: str,
+) -> Dict[str, Any]:
+    """Build a synthetic response containing a single get_goal function_call."""
+    return _build_synthetic_tool_response(forced_model, SYNTHETIC_GET_GOAL_TOOL_NAME)
 
 
 def _build_hook_error_response(error_message: str, forced_model: str) -> Dict[str, Any]:
@@ -904,6 +922,89 @@ def _build_sse_from_response(response: Dict[str, Any]) -> bytes:
     lines.append("data: [DONE]")
     lines.append("")
     return "\n".join(lines).encode("utf-8")
+
+
+# ---------------------------------------------------------------------------
+# File access blocking (LD_PRELOAD integration)
+# ---------------------------------------------------------------------------
+
+
+def _blocklist_file_path(session_id: str) -> str:
+    """Return the path to the per-session blocklist control file."""
+    import hashlib
+
+    safe_id = hashlib.sha256(session_id.encode("utf-8")).hexdigest()[:16]
+    os.makedirs(MCP_TAP_BLOCKLIST_DIR, exist_ok=True)
+    return os.path.join(MCP_TAP_BLOCKLIST_DIR, f"blocklist_{safe_id}.txt")
+
+
+def _write_blocklist(session_id: str, blocked_files: List[str]) -> str:
+    """Write the blocked files list to a control file and return its path."""
+    path = _blocklist_file_path(session_id)
+    with open(path, "w") as f:
+        for entry in blocked_files:
+            f.write(f"{entry}\n")
+    LOGGER.info(
+        "Blocklist written for session=%s: %d files -> %s",
+        session_id,
+        len(blocked_files),
+        path,
+    )
+    return path
+
+
+def _clear_blocklist(session_id: str) -> None:
+    """Remove the blocklist control file for a session."""
+    path = _blocklist_file_path(session_id)
+    try:
+        os.unlink(path)
+        LOGGER.info("Blocklist cleared for session=%s", session_id)
+    except FileNotFoundError:
+        pass
+
+
+def _build_file_block_instruction(blocklist_path: str) -> str:
+    """Build a system instruction telling the model to use LD_PRELOAD."""
+    if not MCP_TAP_FILE_BLOCK_LIB:
+        return ""
+    return (
+        f"\n\n[FILE ACCESS BLOCKING ACTIVE]\n"
+        f"You must prefix ALL shell commands with:\n"
+        f"  LD_PRELOAD={MCP_TAP_FILE_BLOCK_LIB} "
+        f"MCPTAP_BLOCKED_FILES_FILE={blocklist_path}\n"
+        f"This blocks access to certain files. Do not attempt to bypass it."
+    )
+
+
+def _inject_block_instruction(body_json: Dict[str, Any], instruction: str) -> None:
+    """Inject file-block instruction into a response body.
+
+    Adds the instruction as a system-level note appended to the last
+    text output item, or creates a new text item if none exists.
+    """
+    output = body_json.get("output")
+    if not isinstance(output, list):
+        return
+
+    # Append the instruction to the last message item, or add a new one
+    for item in reversed(output):
+        if isinstance(item, dict) and item.get("type") == "message":
+            content = item.get("content")
+            if isinstance(content, list):
+                for c in content:
+                    if isinstance(c, dict) and c.get("type") == "output_text":
+                        c["text"] = c.get("text", "") + instruction
+                        return
+            break
+
+    # No message item found; add a new one
+    output.append(
+        {
+            "type": "message",
+            "role": "assistant",
+            "content": [{"type": "output_text", "text": instruction.strip()}],
+        }
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -1640,42 +1741,78 @@ async def _handle_responses_with_intercept(
                 used_tokens = await session_tracker.get_usage(session_id)
                 used_time = await session_tracker.get_elapsed_seconds(session_id)
 
-                state = PendingState(
-                    session_id=session_id,
-                    saved_status=status,
-                    saved_headers=resp_headers,
-                    saved_raw=raw,
-                    saved_body_json=body_json,
-                    client_tool_calls=client_calls,
-                    get_goal_result={},
-                    forced_model=forced_model,
-                    used_tokens=used_tokens,
-                    used_time_seconds=used_time,
-                )
-                await hook_gateway.set_pending(session_id, state)
-
-                LOGGER.info(
-                    "Tool hook: deferring %d client tool calls for session=%s; returning synthetic get_goal",
-                    len(client_calls),
-                    session_id,
-                )
-
-                # Build and return the synthetic get_goal response
-                synthetic = _build_synthetic_get_goal_response(forced_model)
-                if client_wanted_stream:
-                    sse_raw = _build_sse_from_response(synthetic)
-                    return await _emit_buffered_response(
-                        request,
-                        status=200,
-                        headers={},
-                        raw=sse_raw,
+                if MCP_TAP_USE_TOOL_HOOK_SYNTHETIC_TOOL:
+                    # Synthetic tool mode: inject a synthetic call (e.g. get_goal)
+                    # to gather additional context before running the hook.
+                    state = PendingState(
+                        session_id=session_id,
+                        saved_status=status,
+                        saved_headers=resp_headers,
+                        saved_raw=raw,
+                        saved_body_json=body_json,
+                        client_tool_calls=client_calls,
+                        get_goal_result={},
+                        forced_model=forced_model,
+                        used_tokens=used_tokens,
+                        used_time_seconds=used_time,
                     )
+                    await hook_gateway.set_pending(session_id, state)
+
+                    LOGGER.info(
+                        "Tool hook: deferring %d client tool calls for session=%s; returning synthetic %s",
+                        len(client_calls),
+                        session_id,
+                        MCP_TAP_USE_TOOL_HOOK_SYNTHETIC_TOOL,
+                    )
+
+                    # Build and return the synthetic tool response
+                    synthetic = _build_synthetic_tool_response(
+                        forced_model,
+                        MCP_TAP_USE_TOOL_HOOK_SYNTHETIC_TOOL,
+                    )
+                    if client_wanted_stream:
+                        sse_raw = _build_sse_from_response(synthetic)
+                        return await _emit_buffered_response(
+                            request,
+                            status=200,
+                            headers={},
+                            raw=sse_raw,
+                        )
+                    else:
+                        return await _emit_buffered_response(
+                            request,
+                            status=200,
+                            headers={"Content-Type": "application/json"},
+                            raw=json.dumps(synthetic, ensure_ascii=False).encode("utf-8"),
+                        )
                 else:
-                    return await _emit_buffered_response(
+                    # Direct hook mode: run the hook immediately without
+                    # injecting a synthetic tool call.
+                    state = PendingState(
+                        session_id=session_id,
+                        saved_status=status,
+                        saved_headers=resp_headers,
+                        saved_raw=raw,
+                        saved_body_json=body_json,
+                        client_tool_calls=client_calls,
+                        get_goal_result={},
+                        forced_model=forced_model,
+                        used_tokens=used_tokens,
+                        used_time_seconds=used_time,
+                    )
+                    return await _handle_direct_hook(
                         request,
-                        status=200,
-                        headers={"Content-Type": "application/json"},
-                        raw=json.dumps(synthetic, ensure_ascii=False).encode("utf-8"),
+                        session,
+                        path,
+                        request_headers,
+                        working_payload,
+                        intercept,
+                        client_wanted_stream,
+                        hook_gateway,
+                        session_tracker,
+                        session_id,
+                        state,
+                        _ensure_input_list,
                     )
 
         # No intercepted calls, no client calls needing hook, or hook disabled.
@@ -1693,6 +1830,138 @@ async def _handle_responses_with_intercept(
         status=last_status,
         headers=last_headers,
         raw=last_body_raw,
+    )
+
+
+async def _handle_direct_hook(
+    request: web.Request,
+    session: ClientSession,
+    path: str,
+    request_headers: Dict[str, str],
+    working_payload: Dict[str, Any],
+    intercept: MCPInterceptor,
+    client_wanted_stream: bool,
+    hook_gateway: ToolHookGateway,
+    session_tracker: SessionTracker,
+    session_id: str,
+    pending_state: PendingState,
+    ensure_input_list_fn,
+) -> web.StreamResponse:
+    """Run the hook immediately without injecting a synthetic tool call.
+
+    The hook receives the tool calls and session context directly, with no
+    synthetic tool result.  On ``allow``, the saved upstream response is
+    returned (optionally with file-block instructions).  On ``block``, the
+    block message is fed to the model in a follow-up upstream request.
+    """
+
+    # Run the hook script
+    try:
+        decision = await hook_gateway.run_hook(pending_state)
+    except RuntimeError as exc:
+        LOGGER.error("Tool hook error for session=%s: %s", session_id, exc)
+        error_resp = _build_hook_error_response(str(exc), pending_state.forced_model)
+        if client_wanted_stream:
+            sse_raw = _build_sse_from_response(error_resp)
+            return await _emit_buffered_response(request, status=200, headers={}, raw=sse_raw)
+        else:
+            return await _emit_buffered_response(
+                request,
+                status=200,
+                headers={"Content-Type": "application/json"},
+                raw=json.dumps(error_resp, ensure_ascii=False).encode("utf-8"),
+            )
+
+    action = decision.get("action")
+
+    if action == "allow":
+        blocked_files = decision.get("blocked_files", [])
+        LOGGER.info(
+            "Tool hook allowed tool calls for session=%s (blocked_files=%d)",
+            session_id,
+            len(blocked_files),
+        )
+
+        if blocked_files:
+            blocklist_path = _write_blocklist(session_id, blocked_files)
+            block_instruction = _build_file_block_instruction(blocklist_path)
+
+            if block_instruction:
+                # Inject the LD_PRELOAD instruction into the saved response
+                # by modifying the model's output instructions
+                saved_body = copy.deepcopy(pending_state.saved_body_json)
+                existing_instructions = working_payload.get("instructions", "") or ""
+                # Add block instruction to the response metadata
+                # so the model sees it when its tool calls are returned
+                _inject_block_instruction(saved_body, block_instruction)
+                raw = json.dumps(saved_body, ensure_ascii=False).encode("utf-8")
+                return await _emit_buffered_response(
+                    request,
+                    status=pending_state.saved_status,
+                    headers=pending_state.saved_headers,
+                    raw=raw,
+                )
+
+        # No blocked files, or no file-block lib configured
+        return await _emit_buffered_response(
+            request,
+            status=pending_state.saved_status,
+            headers=pending_state.saved_headers,
+            raw=pending_state.saved_raw,
+        )
+
+    # action == "block"
+    block_message = decision.get("message", "Tool calls blocked by hook")
+    LOGGER.info("Tool hook blocked tool calls for session=%s: %s", session_id, block_message)
+
+    # Feed the block message to the model and pass through once without hook.
+    ensure_input_list_fn(working_payload)
+
+    # Add the original model output items (function calls) back
+    for out_item in pending_state.saved_body_json.get("output") or []:
+        if isinstance(out_item, dict):
+            working_payload["input"].append(out_item)
+
+    # Add the block message as a system instruction
+    existing_instructions = working_payload.get("instructions", "") or ""
+    block_instruction = f"\n\n[TOOL CALL BLOCKED] {block_message}"
+    working_payload["instructions"] = existing_instructions + block_instruction
+
+    # Make one upstream request with pass-through (no hook)
+    working_payload.pop("previous_response_id", None)
+
+    try:
+        status, resp_headers, raw, body_json = await _post_upstream_buffered(
+            session,
+            path,
+            request_headers,
+            working_payload,
+            stream=client_wanted_stream,
+        )
+    except (ClientError, OSError) as exc:
+        LOGGER.exception("Upstream request failed after block: %s", exc)
+        return web.json_response(
+            {
+                "error": {
+                    "message": "OpenRouter proxy could not reach the upstream API",
+                    "type": "proxy_upstream_error",
+                }
+            },
+            status=502,
+        )
+
+    # Accumulate tokens from the post-block response
+    if body_json:
+        tokens = _extract_usage_total_tokens(body_json)
+        if tokens > 0:
+            await session_tracker.add_usage(session_id, tokens)
+
+    # Pass through this response without running the hook again
+    return await _emit_buffered_response(
+        request,
+        status=status,
+        headers=resp_headers,
+        raw=raw,
     )
 
 
@@ -1744,9 +2013,30 @@ async def _handle_hook_decision(
     action = decision.get("action")
 
     if action == "allow":
-        LOGGER.info("Tool hook allowed tool calls for session=%s", session_id)
+        blocked_files = decision.get("blocked_files", [])
+        LOGGER.info(
+            "Tool hook allowed tool calls for session=%s (blocked_files=%d)",
+            session_id,
+            len(blocked_files),
+        )
         await hook_gateway.clear_pending(session_id)
-        # Return the saved upstream response
+
+        if blocked_files:
+            blocklist_path = _write_blocklist(session_id, blocked_files)
+            block_instruction = _build_file_block_instruction(blocklist_path)
+
+            if block_instruction:
+                saved_body = copy.deepcopy(pending_state.saved_body_json)
+                _inject_block_instruction(saved_body, block_instruction)
+                raw = json.dumps(saved_body, ensure_ascii=False).encode("utf-8")
+                return await _emit_buffered_response(
+                    request,
+                    status=pending_state.saved_status,
+                    headers=pending_state.saved_headers,
+                    raw=raw,
+                )
+
+        # No blocked files, or no file-block lib configured
         return await _emit_buffered_response(
             request,
             status=pending_state.saved_status,
