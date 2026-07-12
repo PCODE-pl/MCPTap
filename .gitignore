@@ -3,6 +3,7 @@
 /.ruff_cache
 /_files
 /.VSCodeCounter
+/file_block/libmcptap_fileblock.so
 /zips
 get_download_count.sh
 
