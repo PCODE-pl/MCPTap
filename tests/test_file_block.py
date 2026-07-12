@@ -256,7 +256,7 @@ class TestGenericHookMode:
 LIB_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
     "..",
-    "mcp-tap-extras",
+    "mcp-tap",
     "file_block",
     "libmcptap_fileblock.so",
 )

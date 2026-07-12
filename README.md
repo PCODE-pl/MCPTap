@@ -647,7 +647,7 @@ it also blocks access to sensitive files via LD_PRELOAD.
 1. Build the LD_PRELOAD library:
 
 ```shell
-cd mcp-tap-extras/file_block
+cd mcp-tap/file_block
 make
 make install  # installs to ~/.local/lib/libmcptap_fileblock.so
 ```
