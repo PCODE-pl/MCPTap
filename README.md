@@ -549,10 +549,11 @@ intercepted MCP tools), MCPTap has two modes:
    the hook.
 
 In both modes, the hook can optionally return a ``blocked_files`` list in an
-``allow`` response. When ``MCP_TAP_FILE_BLOCK_LIB`` is configured, MCPTap writes
-the list to a control file and injects an instruction telling the model to
-prefix all shell commands with ``LD_PRELOAD=<lib> MCPTAP_BLOCKED_FILES_FILE=<path>``.
-This blocks access to the listed files at the libc level.
+``allow`` response. MCPTap writes the list to a per-session control file at
+``<MCP_TAP_PER_SESSION_DIR>/<session_id>/blocked_files``. The LD_PRELOAD library
+(loaded once when Codex starts) reads this file automatically and blocks
+access to the listed files at the libc level. No per-command prefixing is
+needed — the library is active for the entire Codex session.
 
 Hidden MCP intercepted tool calls (such as ``consult_council``) are excluded
 from the hook. When the model returns mixed calls (intercepted and client),
@@ -606,13 +607,18 @@ If the hook times out, exits with a non-zero code, or returns invalid JSON,
 MCPTap stops the turn with a ``use_tool_hook_error`` and the tool calls are
 not executed.
 
-When ``blocked_files`` is present in an ``allow`` response and
-``MCP_TAP_FILE_BLOCK_LIB`` points to the ``libmcptap_fileblock.so`` shared
-library, MCPTap writes the list to a per-session control file and injects an
-instruction into the response telling the model to use ``LD_PRELOAD`` for all
-shell commands. The library intercepts ``open``, ``openat``, ``fopen``,
-``access``, ``stat``, ``lstat``, ``statx``, ``readlink``, and ``realpath``
-calls, returning ``EACCES`` for blocked paths.
+When ``blocked_files`` is present in an ``allow`` response, MCPTap writes the
+list to a per-session control file at
+``<MCP_TAP_PER_SESSION_DIR>/<session_id>/blocked_files``. The
+``libmcptap_fileblock.so`` library (loaded via ``LD_PRELOAD`` when Codex
+starts) reads this file automatically. It identifies the session via the
+``CODEX_THREAD_ID`` environment variable (set by Codex CLI for all child
+processes) and constructs the control file path as
+``<MCPTAP_BLOCKED_DIR>/<CODEX_THREAD_ID>/blocked_files``. The library
+intercepts ``open``, ``openat``, ``fopen``, ``access``, ``stat``, ``lstat``,
+``statx``, ``readlink``, and ``realpath`` calls, returning ``EACCES`` for
+blocked paths. The control file is reloaded every second, so changes take
+effect immediately.
 
 ### Example ``use_tool_hook.py``
 
@@ -640,11 +646,11 @@ else:
 
 This example blocks tool calls when the session exceeds 10000 tokens or 120
 seconds, instructing the model to use ``consult_council`` first. When allowed,
-it also blocks access to sensitive files via LD_PRELOAD.
+it also blocks access to sensitive files via the LD_PRELOAD library.
 
 ### File access blocking setup
 
-1. Build the LD_PRELOAD library:
+1/ Build the LD_PRELOAD library:
 
 ```shell
 cd mcp-tap/file_block
@@ -652,18 +658,35 @@ make
 make install  # installs to ~/.local/lib/libmcptap_fileblock.so
 ```
 
-2. Configure MCPTap:
+2/ Configure MCPTap:
 
 ```env
 MCP_TAP_USE_TOOL_HOOK=/home/user/.config/mcptap/use_tool_hook.py
-MCP_TAP_FILE_BLOCK_LIB=/home/user/.local/lib/libmcptap_fileblock.so
 # Optional: use direct hook mode (no synthetic get_goal call)
 MCP_TAP_USE_TOOL_HOOK_SYNTHETIC_TOOL=
 ```
 
-3. In your hook script, return ``blocked_files`` in the ``allow`` response.
-   The library reads the control file (specified by
-   ``MCPTAP_BLOCKED_FILES_FILE``) and blocks access to listed paths.
+3/ Start Codex CLI with ``LD_PRELOAD`` set once:
+
+```shell
+LD_PRELOAD=~/.local/lib/libmcptap_fileblock.so codex --profile=mcptap
+```
+
+Or add an alias to your shell configuration:
+
+```shell
+alias codex='LD_PRELOAD=~/.local/lib/libmcptap_fileblock.so codex'
+```
+
+The library is inherited by all child processes (shell commands, scripts, etc.)
+for the entire Codex session. It identifies the session via the
+``CODEX_THREAD_ID`` environment variable (set automatically by Codex CLI) and
+reads the control file at
+``/tmp/mcptap/per_session_id/<CODEX_THREAD_ID>/blocked_files``.
+
+4/ In your hook script, return ``blocked_files`` in the ``allow`` response.
+   MCPTap writes them to the per-session control file. The library reloads
+   the file every second, so blocking takes effect immediately.
 
 ### Session tracking
 
@@ -1004,27 +1027,26 @@ ignored rules: E203, E501
 
 ### `proxy.env`
 
-| Variable                                        |     Default | Description                                               |
-| ----------------------------------------------- | ----------: | --------------------------------------------------------- |
-| `MCP_TAP_UPSTREAM_PROVIDER`                     |    required | `openrouter` or `requesty`.                               |
-| `MCP_TAP_LISTEN_HOST`                           | `127.0.0.1` | Local host/interface to bind.                             |
-| `MCP_TAP_LISTEN_PORT`                           |      `8787` | Local port to listen on.                                  |
-| `MCP_TAP_OPENROUTER_PROVIDER`                   |       empty | Optional OpenRouter provider slug.                        |
-| `MCP_TAP_OPENROUTER_DISABLE_PROVIDER_FALLBACKS` |         `1` | Disable OpenRouter provider fallback when true.           |
-| `MCP_TAP_PLAN_MODE_TRIGGER`                     |       `max` | Reasoning effort value that activates plan mode model.    |
-| `MCP_TAP_PLAN_MODE_MAX_INPUT_SIZE`              |    `300000` | Maximum accepted input size for plan mode.                |
-| `MCP_TAP_INTERCEPT_YAML`                        |       empty | MCP interception YAML or `@/path/to/file.yaml`.           |
-| `MCP_TAP_INTERCEPT_MAX_ITERATIONS`              |         `8` | Maximum hidden tool-call loop iterations.                 |
-| `MCP_TAP_INTERCEPT_TOOL_TIMEOUT`                |       `120` | Timeout for one MCP tool call, in seconds.                |
-| `MCP_TAP_PER_MODEL_YAML`                        |       empty | Per-model instruction YAML or `@/path/to/file.yaml`.      |
-| `MCP_TAP_USE_TOOL_HOOK`                         |       empty | Path to a Python hook script run before client tool calls.|
-| `MCP_TAP_USE_TOOL_HOOK_TIMEOUT`                 |        `30` | Timeout for the hook script, in seconds.                  |
-| `MCP_TAP_USE_TOOL_HOOK_SYNTHETIC_TOOL`          |  `get_goal` | Synthetic tool name to inject before the hook. Empty = direct mode. |
-| `MCP_TAP_FILE_BLOCK_LIB`                        |       empty | Path to `libmcptap_fileblock.so` for LD_PRELOAD file blocking. |
-| `MCP_TAP_BLOCKLIST_DIR`                         |  `/tmp/mcptap_blocklists` | Directory for per-session blocklist control files. |
-| `MCP_TAP_LOG_LEVEL`                             |      `INFO` | Python logging level.                                     |
-| `MCP_TAP_LOG_FILE`                              |       empty | Optional communication log file path.                     |
-| `LOG_FILE_REDACT_HEADERS`                       |         `0` | Redact sensitive headers in communication logs when true. |
+| Variable                                        |                   Default | Description                                                         |
+| ----------------------------------------------- | ------------------------: | ------------------------------------------------------------------- |
+| `MCP_TAP_UPSTREAM_PROVIDER`                     |                  required | `openrouter` or `requesty`.                                         |
+| `MCP_TAP_LISTEN_HOST`                           |               `127.0.0.1` | Local host/interface to bind.                                       |
+| `MCP_TAP_LISTEN_PORT`                           |                    `8787` | Local port to listen on.                                            |
+| `MCP_TAP_OPENROUTER_PROVIDER`                   |                     empty | Optional OpenRouter provider slug.                                  |
+| `MCP_TAP_OPENROUTER_DISABLE_PROVIDER_FALLBACKS` |                       `1` | Disable OpenRouter provider fallback when true.                     |
+| `MCP_TAP_PLAN_MODE_TRIGGER`                     |                     `max` | Reasoning effort value that activates plan mode model.              |
+| `MCP_TAP_PLAN_MODE_MAX_INPUT_SIZE`              |                  `300000` | Maximum accepted input size for plan mode.                          |
+| `MCP_TAP_INTERCEPT_YAML`                        |                     empty | MCP interception YAML or `@/path/to/file.yaml`.                     |
+| `MCP_TAP_INTERCEPT_MAX_ITERATIONS`              |                       `8` | Maximum hidden tool-call loop iterations.                           |
+| `MCP_TAP_INTERCEPT_TOOL_TIMEOUT`                |                     `120` | Timeout for one MCP tool call, in seconds.                          |
+| `MCP_TAP_PER_MODEL_YAML`                        |                     empty | Per-model instruction YAML or `@/path/to/file.yaml`.                |
+| `MCP_TAP_USE_TOOL_HOOK`                         |                     empty | Path to a Python hook script run before client tool calls.          |
+| `MCP_TAP_USE_TOOL_HOOK_TIMEOUT`                 |                      `30` | Timeout for the hook script, in seconds.                            |
+| `MCP_TAP_USE_TOOL_HOOK_SYNTHETIC_TOOL`          |                `get_goal` | Synthetic tool name to inject before the hook. Empty = direct mode. |
+| `MCP_TAP_PER_SESSION_DIR`                       | `/tmp/mcptap/per_session` | Directory for per-session blocklist control files.                  |
+| `MCP_TAP_LOG_LEVEL`                             |                    `INFO` | Python logging level.                                               |
+| `MCP_TAP_LOG_FILE`                              |                     empty | Optional communication log file path.                               |
+| `LOG_FILE_REDACT_HEADERS`                       |                       `0` | Redact sensitive headers in communication logs when true.           |
 
 ### `openrouter.env` and `requesty.env`
 
@@ -1040,12 +1062,12 @@ MCPTap is intentionally small and focused.
 
 Current design assumptions:
 
-* one configured upstream provider at a time,
-* one MCP interception configuration per MCPTap instance,
-* MCP server communication uses stdio,
-* hidden MCP interception applies to `/v1/responses`,
-* non-JSON or non-model requests are passed through,
-* MCPTap is intended to run locally.
+* one configured upstream provider at a time
+* one MCP interception configuration per MCPTap instance
+* MCP server communication uses stdio
+* hidden MCP interception applies to `/v1/responses`
+* non-JSON or non-model requests are passed through
+* MCPTap is intended to run locally
 
 ## Project status
 
