@@ -157,6 +157,7 @@ openrouter.env     OpenRouter model and API key configuration
 requesty.env       Requesty model and API key configuration
 mcp-intercept.yaml optional MCP tool interception configuration
 per-model.yaml     optional per-model instruction overrides
+use_tool_hook.py   optional tool-call hook script (runs before client tool calls)
 ```
 
 ## Quick start
