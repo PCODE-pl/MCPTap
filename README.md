@@ -107,6 +107,40 @@ Default paths:
 ~/.config/mcptap            configuration files
 ```
 
+### File access blocking (optional, Linux only)
+
+To build and install the `LD_PRELOAD` file-block library during installation, pass `--with-file-block`:
+
+```sh
+sh setup.sh --with-file-block
+```
+
+Or when piping from `curl`/`wget`:
+
+```sh
+curl -fsSL https://github.com/PCODE-pl/MCPTap/releases/latest/download/setup.sh | sh -s -- --with-file-block
+```
+
+This option is **Linux-only**. It requires a C compiler (`gcc` or `cc`), `make`, and C library headers (`libc-dev`/`glibc-devel`). The installer checks for these tools and reports installation instructions if any are missing.
+
+When `--with-file-block` is used on a **new** installation (where `proxy.env` does not already exist), the installer:
+
+1. Builds `libmcptap_fileblock.so` from the `file_block/` source directory.
+2. Installs it to `~/.local/lib/libmcptap_fileblock.so`.
+3. Sets `MCP_TAP_FILE_BLOCK_LIB` in `proxy.env` to the installed library path.
+
+On subsequent runs with `--with-file-block`, the library is rebuilt and reinstalled, but `proxy.env` is left untouched (to preserve user edits). Use `--force-config` to reset `proxy.env` to defaults and re-wire the library path.
+
+On macOS, `--with-file-block` is silently skipped (the file-block library is not yet supported on macOS).
+
+After installation, start Codex with the library loaded:
+
+```sh
+LD_PRELOAD=~/.local/lib/libmcptap_fileblock.so codex --profile=mcptap
+```
+
+See the [Tool-call hook](#tool-call-hook) section for details on how `blocked_files` from the hook are enforced by this library.
+
 ## Configuration files
 
 After installation, edit the files in:
