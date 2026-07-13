@@ -31,10 +31,12 @@ Options:
   --python PATH           Python 3 interpreter to use.
   --no-service            Install files only, do not install user service.
   --force-config          Overwrite existing config files.
+  --with-file-block       Build and install the LD_PRELOAD file-block library (Linux only).
   --help                  Show this help.
 
 Environment variables matching the options are also supported:
-  MCPTAP_RELEASE_URL, MCPTAP_INSTALL_DIR, MCPTAP_CONFIG_DIR, MCPTAP_VENV_DIR, PYTHON
+  MCPTAP_RELEASE_URL, MCPTAP_INSTALL_DIR, MCPTAP_CONFIG_DIR, MCPTAP_VENV_DIR, PYTHON,
+  MCPTAP_WITH_FILE_BLOCK
 
   If --release-url / MCPTAP_RELEASE_URL is not set, the installer fetches the source
   tarball from the latest GitHub release via the GitHub API.
@@ -48,6 +50,8 @@ EOF
 
 NO_SERVICE=0
 FORCE_CONFIG=0
+WITH_FILE_BLOCK=${MCPTAP_WITH_FILE_BLOCK:-0}
+PROXY_ENV_NEW=0
 
 while [ "$#" -gt 0 ]; do
     case "$1" in
@@ -78,6 +82,10 @@ while [ "$#" -gt 0 ]; do
             ;;
         --force-config)
             FORCE_CONFIG=1
+            shift
+            ;;
+        --with-file-block)
+            WITH_FILE_BLOCK=1
             shift
             ;;
         --help|-h)
@@ -279,8 +287,73 @@ EOF
             log "Installing example config: $dst_file"
             cp "$src_file" "$dst_file"
             chmod 0600 "$dst_file"
+            [ "$file" = "proxy.env" ] && PROXY_ENV_NEW=1
         fi
     done
+}
+
+check_build_tools() {
+    if ! command_exists make; then
+        die "make is required to build the file-block library. Install it with your OS package manager (e.g. sudo apt install make)."
+    fi
+
+    cc_bin=""
+    if command_exists gcc; then
+        cc_bin=gcc
+    elif command_exists cc; then
+        cc_bin=cc
+    else
+        die "gcc or cc is required to build the file-block library. Install it with your OS package manager (e.g. sudo apt install gcc)."
+    fi
+
+    # Verify that libc headers are available (dlfcn.h is essential for dlsym)
+    if ! echo '#include <dlfcn.h>' | "$cc_bin" -x c -o /dev/null - 2>/dev/null; then
+        cat >&2 <<EOF
+[$PRODUCT_NAME] C library headers are missing. Install the development package:
+
+  Debian/Ubuntu:  sudo apt install libc-dev
+  Fedora:        sudo dnf install glibc-devel
+  Arch:          sudo pacman -S glibc
+EOF
+        exit 1
+    fi
+
+    log "Build tools check passed (compiler: $cc_bin, make: $(command -v make))"
+}
+
+build_and_install_file_block() {
+    fb_dir="$SOURCE_DIR/file_block"
+    if [ ! -d "$fb_dir" ] || [ ! -f "$fb_dir/Makefile" ]; then
+        die "file_block directory not found in source: $fb_dir"
+    fi
+
+    check_build_tools
+
+    log "Building file-block library in: $fb_dir"
+    ( cd "$fb_dir" && make clean && make ) || die "Failed to build libmcptap_fileblock.so"
+
+    log "Installing file-block library to: $HOME/.local/lib/"
+    ( cd "$fb_dir" && make install ) || die "Failed to install libmcptap_fileblock.so"
+
+    lib_path="$HOME/.local/lib/libmcptap_fileblock.so"
+    if [ ! -f "$lib_path" ]; then
+        die "Build completed but $lib_path not found"
+    fi
+    log "File-block library installed: $lib_path"
+}
+
+wire_file_block_in_proxy_env() {
+    proxy_env="$CONFIG_DIR/proxy.env"
+    [ -f "$proxy_env" ] || return
+
+    lib_path="$HOME/.local/lib/libmcptap_fileblock.so"
+
+    # Uncomment the MCP_TAP_FILE_BLOCK_LIB line with the real path
+    sed -i "s|^#MCP_TAP_FILE_BLOCK_LIB=.*|MCP_TAP_FILE_BLOCK_LIB=$lib_path|" "$proxy_env"
+    # Comment out the empty active line
+    sed -i "s|^MCP_TAP_FILE_BLOCK_LIB=$|#MCP_TAP_FILE_BLOCK_LIB=|" "$proxy_env"
+
+    log "Enabled MCP_TAP_FILE_BLOCK_LIB in $proxy_env"
 }
 
 install_systemd_user_service() {
@@ -405,7 +478,22 @@ main() {
     fi
 
     create_venv "$py"
+
+    if [ "$WITH_FILE_BLOCK" -eq 1 ]; then
+        os_name=$(detect_os)
+        if [ "$os_name" != "linux" ]; then
+            log "--with-file-block is Linux-only; skipping file-block build on $os_name"
+            WITH_FILE_BLOCK=0
+        else
+            build_and_install_file_block
+        fi
+    fi
+
     install_files "$SOURCE_DIR"
+
+    if [ "$WITH_FILE_BLOCK" -eq 1 ] && [ "$PROXY_ENV_NEW" -eq 1 ]; then
+        wire_file_block_in_proxy_env
+    fi
 
     if [ "$NO_SERVICE" -eq 0 ]; then
         install_user_service
@@ -431,6 +519,11 @@ Next steps:
 Health check after service start:
   curl http://127.0.0.1:8787/health
 EOF
+
+    if [ "$WITH_FILE_BLOCK" -eq 1 ] && [ "$PROXY_ENV_NEW" -eq 1 ]; then
+        log "File-block library enabled. Start Codex with:"
+        log "  LD_PRELOAD=$HOME/.local/lib/libmcptap_fileblock.so codex --profile=mcptap"
+    fi
 }
 
 main "$@"
