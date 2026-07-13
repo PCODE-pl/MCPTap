@@ -16,7 +16,12 @@ PYTHON_BIN="${PYTHON:-}"
 TMP_DIR=""
 SOURCE_DIR=""
 
-# ANSI colors for error output
+# ANSI colors for terminal output
+if [ -t 1 ]; then
+    GREEN='[0;32m'
+else
+    GREEN=''
+fi
 if [ -t 2 ]; then
     RED='[0;31m'
     NC='[0m'
@@ -524,6 +529,7 @@ main() {
         log "Skipping service installation because --no-service was used"
     fi
 
+    printf '%b' "$GREEN"
     cat <<EOF
 
 [$PRODUCT_NAME] Installation complete.
@@ -542,6 +548,7 @@ Next steps:
 Health check after service start:
   curl http://127.0.0.1:8787/health
 EOF
+    printf '%b' "$NC"
 
     # TODO: remove
     # if [ "$WITH_FILE_BLOCK" -eq 1 ] && [ "$PROXY_ENV_NEW" -eq 1 ]; then
