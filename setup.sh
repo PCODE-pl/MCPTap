@@ -369,13 +369,17 @@ wire_file_block_in_proxy_env() {
     [ -f "$proxy_env" ] || return
 
     lib_path="$HOME/.local/lib/libmcptap_fileblock.so"
+    hook_path="$CONFIG_DIR/use_tool_hook.py"
 
-    # Uncomment the MCP_TAP_FILE_BLOCK_LIB line with the real path
+    # Enable MCP_TAP_USE_TOOL_HOOK with the real path
+    sed -i "s|^#MCP_TAP_USE_TOOL_HOOK=.*|MCP_TAP_USE_TOOL_HOOK=$hook_path|" "$proxy_env"
+    sed -i "s|^MCP_TAP_USE_TOOL_HOOK=$|#MCP_TAP_USE_TOOL_HOOK=|" "$proxy_env"
+
+    # Enable MCP_TAP_FILE_BLOCK_LIB with the real path
     sed -i "s|^#MCP_TAP_FILE_BLOCK_LIB=.*|MCP_TAP_FILE_BLOCK_LIB=$lib_path|" "$proxy_env"
-    # Comment out the empty active line
     sed -i "s|^MCP_TAP_FILE_BLOCK_LIB=$|#MCP_TAP_FILE_BLOCK_LIB=|" "$proxy_env"
 
-    log "Enabled MCP_TAP_FILE_BLOCK_LIB in $proxy_env"
+    log "Enabled MCP_TAP_USE_TOOL_HOOK and MCP_TAP_FILE_BLOCK_LIB in $proxy_env"
 }
 
 install_systemd_user_service() {
