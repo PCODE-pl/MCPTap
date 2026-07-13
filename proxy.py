@@ -103,11 +103,10 @@ MCP_TAP_USE_TOOL_HOOK_TIMEOUT = float(os.environ.get("MCP_TAP_USE_TOOL_HOOK_TIME
 # client tool calls, without injecting any synthetic tool.
 MCP_TAP_USE_TOOL_HOOK_SYNTHETIC_TOOL = os.environ.get("MCP_TAP_USE_TOOL_HOOK_SYNTHETIC_TOOL", "get_goal").strip()
 
-# Path to the LD_PRELOAD library used for file access blocking.
-MCP_TAP_FILE_BLOCK_LIB = os.environ.get("MCP_TAP_FILE_BLOCK_LIB", "").strip()
-
-# Directory for per-session blocklist control files.
-MCP_TAP_BLOCKLIST_DIR = os.environ.get("MCP_TAP_BLOCKLIST_DIR", "/tmp/mcptap_blocklists").strip()
+# Directory for per-session blocklist control files.  Each session gets a
+# subdirectory named after the Codex session ID (CODEX_THREAD_ID).
+# The LD_PRELOAD library reads <dir>/<session_id>/blocked_files.
+MCP_TAP_PER_SESSION_DIR = os.environ.get("MCP_TAP_PER_SESSION_DIR", "/tmp/mcptap/per_session_id").strip()
 
 # Maximum age (seconds) for a pending state before it is cleaned up.
 MCP_TAP_USE_TOOL_HOOK_PENDING_TTL = 600.0
@@ -930,12 +929,14 @@ def _build_sse_from_response(response: Dict[str, Any]) -> bytes:
 
 
 def _blocklist_file_path(session_id: str) -> str:
-    """Return the path to the per-session blocklist control file."""
-    import hashlib
+    """Return the path to the per-session blocklist control file.
 
-    safe_id = hashlib.sha256(session_id.encode("utf-8")).hexdigest()[:16]
-    os.makedirs(MCP_TAP_BLOCKLIST_DIR, exist_ok=True)
-    return os.path.join(MCP_TAP_BLOCKLIST_DIR, f"blocklist_{safe_id}.txt")
+    The LD_PRELOAD library reads this file to know which paths to block.
+    The path is: <MCP_TAP_PER_SESSION_DIR>/<session_id>/blocked_files
+    """
+    session_dir = os.path.join(MCP_TAP_PER_SESSION_DIR, session_id)
+    os.makedirs(session_dir, exist_ok=True)
+    return os.path.join(session_dir, "blocked_files")
 
 
 def _write_blocklist(session_id: str, blocked_files: List[str]) -> str:
@@ -961,50 +962,6 @@ def _clear_blocklist(session_id: str) -> None:
         LOGGER.info("Blocklist cleared for session=%s", session_id)
     except FileNotFoundError:
         pass
-
-
-def _build_file_block_instruction(blocklist_path: str) -> str:
-    """Build a system instruction telling the model to use LD_PRELOAD."""
-    if not MCP_TAP_FILE_BLOCK_LIB:
-        return ""
-    return (
-        f"\n\n[FILE ACCESS BLOCKING ACTIVE]\n"
-        f"You must prefix ALL shell commands with:\n"
-        f"  LD_PRELOAD={MCP_TAP_FILE_BLOCK_LIB} "
-        f"MCPTAP_BLOCKED_FILES_FILE={blocklist_path}\n"
-        f"This blocks access to certain files. Do not attempt to bypass it."
-    )
-
-
-def _inject_block_instruction(body_json: Dict[str, Any], instruction: str) -> None:
-    """Inject file-block instruction into a response body.
-
-    Adds the instruction as a system-level note appended to the last
-    text output item, or creates a new text item if none exists.
-    """
-    output = body_json.get("output")
-    if not isinstance(output, list):
-        return
-
-    # Append the instruction to the last message item, or add a new one
-    for item in reversed(output):
-        if isinstance(item, dict) and item.get("type") == "message":
-            content = item.get("content")
-            if isinstance(content, list):
-                for c in content:
-                    if isinstance(c, dict) and c.get("type") == "output_text":
-                        c["text"] = c.get("text", "") + instruction
-                        return
-            break
-
-    # No message item found; add a new one
-    output.append(
-        {
-            "type": "message",
-            "role": "assistant",
-            "content": [{"type": "output_text", "text": instruction.strip()}],
-        }
-    )
 
 
 # ---------------------------------------------------------------------------
@@ -1883,26 +1840,8 @@ async def _handle_direct_hook(
         )
 
         if blocked_files:
-            blocklist_path = _write_blocklist(session_id, blocked_files)
-            block_instruction = _build_file_block_instruction(blocklist_path)
+            _write_blocklist(session_id, blocked_files)
 
-            if block_instruction:
-                # Inject the LD_PRELOAD instruction into the saved response
-                # by modifying the model's output instructions
-                saved_body = copy.deepcopy(pending_state.saved_body_json)
-                existing_instructions = working_payload.get("instructions", "") or ""
-                # Add block instruction to the response metadata
-                # so the model sees it when its tool calls are returned
-                _inject_block_instruction(saved_body, block_instruction)
-                raw = json.dumps(saved_body, ensure_ascii=False).encode("utf-8")
-                return await _emit_buffered_response(
-                    request,
-                    status=pending_state.saved_status,
-                    headers=pending_state.saved_headers,
-                    raw=raw,
-                )
-
-        # No blocked files, or no file-block lib configured
         return await _emit_buffered_response(
             request,
             status=pending_state.saved_status,
@@ -2022,21 +1961,8 @@ async def _handle_hook_decision(
         await hook_gateway.clear_pending(session_id)
 
         if blocked_files:
-            blocklist_path = _write_blocklist(session_id, blocked_files)
-            block_instruction = _build_file_block_instruction(blocklist_path)
+            _write_blocklist(session_id, blocked_files)
 
-            if block_instruction:
-                saved_body = copy.deepcopy(pending_state.saved_body_json)
-                _inject_block_instruction(saved_body, block_instruction)
-                raw = json.dumps(saved_body, ensure_ascii=False).encode("utf-8")
-                return await _emit_buffered_response(
-                    request,
-                    status=pending_state.saved_status,
-                    headers=pending_state.saved_headers,
-                    raw=raw,
-                )
-
-        # No blocked files, or no file-block lib configured
         return await _emit_buffered_response(
             request,
             status=pending_state.saved_status,

@@ -1,10 +1,17 @@
 /*
  * libmcptap_fileblock.so — LD_PRELOAD library that blocks file access
- * to paths listed in a control file.
+ * to paths listed in a per-session control file.
  *
- * The control file path is read from the MCPTAP_BLOCKED_FILES_FILE
- * environment variable.  Each line of the control file is an absolute or
- * tilde-expanded path that should be blocked.
+ * The session ID is read from the CODEX_THREAD_ID environment variable
+ * (set automatically by Codex CLI for all child processes).  The control
+ * file is expected at:
+ *
+ *   <MCPTAP_BLOCKED_DIR>/<CODEX_THREAD_ID>/blocked_files
+ *
+ * where MCPTAP_BLOCKED_DIR defaults to /tmp/mcptap/per_session_id.
+ *
+ * For testing or standalone use, MCPTAP_BLOCKED_FILES_FILE can be set
+ * directly to override the auto-constructed path.
  *
  * Blocked syscalls: open, openat, openat64, access, faccessat,
  * fopen, fopen64, stat, stat64, lstat, lstat64, __xstat, __xstat64,
@@ -27,12 +34,77 @@
 #include <unistd.h>
 
 /* ----------------------------------------------------------------------- */
+/* Function pointer typedefs                                               */
+/* ----------------------------------------------------------------------- */
+
+typedef int (*open_fn)(const char *, int, ...);
+typedef int (*openat_fn)(int, const char *, int, ...);
+typedef int (*access_fn)(const char *, int);
+typedef int (*faccessat_fn)(int, const char *, int, int);
+typedef FILE *(*fopen_fn)(const char *, const char *);
+typedef int (*stat_fn)(const char *, struct stat *);
+typedef int (*lstat_fn)(const char *, struct stat *);
+typedef int (*statx_fn)(int, const char *, int, unsigned int, struct statx *);
+typedef ssize_t (*readlink_fn)(const char *, char *, size_t);
+typedef ssize_t (*readlinkat_fn)(int, const char *, char *, size_t);
+typedef char *(*realpath_fn)(const char *, char *);
+
+static open_fn real_open = NULL;
+static open_fn real_open64 = NULL;
+static openat_fn real_openat = NULL;
+static openat_fn real_openat64 = NULL;
+static access_fn real_access = NULL;
+static faccessat_fn real_faccessat = NULL;
+static fopen_fn real_fopen = NULL;
+static fopen_fn real_fopen64 = NULL;
+
+static void init_real_funcs(void) {
+    if (!real_open)    real_open    = (open_fn)    dlsym(RTLD_NEXT, "open");
+    if (!real_open64)  real_open64  = (open_fn)    dlsym(RTLD_NEXT, "open64");
+    if (!real_openat)  real_openat  = (openat_fn)  dlsym(RTLD_NEXT, "openat");
+    if (!real_openat64)real_openat64= (openat_fn)  dlsym(RTLD_NEXT, "openat64");
+    if (!real_access)  real_access  = (access_fn)  dlsym(RTLD_NEXT, "access");
+    if (!real_faccessat)real_faccessat=(faccessat_fn)dlsym(RTLD_NEXT, "faccessat");
+    if (!real_fopen)   real_fopen   = (fopen_fn)   dlsym(RTLD_NEXT, "fopen");
+    if (!real_fopen64) real_fopen64 = (fopen_fn)   dlsym(RTLD_NEXT, "fopen64");
+}
+
+/* ----------------------------------------------------------------------- */
 /* Blocklist management                                                    */
 /* ----------------------------------------------------------------------- */
 
 static char **blocked_paths = NULL;
 static int blocked_count = 0;
 static int blocked_initialized = 0;
+
+/* Re-entrancy guard: when set, interceptors skip blocklist checks so that
+ * the library's own file operations (reading the control file) are not
+ * intercepted. */
+static int _loading_blocklist = 0;
+
+/* Build the path to the per-session control file.
+ * Uses MCPTAP_BLOCKED_FILES_FILE if set (for testing / override).
+ * Otherwise constructs: <MCPTAP_BLOCKED_DIR>/<CODEX_THREAD_ID>/blocked_files
+ * Returns 0 on success, -1 if no session ID is available. */
+static int build_control_path(char *buf, size_t buf_size) {
+    /* Explicit override (for tests / standalone use) */
+    const char *explicit = getenv("MCPTAP_BLOCKED_FILES_FILE");
+    if (explicit && *explicit) {
+        snprintf(buf, buf_size, "%s", explicit);
+        return 0;
+    }
+
+    const char *session_id = getenv("CODEX_THREAD_ID");
+    if (!session_id || !*session_id)
+        return -1;
+
+    const char *base_dir = getenv("MCPTAP_BLOCKED_DIR");
+    if (!base_dir || !*base_dir)
+        base_dir = "/tmp/mcptap/per_session_id";
+
+    snprintf(buf, buf_size, "%s/%s/blocked_files", base_dir, session_id);
+    return 0;
+}
 
 static void expand_tilde(const char *src, char *dst, size_t dst_size) {
     if (src[0] == '~') {
@@ -62,11 +134,18 @@ static void load_blocklist(void) {
         blocked_count = 0;
     }
 
-    const char *ctrl_file = getenv("MCPTAP_BLOCKED_FILES_FILE");
-    if (!ctrl_file || !*ctrl_file)
+    char ctrl_path[8192];
+    if (build_control_path(ctrl_path, sizeof(ctrl_path)) != 0)
         return;
 
-    FILE *f = fopen(ctrl_file, "r");
+    /* Use real_fopen to avoid recursion through our own fopen interceptor. */
+    fopen_fn real_fopen_local = (fopen_fn)dlsym(RTLD_NEXT, "fopen");
+    if (!real_fopen_local)
+        return;
+
+    _loading_blocklist = 1;
+    FILE *f = real_fopen_local(ctrl_path, "r");
+    _loading_blocklist = 0;
     if (!f)
         return;
 
@@ -116,6 +195,10 @@ static int is_path_blocked(const char *path) {
     if (!path)
         return 0;
 
+    /* Skip checks while loading the blocklist to prevent recursion */
+    if (_loading_blocklist)
+        return 0;
+
     if (!blocked_initialized)
         load_blocklist();
 
@@ -157,38 +240,6 @@ static void maybe_reload(void) {
 /* ----------------------------------------------------------------------- */
 /* Interceptors                                                            */
 /* ----------------------------------------------------------------------- */
-
-typedef int (*open_fn)(const char *, int, ...);
-typedef int (*openat_fn)(int, const char *, int, ...);
-typedef int (*access_fn)(const char *, int);
-typedef int (*faccessat_fn)(int, const char *, int, int);
-typedef FILE *(*fopen_fn)(const char *, const char *);
-typedef int (*stat_fn)(const char *, struct stat *);
-typedef int (*lstat_fn)(const char *, struct stat *);
-typedef int (*statx_fn)(int, const char *, int, unsigned int, struct statx *);
-typedef ssize_t (*readlink_fn)(const char *, char *, size_t);
-typedef ssize_t (*readlinkat_fn)(int, const char *, char *, size_t);
-typedef char *(*realpath_fn)(const char *, char *);
-
-static open_fn real_open = NULL;
-static open_fn real_open64 = NULL;
-static openat_fn real_openat = NULL;
-static openat_fn real_openat64 = NULL;
-static access_fn real_access = NULL;
-static faccessat_fn real_faccessat = NULL;
-static fopen_fn real_fopen = NULL;
-static fopen_fn real_fopen64 = NULL;
-
-static void init_real_funcs(void) {
-    if (!real_open)    real_open    = (open_fn)    dlsym(RTLD_NEXT, "open");
-    if (!real_open64)  real_open64  = (open_fn)    dlsym(RTLD_NEXT, "open64");
-    if (!real_openat)  real_openat  = (openat_fn)  dlsym(RTLD_NEXT, "openat");
-    if (!real_openat64)real_openat64= (openat_fn)  dlsym(RTLD_NEXT, "openat64");
-    if (!real_access)  real_access  = (access_fn)  dlsym(RTLD_NEXT, "access");
-    if (!real_faccessat)real_faccessat=(faccessat_fn)dlsym(RTLD_NEXT, "faccessat");
-    if (!real_fopen)   real_fopen   = (fopen_fn)   dlsym(RTLD_NEXT, "fopen");
-    if (!real_fopen64) real_fopen64 = (fopen_fn)   dlsym(RTLD_NEXT, "fopen64");
-}
 
 /* --- open / open64 --- */
 int open(const char *pathname, int flags, ...) {

@@ -15,7 +15,7 @@ import sys
 import tempfile
 from unittest.mock import patch
 
-import pytest
+import pytest  # type: ignore
 
 # Ensure proxy module is importable
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -29,7 +29,7 @@ import proxy  # noqa: E402
 
 class TestBlocklistManagement:
     def test_blocklist_file_path_is_deterministic(self):
-        with patch.object(proxy, "MCP_TAP_BLOCKLIST_DIR", "/tmp/mcptap_test_blocks"):
+        with patch.object(proxy, "MCP_TAP_PER_SESSION_DIR", "/tmp/mcptap_test_blocks"):
             path1 = proxy._blocklist_file_path("session-1")
             path2 = proxy._blocklist_file_path("session-1")
             assert path1 == path2
@@ -37,13 +37,13 @@ class TestBlocklistManagement:
             assert path1.endswith(".txt")
 
     def test_blocklist_file_path_different_sessions(self):
-        with patch.object(proxy, "MCP_TAP_BLOCKLIST_DIR", "/tmp/mcptap_test_blocks"):
+        with patch.object(proxy, "MCP_TAP_PER_SESSION_DIR", "/tmp/mcptap_test_blocks"):
             path1 = proxy._blocklist_file_path("session-1")
             path2 = proxy._blocklist_file_path("session-2")
             assert path1 != path2
 
     def test_write_blocklist_creates_file(self):
-        with patch.object(proxy, "MCP_TAP_BLOCKLIST_DIR", tempfile.mkdtemp()):
+        with patch.object(proxy, "MCP_TAP_PER_SESSION_DIR", tempfile.mkdtemp()):
             files = ["/path/a.py", "/path/b.py", "~/.git-credentials"]
             path = proxy._write_blocklist("s1", files)
             assert os.path.exists(path)
@@ -55,7 +55,7 @@ class TestBlocklistManagement:
             assert "~/.git-credentials" in lines
 
     def test_write_blocklist_empty_list(self):
-        with patch.object(proxy, "MCP_TAP_BLOCKLIST_DIR", tempfile.mkdtemp()):
+        with patch.object(proxy, "MCP_TAP_PER_SESSION_DIR", tempfile.mkdtemp()):
             path = proxy._write_blocklist("s1", [])
             assert os.path.exists(path)
             with open(path) as f:
@@ -63,7 +63,7 @@ class TestBlocklistManagement:
             assert content == ""
 
     def test_clear_blocklist_removes_file(self):
-        with patch.object(proxy, "MCP_TAP_BLOCKLIST_DIR", tempfile.mkdtemp()):
+        with patch.object(proxy, "MCP_TAP_PER_SESSION_DIR", tempfile.mkdtemp()):
             proxy._write_blocklist("s1", ["/some/file"])
             proxy._clear_blocklist("s1")
             assert not os.path.exists(proxy._blocklist_file_path("s1"))
