@@ -287,9 +287,12 @@ EOF
             log "Installing example config: $dst_file"
             cp "$src_file" "$dst_file"
             chmod 0600 "$dst_file"
+            # Replace placeholder /home/user/ with the real home directory
+            sed -i.bak "s|/home/user/|$HOME/|g" "$dst_file" && rm -f "$dst_file.bak"
             [ "$file" = "proxy.env" ] && PROXY_ENV_NEW=1
         fi
     done
+    echo ""
 }
 
 check_build_tools() {
@@ -306,17 +309,18 @@ check_build_tools() {
         die "gcc or cc is required to build the file-block library. Install it with your OS package manager (e.g. sudo apt install gcc)."
     fi
 
-    # Verify that libc headers are available (dlfcn.h is essential for dlsym)
-    if ! echo '#include <dlfcn.h>' | "$cc_bin" -x c -o /dev/null - 2>/dev/null; then
-        cat >&2 <<EOF
-[$PRODUCT_NAME] C library headers are missing. Install the development package:
+    # TODO: remove
+#     # Verify that libc headers are available (dlfcn.h is essential for dlsym)
+#     if ! echo '#include <dlfcn.h>' | "$cc_bin" -x c -o /dev/null - 2>/dev/null; then
+#         cat >&2 <<EOF
+# [$PRODUCT_NAME] C library headers are missing. Install the development package:
 
-  Debian/Ubuntu:  sudo apt install libc-dev
-  Fedora:        sudo dnf install glibc-devel
-  Arch:          sudo pacman -S glibc
-EOF
-        exit 1
-    fi
+#   Debian/Ubuntu:  sudo apt install libc-dev
+#   Fedora:        sudo dnf install glibc-devel
+#   Arch:          sudo pacman -S glibc
+# EOF
+#         exit 1
+#     fi
 
     log "Build tools check passed (compiler: $cc_bin, make: $(command -v make))"
 }
@@ -491,7 +495,9 @@ main() {
 
     install_files "$SOURCE_DIR"
 
-    if [ "$WITH_FILE_BLOCK" -eq 1 ] && [ "$PROXY_ENV_NEW" -eq 1 ]; then
+    # TODO: remove
+    # if [ "$WITH_FILE_BLOCK" -eq 1 ] && [ "$PROXY_ENV_NEW" -eq 1 ]; then
+    if [ "$WITH_FILE_BLOCK" -eq 1 ]; then
         wire_file_block_in_proxy_env
     fi
 
@@ -520,7 +526,9 @@ Health check after service start:
   curl http://127.0.0.1:8787/health
 EOF
 
-    if [ "$WITH_FILE_BLOCK" -eq 1 ] && [ "$PROXY_ENV_NEW" -eq 1 ]; then
+    # TODO: remove
+    # if [ "$WITH_FILE_BLOCK" -eq 1 ] && [ "$PROXY_ENV_NEW" -eq 1 ]; then
+    if [ "$WITH_FILE_BLOCK" -eq 1 ]; then
         log "File-block library enabled. Start Codex with:"
         log "  LD_PRELOAD=$HOME/.local/lib/libmcptap_fileblock.so codex --profile=mcptap"
     fi
