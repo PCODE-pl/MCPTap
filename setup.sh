@@ -16,6 +16,15 @@ PYTHON_BIN="${PYTHON:-}"
 TMP_DIR=""
 SOURCE_DIR=""
 
+# ANSI colors for error output
+if [ -t 2 ]; then
+    RED='[0;31m'
+    NC='[0m'
+else
+    RED=''
+    NC=''
+fi
+
 usage() {
     cat <<EOF
 ${PRODUCT_NAME} installer
@@ -93,7 +102,7 @@ while [ "$#" -gt 0 ]; do
             exit 0
             ;;
         *)
-            echo "Unknown option: $1" >&2
+            printf "%b%s%b\n" "$RED" "Unknown option: $1" "$NC" >&2
             usage >&2
             exit 2
             ;;
@@ -105,7 +114,7 @@ log() {
 }
 
 die() {
-    printf '%s\n' "[$PRODUCT_NAME] ERROR: $*" >&2
+    printf '%b%s%b\n' "$RED" "[$PRODUCT_NAME] ERROR: $*" "$NC" >&2
     exit 1
 }
 
@@ -166,6 +175,7 @@ find_python() {
         fi
     done
 
+    printf '%b' "$RED" >&2
     cat >&2 <<EOF
 [$PRODUCT_NAME] Python 3.10+ was not found.
 
@@ -181,6 +191,7 @@ Install Python first, for example:
 
 Then run this installer again.
 EOF
+    printf '%b' "$NC" >&2
     exit 1
 }
 
@@ -200,12 +211,14 @@ create_venv() {
     if [ ! -x "$VENV_DIR/bin/python" ]; then
         log "Creating Python virtualenv: $VENV_DIR"
         if ! "$py" -m venv "$VENV_DIR"; then
+            printf '%b' "$RED" >&2
             cat >&2 <<EOF
 [$PRODUCT_NAME] Failed to create virtualenv.
 
 On Debian/Ubuntu this usually means python3-venv is missing:
   sudo apt install python3-venv
 EOF
+            printf '%b' "$NC" >&2
             exit 1
         fi
     else
@@ -444,6 +457,7 @@ install_user_service() {
             if command_exists systemctl && systemctl --user show-environment >/dev/null 2>&1; then
                 install_systemd_user_service
             else
+                printf '%b' "$RED" >&2
                 cat >&2 <<EOF
 [$PRODUCT_NAME] systemd --user is not available in this session.
 Files were installed, but the service was not enabled.
@@ -453,12 +467,14 @@ Start manually with:
 
 Or install a user service manually after enabling systemd user sessions.
 EOF
+                printf '%b' "$NC" >&2
             fi
             ;;
         macos)
             install_launchd_user_service
             ;;
         *)
+            printf '%b' "$RED" >&2
             cat >&2 <<EOF
 [$PRODUCT_NAME] Unsupported OS for automatic service installation: $(uname -s 2>/dev/null || echo unknown)
 Files were installed, but the service was not enabled.
@@ -466,6 +482,7 @@ Files were installed, but the service was not enabled.
 Start manually with:
   $BIN_DIR/mcptap
 EOF
+            printf '%b' "$NC" >&2
             ;;
     esac
 }
