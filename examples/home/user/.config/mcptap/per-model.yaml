@@ -2,7 +2,7 @@ z-ai/glm-5.2:floor:
 deepseek/deepseek-v4-flash:floor:
 "@preset/free-fallback-to-paid":
   instructions: |
-    Never use the filesystem MCP server.
+    Never use the 'filesystem' MCP server.
 policy/free-fallback-to-paid:
   instructions: |
-    Never use the filesystem MCP server.
+    Never use the 'filesystem' MCP server.
