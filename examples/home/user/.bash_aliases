@@ -20,9 +20,9 @@ function cx() {
 
     systemctl --user restart mcptap.service
     if [ -n "$profile" ]; then
-        codex "$profile" "$@"
+        LD_PRELOAD=/home/user/.local/lib/libmcptap_fileblock.so codex "$profile" "$@"
     else
-        codex "$@"
+        LD_PRELOAD=/home/user/.local/lib/libmcptap_fileblock.so codex "$@"
     fi
 
     set +x

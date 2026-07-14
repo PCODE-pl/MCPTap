@@ -24,10 +24,8 @@ Output (stdout):
     or
     {"action": "block", "message": "Instruction for the model"}
 
-When ``blocked_files`` is present in an ``allow`` response and
-``MCP_TAP_FILE_BLOCK_LIB`` is configured, MCPTap writes the list to a
-control file and injects an instruction telling the model to prefix all
-shell commands with ``LD_PRELOAD=<lib> MCPTAP_BLOCKED_FILES_FILE=<path>``.
+When ``blocked_files`` is present in an ``allow`` response, MCPTap writes
+the list to a control file.
 
 This example:
 - Blocks tool calls when the session exceeds 10000 tokens or 120 seconds.
@@ -35,6 +33,8 @@ This example:
 """
 
 import json
+
+# import sys
 
 # Files that should never be accessible by the model's tool calls.
 SENSITIVE_FILES = [

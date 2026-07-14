@@ -127,7 +127,6 @@ When `--with-file-block` is used on a **new** installation (where `proxy.env` do
 
 1. Builds `libmcptap_fileblock.so` from the `file_block/` source directory.
 2. Installs it to `~/.local/lib/libmcptap_fileblock.so`.
-3. Sets `MCP_TAP_FILE_BLOCK_LIB` in `proxy.env` to the installed library path.
 
 On subsequent runs with `--with-file-block`, the library is rebuilt and reinstalled, but `proxy.env` is left untouched (to preserve user edits). Use `--force-config` to reset `proxy.env` to defaults and re-wire the library path.
 
