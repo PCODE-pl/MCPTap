@@ -11,6 +11,9 @@ Covers:
 
 import json
 import os
+import platform
+import re
+import subprocess
 import sys
 import tempfile
 from unittest.mock import patch
@@ -467,3 +470,170 @@ class TestLDPreloadLibrary:
         )
         assert result.returncode != 0
         assert "Permission denied" in result.stderr
+
+
+# ---------------------------------------------------------------------------
+# openat2 (Linux 5.6+) integration tests
+# ---------------------------------------------------------------------------
+
+OPENAT2_HELPER_SRC = r"""
+#define _GNU_SOURCE
+#include <stdio.h>
+#include <string.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/syscall.h>
+
+#ifndef __NR_openat2
+    #define __NR_openat2 437
+#endif
+
+struct test_open_how {
+    unsigned long long flags;
+    unsigned long long mode;
+    unsigned long long resolve;
+};
+
+int main(int argc, char *argv[]) {
+    if (argc < 2) return 3;
+    const char *target = argv[1];
+
+    struct test_open_how how = {
+        .flags = O_RDONLY,
+        .mode = 0,
+        .resolve = 0,
+    };
+
+    int fd = (int)syscall(__NR_openat2, AT_FDCWD, target, &how, sizeof(how));
+    if (fd < 0) {
+        if (errno == ENOSYS) {
+            printf("NOSYS\n");
+            return 4;
+        }
+        if (errno == EACCES) {
+            printf("BLOCKED\n");
+            return 0;
+        }
+        printf("ERROR errno=%d\n", errno);
+        return 1;
+    }
+
+    char buf[256];
+    ssize_t n = read(fd, buf, sizeof(buf) - 1);
+    close(fd);
+    if (n > 0) {
+        buf[n] = '\0';
+        printf("READ %.200s\n", buf);
+    } else {
+        printf("READ_EMPTY\n");
+    }
+    return 2;
+}
+"""
+
+
+def _build_openat2_helper(tmp_path):
+    """Build the C test helper that calls openat2 via raw syscall()."""
+    src = tmp_path / "openat2_helper.c"
+    binary = tmp_path / "openat2_helper"
+    src.write_text(OPENAT2_HELPER_SRC)
+    cc = os.environ.get("CC", "gcc")
+    result = subprocess.run(
+        [cc, "-Wall", "-Wextra", "-o", str(binary), str(src)],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        pytest.skip(f"Failed to build openat2 helper: {result.stderr}")
+    return str(binary)
+
+
+def _kernel_version_tuple(release):
+    """Extract (major, minor) kernel version from uname release string."""
+    m = re.match(r"(\d+)\.(\d+)", release)
+    return (int(m.group(1)), int(m.group(2))) if m else (0, 0)
+
+
+@pytest.mark.skipif(
+    _kernel_version_tuple(platform.uname().release) < (5, 6),
+    reason="openat2 requires Linux 5.6+",
+)
+class TestOpenat2Blocking:
+    def test_openat2_blocked(self, tmp_path):
+        """openat2 via raw syscall() is blocked for files in the blocklist."""
+        blocked = tmp_path / "openat2_secret.txt"
+        blocked.write_text("openat2 secret content")
+
+        blocklist = tmp_path / "blocklist.txt"
+        blocklist.write_text(str(blocked) + "\n")
+
+        helper = _build_openat2_helper(tmp_path)
+
+        env = os.environ.copy()
+        env["LD_PRELOAD"] = LIB_PATH
+        env["MCPTAP_BLOCKED_FILES_FILE"] = str(blocklist)
+        # Clear global LD_PRELOAD so our explicit one is the only one
+        env.pop("MCPTAP_BLOCKED_DIR", None)
+        env.pop("CODEX_THREAD_ID", None)
+
+        result = subprocess.run(
+            [helper, str(blocked)],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        assert result.returncode == 0
+        assert "BLOCKED" in result.stdout
+
+    def test_openat2_non_blocked_file_works(self, tmp_path):
+        """openat2 succeeds for files NOT in the blocklist."""
+        ok_file = tmp_path / "openat2_ok.txt"
+        ok_file.write_text("openat2 ok content")
+
+        blocklist = tmp_path / "blocklist.txt"
+        blocklist.write_text("/tmp/nonexistent_openat2.txt\n")
+
+        helper = _build_openat2_helper(tmp_path)
+
+        env = os.environ.copy()
+        env["LD_PRELOAD"] = LIB_PATH
+        env["MCPTAP_BLOCKED_FILES_FILE"] = str(blocklist)
+        env.pop("MCPTAP_BLOCKED_DIR", None)
+        env.pop("CODEX_THREAD_ID", None)
+
+        result = subprocess.run(
+            [helper, str(ok_file)],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        assert result.returncode == 2
+        assert "openat2 ok content" in result.stdout
+
+    def test_openat2_syscall_passthrough(self, tmp_path):
+        """Non-openat2 syscalls still work through our syscall() interceptor."""
+        # This test verifies that our syscall() wrapper doesn't break other syscalls.
+        # We run a simple program that uses various syscalls.
+        blocked = tmp_path / "passthrough_test.txt"
+        blocked.write_text("content")
+
+        blocklist = tmp_path / "blocklist.txt"
+        # Block a different file, not the one we're accessing
+        blocklist.write_text("/tmp/nonexistent_passthrough.txt\n")
+
+        env = os.environ.copy()
+        env["LD_PRELOAD"] = LIB_PATH
+        env["MCPTAP_BLOCKED_FILES_FILE"] = str(blocklist)
+        env.pop("MCPTAP_BLOCKED_DIR", None)
+        env.pop("CODEX_THREAD_ID", None)
+
+        # If our syscall() wrapper is broken, even basic programs would crash
+        result = subprocess.run(
+            ["ls", "-la", str(tmp_path)],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        assert result.returncode == 0
+        assert "passthrough_test.txt" in result.stdout
