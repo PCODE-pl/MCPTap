@@ -2,10 +2,9 @@
 
 Covers:
 - LD_PRELOAD library (libmcptap_fileblock.so) integration
+- openat2 (Linux 5.6+) syscall interception
 - Blocklist file management (write, clear, path generation)
 - Generic hook mode (no synthetic tool injection)
-- _build_file_block_instruction generation
-- _inject_block_instruction into response bodies
 - _build_synthetic_tool_response for custom tool names
 """
 
