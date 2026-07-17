@@ -106,7 +106,7 @@ MCP_TAP_USE_TOOL_HOOK_SYNTHETIC_TOOL = os.environ.get("MCP_TAP_USE_TOOL_HOOK_SYN
 # Directory for per-session blocklist control files.  Each session gets a
 # subdirectory named after the Codex session ID (CODEX_THREAD_ID).
 # The LD_PRELOAD library reads <dir>/<session_id>/blocked_files.
-MCP_TAP_PER_SESSION_DIR = os.environ.get("MCP_TAP_PER_SESSION_DIR", "/tmp/mcptap/per_session_id").strip()
+MCP_TAP_PER_SESSION_DIR = os.environ.get("MCP_TAP_PER_SESSION_DIR", "/tmp/mcptap/per_session").strip()
 
 # Maximum age (seconds) for a pending state before it is cleaned up.
 MCP_TAP_USE_TOOL_HOOK_PENDING_TTL = 600.0

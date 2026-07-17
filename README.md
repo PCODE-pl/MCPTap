@@ -716,7 +716,7 @@ The library is inherited by all child processes (shell commands, scripts, etc.)
 for the entire Codex session. It identifies the session via the
 ``CODEX_THREAD_ID`` environment variable (set automatically by Codex CLI) and
 reads the control file at
-``/tmp/mcptap/per_session_id/<CODEX_THREAD_ID>/blocked_files``.
+``/tmp/mcptap/per_session/<CODEX_THREAD_ID>/blocked_files``.
 
 4/ In your hook script, return ``blocked_files`` in the ``allow`` response.
    MCPTap writes them to the per-session control file. The library reloads
