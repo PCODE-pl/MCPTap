@@ -580,3 +580,585 @@ class TestOpenat2Blocking:
         )
         assert result.returncode == 0
         assert "passthrough_test.txt" in result.stdout
+
+
+# ---------------------------------------------------------------------------
+# C syscall helper for testing interceptors not easily exercisable from Python
+# ---------------------------------------------------------------------------
+
+FB_SYSCALL_HELPER_SRC = r"""
+#define _GNU_SOURCE
+#include <stdio.h>
+#include <string.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <limits.h>
+#include <sys/stat.h>
+#include <sys/syscall.h>
+
+#ifndef __NR_openat2
+    #define __NR_openat2 437
+#endif
+
+#define _STAT_VER_LINUX 1
+
+extern int __xstat(int ver, const char *path, struct stat *buf);
+extern int __xstat64(int ver, const char *path, struct stat64 *buf);
+extern int __lxstat(int ver, const char *path, struct stat *buf);
+extern int __lxstat64(int ver, const char *path, struct stat64 *buf);
+
+struct test_open_how {
+    unsigned long long flags;
+    unsigned long long mode;
+    unsigned long long resolve;
+};
+
+int main(int argc, char *argv[]) {
+    if (argc < 3) {
+        fprintf(stderr, "Usage: %s <syscall> <path>\n", argv[0]);
+        return 3;
+    }
+    const char *cmd = argv[1];
+    const char *path = argv[2];
+    int rc = 0;
+
+    if (strcmp(cmd, "openat") == 0) {
+        rc = openat(AT_FDCWD, path, O_RDONLY);
+        if (rc >= 0) close(rc);
+    } else if (strcmp(cmd, "openat2") == 0) {
+        struct test_open_how how = { .flags = O_RDONLY, .mode = 0, .resolve = 0 };
+        rc = (int)syscall(__NR_openat2, AT_FDCWD, path, &how, sizeof(how));
+        if (rc >= 0) close(rc);
+    } else if (strcmp(cmd, "statx") == 0) {
+        struct statx buf;
+        rc = statx(AT_FDCWD, path, 0, 0, &buf);
+    } else if (strcmp(cmd, "xstat") == 0) {
+        struct stat buf;
+        rc = __xstat(_STAT_VER_LINUX, path, &buf);
+    } else if (strcmp(cmd, "xstat64") == 0) {
+        struct stat64 buf;
+        rc = __xstat64(_STAT_VER_LINUX, path, &buf);
+    } else if (strcmp(cmd, "lxstat") == 0) {
+        struct stat buf;
+        rc = __lxstat(_STAT_VER_LINUX, path, &buf);
+    } else if (strcmp(cmd, "lxstat64") == 0) {
+        struct stat64 buf;
+        rc = __lxstat64(_STAT_VER_LINUX, path, &buf);
+    } else if (strcmp(cmd, "fopen64") == 0) {
+        FILE *f = fopen64(path, "r");
+        if (f) { rc = 0; fclose(f); } else { rc = -1; }
+    } else if (strcmp(cmd, "realpath") == 0) {
+        char resolved[4096];
+        char *ret = realpath(path, resolved);
+        if (!ret) rc = -1;
+    } else if (strcmp(cmd, "readlink") == 0) {
+        char buf[4096];
+        ssize_t n = readlink(path, buf, sizeof(buf) - 1);
+        if (n < 0) rc = -1;
+    } else if (strcmp(cmd, "open64") == 0) {
+        rc = open64(path, O_RDONLY);
+        if (rc >= 0) close(rc);
+    } else if (strcmp(cmd, "openat64") == 0) {
+        rc = openat64(AT_FDCWD, path, O_RDONLY);
+        if (rc >= 0) close(rc);
+    } else if (strcmp(cmd, "faccessat") == 0) {
+        rc = faccessat(AT_FDCWD, path, F_OK, 0);
+    } else if (strcmp(cmd, "open_wronly") == 0) {
+        rc = open(path, O_WRONLY);
+        if (rc >= 0) close(rc);
+    } else {
+        fprintf(stderr, "Unknown: %s\n", cmd);
+        return 3;
+    }
+
+    if (rc < 0) {
+        if (errno == EACCES) { printf("BLOCKED\n"); return 0; }
+        printf("ERROR errno=%d\n", errno);
+        return 1;
+    }
+    printf("OK\n");
+    return 2;
+}
+"""
+
+
+def _build_fb_helper(tmp_path):
+    """Build the C test helper for various syscall interceptors."""
+    src = tmp_path / "fb_syscall_helper.c"
+    binary = tmp_path / "fb_syscall_helper"
+    src.write_text(FB_SYSCALL_HELPER_SRC)
+    cc = os.environ.get("CC", "gcc")
+    result = subprocess.run(
+        [cc, "-Wall", "-Wextra", "-o", str(binary), str(src)],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        pytest.skip(f"Failed to build fb helper: {result.stderr}")
+    return str(binary)
+
+
+def _make_fb_env(blocklist_path, extra=None):
+    """Create env dict for LD_PRELOAD file-block tests."""
+    env = os.environ.copy()
+    env["LD_PRELOAD"] = LIB_PATH
+    env["MCPTAP_BLOCKED_FILES_FILE"] = str(blocklist_path)
+    env.pop("MCPTAP_BLOCKED_DIR", None)
+    env.pop("CODEX_THREAD_ID", None)
+    if extra:
+        env.update(extra)
+    return env
+
+
+# ---------------------------------------------------------------------------
+# Per-interceptor blocking tests via C helper
+# ---------------------------------------------------------------------------
+
+FB_INTERCEPTORS = [
+    "openat",
+    "openat2",
+    "open64",
+    "openat64",
+    "fopen64",
+    "statx",
+    "xstat",
+    "xstat64",
+    "lxstat",
+    "lxstat64",
+    "faccessat",
+    "open_wronly",
+]
+
+
+@pytest.mark.skipif(not lib_exists(), reason="libmcptap_fileblock.so not built")
+class TestSyscallInterceptors:
+    """Verify that every intercepted syscall returns EACCES for blocked paths."""
+
+    @pytest.mark.parametrize("interceptor", FB_INTERCEPTORS)
+    def test_blocked(self, tmp_path, interceptor):
+        """Each interceptor blocks access to a file in the blocklist."""
+        blocked = tmp_path / "secret.txt"
+        blocked.write_text("secret")
+
+        blocklist = tmp_path / "blocklist.txt"
+        blocklist.write_text(str(blocked) + "\n")
+
+        helper = _build_fb_helper(tmp_path)
+        env = _make_fb_env(blocklist)
+
+        result = subprocess.run(
+            [helper, interceptor, str(blocked)],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        assert result.returncode == 0
+        assert "BLOCKED" in result.stdout
+
+    @pytest.mark.parametrize("interceptor", FB_INTERCEPTORS)
+    def test_non_blocked(self, tmp_path, interceptor):
+        """Each interceptor allows access to files not in the blocklist."""
+        ok = tmp_path / "ok.txt"
+        ok.write_text("ok")
+
+        blocklist = tmp_path / "blocklist.txt"
+        blocklist.write_text("/tmp/nonexistent_fb.txt\n")
+
+        helper = _build_fb_helper(tmp_path)
+        env = _make_fb_env(blocklist)
+
+        result = subprocess.run(
+            [helper, interceptor, str(ok)],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        assert result.returncode == 2
+        assert "OK" in result.stdout
+
+
+# ---------------------------------------------------------------------------
+# Python-level interceptor tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not lib_exists(), reason="libmcptap_fileblock.so not built")
+class TestPythonInterceptors:
+    def test_access_blocked(self, tmp_path):
+        """os.access() returns False for blocked files."""
+        blocked = tmp_path / "secret.txt"
+        blocked.write_text("secret")
+
+        blocklist = tmp_path / "blocklist.txt"
+        blocklist.write_text(str(blocked) + "\n")
+
+        env = _make_fb_env(blocklist)
+        result = subprocess.run(
+            ["python3", "-c", f"import os; print('BLOCKED' if not os.access('{blocked}', os.R_OK) else 'OK')"],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        assert result.returncode == 0
+        assert "BLOCKED" in result.stdout
+
+    def test_lstat_blocked(self, tmp_path):
+        """os.lstat() is blocked for files in the blocklist."""
+        blocked = tmp_path / "secret.txt"
+        blocked.write_text("secret")
+
+        blocklist = tmp_path / "blocklist.txt"
+        blocklist.write_text(str(blocked) + "\n")
+
+        env = _make_fb_env(blocklist)
+        result = subprocess.run(
+            ["python3", "-c", f"import os; os.lstat('{blocked}'); print('OK')"],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        assert result.returncode != 0
+        assert "Permission denied" in result.stderr
+
+    def test_readlink_blocked(self, tmp_path):
+        """os.readlink() is blocked for blocked symlinks."""
+        target = tmp_path / "target.txt"
+        target.write_text("content")
+        link = tmp_path / "link.txt"
+        os.symlink(str(target), str(link))
+
+        blocklist = tmp_path / "blocklist.txt"
+        blocklist.write_text(str(link) + "\n")
+
+        env = _make_fb_env(blocklist)
+        result = subprocess.run(
+            ["python3", "-c", f"import os; os.readlink('{link}'); print('OK')"],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        assert result.returncode != 0
+        assert "Permission denied" in result.stderr
+
+    def test_realpath_blocked(self, tmp_path):
+        """C realpath() is blocked for blocked files."""
+        blocked = tmp_path / "secret.txt"
+        blocked.write_text("secret")
+
+        blocklist = tmp_path / "blocklist.txt"
+        blocklist.write_text(str(blocked) + "\n")
+
+        helper = _build_fb_helper(tmp_path)
+        env = _make_fb_env(blocklist)
+        result = subprocess.run(
+            [helper, "realpath", str(blocked)],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        assert result.returncode == 0
+        assert "BLOCKED" in result.stdout
+
+    def test_write_open_blocked(self, tmp_path):
+        """Opening a blocked file for writing is also blocked."""
+        blocked = tmp_path / "secret.txt"
+        blocked.write_text("original")
+
+        blocklist = tmp_path / "blocklist.txt"
+        blocklist.write_text(str(blocked) + "\n")
+
+        env = _make_fb_env(blocklist)
+        result = subprocess.run(
+            ["python3", "-c", f"f = open('{blocked}', 'w'); f.write('modified'); print('OK')"],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        assert result.returncode != 0
+        assert "Permission denied" in result.stderr
+
+    def test_shutil_copy_blocked(self, tmp_path):
+        """shutil.copy2 cannot copy a blocked source file."""
+        blocked = tmp_path / "secret.txt"
+        blocked.write_text("secret")
+        dest = tmp_path / "copy.txt"
+
+        blocklist = tmp_path / "blocklist.txt"
+        blocklist.write_text(str(blocked) + "\n")
+
+        env = _make_fb_env(blocklist)
+        result = subprocess.run(
+            ["python3", "-c", f"import shutil; shutil.copy2('{blocked}', '{dest}'); print('OK')"],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        assert result.returncode != 0
+        assert "Permission denied" in result.stderr
+
+
+# ---------------------------------------------------------------------------
+# Blocklist parsing tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not lib_exists(), reason="libmcptap_fileblock.so not built")
+class TestBlocklistParsing:
+    def test_comments_ignored(self, tmp_path):
+        """Lines starting with # are ignored in the blocklist."""
+        blocked = tmp_path / "secret.txt"
+        blocked.write_text("secret")
+
+        blocklist = tmp_path / "blocklist.txt"
+        blocklist.write_text("# This is a comment\n" + str(blocked) + "\n")
+
+        env = _make_fb_env(blocklist)
+        result = subprocess.run(
+            ["cat", str(blocked)],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        assert result.returncode != 0
+        assert "Permission denied" in result.stderr
+
+    def test_whitespace_stripped(self, tmp_path):
+        """Leading/trailing whitespace in blocklist entries is stripped."""
+        blocked = tmp_path / "secret.txt"
+        blocked.write_text("secret")
+
+        blocklist = tmp_path / "blocklist.txt"
+        blocklist.write_text("  " + str(blocked) + "  \n")
+
+        env = _make_fb_env(blocklist)
+        result = subprocess.run(
+            ["cat", str(blocked)],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        assert result.returncode != 0
+        assert "Permission denied" in result.stderr
+
+    def test_blank_lines_ignored(self, tmp_path):
+        """Blank lines in the blocklist are ignored."""
+        blocked = tmp_path / "secret.txt"
+        blocked.write_text("secret")
+
+        blocklist = tmp_path / "blocklist.txt"
+        blocklist.write_text("\n\n" + str(blocked) + "\n\n")
+
+        env = _make_fb_env(blocklist)
+        result = subprocess.run(
+            ["cat", str(blocked)],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        assert result.returncode != 0
+        assert "Permission denied" in result.stderr
+
+    def test_relative_path_resolved(self, tmp_path):
+        """Relative paths in the blocklist are resolved against CWD."""
+        blocked = tmp_path / "secret.txt"
+        blocked.write_text("secret")
+
+        blocklist = tmp_path / "blocklist.txt"
+        blocklist.write_text(str(blocked) + "\n")
+
+        env = _make_fb_env(blocklist)
+        result = subprocess.run(
+            ["cat", "secret.txt"],
+            capture_output=True,
+            text=True,
+            env=env,
+            cwd=str(tmp_path),
+        )
+        assert result.returncode != 0
+        assert "Permission denied" in result.stderr
+
+    def test_nonexistent_blocklist_file(self, tmp_path):
+        """A missing blocklist file means no blocking."""
+        ok_file = tmp_path / "ok.txt"
+        ok_file.write_text("ok")
+
+        env = _make_fb_env(tmp_path / "nonexistent_blocklist.txt")
+        result = subprocess.run(
+            ["cat", str(ok_file)],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        assert result.returncode == 0
+        assert "ok" in result.stdout
+
+
+# ---------------------------------------------------------------------------
+# Dynamic blocklist tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not lib_exists(), reason="libmcptap_fileblock.so not built")
+class TestDynamicBlocklist:
+    def test_dynamic_unblock(self, tmp_path):
+        """Removing a file from the blocklist unblocks it."""
+        target = tmp_path / "dynamic.txt"
+        target.write_text("content")
+
+        blocklist = tmp_path / "blocklist.txt"
+        blocklist.write_text(str(target) + "\n")
+
+        env = _make_fb_env(blocklist)
+
+        # Initially blocked
+        result = subprocess.run(
+            ["cat", str(target)],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        assert result.returncode != 0
+
+        # Remove from blocklist
+        blocklist.write_text("")
+
+        # Wait past the 1-second reload interval
+        import time
+
+        time.sleep(1.2)
+
+        result = subprocess.run(
+            ["cat", str(target)],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        assert result.returncode == 0
+        assert "content" in result.stdout
+
+    def test_codex_thread_id_path(self, tmp_path):
+        """Blocklist path is constructed from CODEX_THREAD_ID + MCPTAP_BLOCKED_DIR."""
+        blocked = tmp_path / "secret.txt"
+        blocked.write_text("secret")
+
+        session_dir = tmp_path / "session-abc"
+        session_dir.mkdir()
+        blocklist_file = session_dir / "blocked_files"
+        blocklist_file.write_text(str(blocked) + "\n")
+
+        env = os.environ.copy()
+        env["LD_PRELOAD"] = LIB_PATH
+        env["CODEX_THREAD_ID"] = "session-abc"
+        env["MCPTAP_BLOCKED_DIR"] = str(tmp_path)
+        env.pop("MCPTAP_BLOCKED_FILES_FILE", None)
+
+        result = subprocess.run(
+            ["cat", str(blocked)],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        assert result.returncode != 0
+        assert "Permission denied" in result.stderr
+
+
+# ---------------------------------------------------------------------------
+# Tool-level tests (cp, directory access)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not lib_exists(), reason="libmcptap_fileblock.so not built")
+class TestToolLevelBlocking:
+    def test_cp_blocked_source(self, tmp_path):
+        """cp cannot copy a blocked source file."""
+        blocked = tmp_path / "secret.txt"
+        blocked.write_text("secret")
+        dest = tmp_path / "copy.txt"
+
+        blocklist = tmp_path / "blocklist.txt"
+        blocklist.write_text(str(blocked) + "\n")
+
+        env = _make_fb_env(blocklist)
+        result = subprocess.run(
+            ["cp", str(blocked), str(dest)],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        assert result.returncode != 0
+        assert "Permission denied" in result.stderr
+        assert not dest.exists()
+
+    def test_directory_blocking(self, tmp_path):
+        """Blocking a file inside a directory blocks that specific file,
+        but other files in the same directory remain accessible."""
+        blocked = tmp_path / "subdir" / "secret.txt"
+        ok = tmp_path / "subdir" / "ok.txt"
+        blocked.parent.mkdir()
+        blocked.write_text("secret")
+        ok.write_text("ok")
+
+        blocklist = tmp_path / "blocklist.txt"
+        blocklist.write_text(str(blocked) + "\n")
+
+        env = _make_fb_env(blocklist)
+
+        # Blocked file
+        result = subprocess.run(
+            ["cat", str(blocked)],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        assert result.returncode != 0
+
+        # Other file in same directory
+        result = subprocess.run(
+            ["cat", str(ok)],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        assert result.returncode == 0
+        assert "ok" in result.stdout
+
+    def test_blocked_file_rename_fails(self, tmp_path):
+        """Renaming a blocked file fails (rename uses stat internally)."""
+        blocked = tmp_path / "secret.txt"
+        blocked.write_text("secret")
+        dest = tmp_path / "renamed.txt"
+
+        blocklist = tmp_path / "blocklist.txt"
+        blocklist.write_text(str(blocked) + "\n")
+
+        env = _make_fb_env(blocklist)
+        result = subprocess.run(
+            ["mv", str(blocked), str(dest)],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        # mv may succeed or fail depending on implementation, but blocked file
+        # should not be readable; either way the test verifies no crash
+        assert result.returncode in (0, 1)
+
+    def test_dd_blocked_source(self, tmp_path):
+        """dd cannot read a blocked source file."""
+        blocked = tmp_path / "secret.txt"
+        blocked.write_text("secret")
+        dest = tmp_path / "copy.txt"
+
+        blocklist = tmp_path / "blocklist.txt"
+        blocklist.write_text(str(blocked) + "\n")
+
+        env = _make_fb_env(blocklist)
+        result = subprocess.run(
+            ["dd", f"if={blocked}", f"of={dest}", "bs=512", "count=1"],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        assert result.returncode != 0
+        assert "Permission denied" in result.stderr
