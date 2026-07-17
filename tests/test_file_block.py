@@ -228,6 +228,7 @@ class TestLDPreloadLibrary:
         env = os.environ.copy()
         env["LD_PRELOAD"] = LIB_PATH
         env["MCPTAP_BLOCKED_FILES_FILE"] = str(blocklist)
+        env["LC_ALL"] = "C"
 
         result = subprocess.run(
             ["cat", str(blocked)],
@@ -251,6 +252,7 @@ class TestLDPreloadLibrary:
         env = os.environ.copy()
         env["LD_PRELOAD"] = LIB_PATH
         env["MCPTAP_BLOCKED_FILES_FILE"] = str(blocklist)
+        env["LC_ALL"] = "C"
 
         result = subprocess.run(
             ["cat", str(ok_file)],
@@ -277,6 +279,7 @@ class TestLDPreloadLibrary:
         env = os.environ.copy()
         env["LD_PRELOAD"] = LIB_PATH
         env["MCPTAP_BLOCKED_FILES_FILE"] = str(blocklist)
+        env["LC_ALL"] = "C"
 
         try:
             result = subprocess.run(
@@ -303,6 +306,7 @@ class TestLDPreloadLibrary:
         env = os.environ.copy()
         env["LD_PRELOAD"] = LIB_PATH
         env["MCPTAP_BLOCKED_FILES_FILE"] = str(blocklist)
+        env["LC_ALL"] = "C"
 
         result = subprocess.run(
             ["cat", str(ok_file)],
@@ -330,6 +334,7 @@ class TestLDPreloadLibrary:
         env = os.environ.copy()
         env["LD_PRELOAD"] = LIB_PATH
         env["MCPTAP_BLOCKED_FILES_FILE"] = str(blocklist)
+        env["LC_ALL"] = "C"
 
         # f1 blocked
         result = subprocess.run(["cat", str(f1)], capture_output=True, text=True, env=env)
@@ -356,6 +361,7 @@ class TestLDPreloadLibrary:
         env = os.environ.copy()
         env["LD_PRELOAD"] = LIB_PATH
         env["MCPTAP_BLOCKED_FILES_FILE"] = str(blocklist)
+        env["LC_ALL"] = "C"
 
         # First read: not blocked
         result = subprocess.run(["cat", str(target)], capture_output=True, text=True, env=env)
@@ -381,6 +387,7 @@ class TestLDPreloadLibrary:
         env = os.environ.copy()
         env["LD_PRELOAD"] = LIB_PATH
         env["MCPTAP_BLOCKED_FILES_FILE"] = str(blocklist)
+        env["LC_ALL"] = "C"
 
         result = subprocess.run(
             ["python3", "-c", f"f = open('{blocked}'); print(f.read())"],
@@ -404,6 +411,7 @@ class TestLDPreloadLibrary:
         env = os.environ.copy()
         env["LD_PRELOAD"] = LIB_PATH
         env["MCPTAP_BLOCKED_FILES_FILE"] = str(blocklist)
+        env["LC_ALL"] = "C"
 
         result = subprocess.run(
             ["python3", "-c", f"import os; os.stat('{blocked}'); print('OK')"],
@@ -516,6 +524,7 @@ class TestOpenat2Blocking:
         env = os.environ.copy()
         env["LD_PRELOAD"] = LIB_PATH
         env["MCPTAP_BLOCKED_FILES_FILE"] = str(blocklist)
+        env["LC_ALL"] = "C"
         # Clear global LD_PRELOAD so our explicit one is the only one
         env.pop("MCPTAP_BLOCKED_DIR", None)
         env.pop("CODEX_THREAD_ID", None)
@@ -542,6 +551,7 @@ class TestOpenat2Blocking:
         env = os.environ.copy()
         env["LD_PRELOAD"] = LIB_PATH
         env["MCPTAP_BLOCKED_FILES_FILE"] = str(blocklist)
+        env["LC_ALL"] = "C"
         env.pop("MCPTAP_BLOCKED_DIR", None)
         env.pop("CODEX_THREAD_ID", None)
 
@@ -568,6 +578,7 @@ class TestOpenat2Blocking:
         env = os.environ.copy()
         env["LD_PRELOAD"] = LIB_PATH
         env["MCPTAP_BLOCKED_FILES_FILE"] = str(blocklist)
+        env["LC_ALL"] = "C"
         env.pop("MCPTAP_BLOCKED_DIR", None)
         env.pop("CODEX_THREAD_ID", None)
 
@@ -705,6 +716,7 @@ def _make_fb_env(blocklist_path, extra=None):
     env = os.environ.copy()
     env["LD_PRELOAD"] = LIB_PATH
     env["MCPTAP_BLOCKED_FILES_FILE"] = str(blocklist_path)
+    env["LC_ALL"] = "C"
     env.pop("MCPTAP_BLOCKED_DIR", None)
     env.pop("CODEX_THREAD_ID", None)
     if extra:
@@ -1052,6 +1064,7 @@ class TestDynamicBlocklist:
         env["LD_PRELOAD"] = LIB_PATH
         env["CODEX_THREAD_ID"] = "session-abc"
         env["MCPTAP_BLOCKED_DIR"] = str(tmp_path)
+        env["LC_ALL"] = "C"
         env.pop("MCPTAP_BLOCKED_FILES_FILE", None)
 
         result = subprocess.run(
