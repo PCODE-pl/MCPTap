@@ -16,7 +16,7 @@
  * Blocked syscalls: open, openat, openat64, access, faccessat,
  * fopen, fopen64, stat, stat64, lstat, lstat64, __xstat, __xstat64,
  * __lxstat, __lxstat64, statx, readlink, readlinkat, realpath,
- * openat2 (Linux 5.6+, via wrapper and raw syscall interception).
+ * openat2 (Linux 5.6+, via exported wrapper symbol).
  *
  * Returns -1 / NULL with errno = EACCES for blocked paths.
  */
@@ -40,9 +40,10 @@
 /*                                                                         */
 /* struct open_how and __NR_openat2 may not be available in older          */
 /* kernel headers, so we define them conditionally here.                   */
-/* openat2 is not wrapped by glibc, so programs call it via                */
-/* syscall(__NR_openat2, ...). We intercept the generic syscall()          */
-/* function and also export an openat2() wrapper symbol.                   */
+/* We export an openat2() wrapper symbol so that programs linking          */
+/* against it are intercepted. Raw syscall(__NR_openat2, ...) is not       */
+/* intercepted because wrapping the generic syscall() function breaks      */
+/* Electron/Node.js (which rely on syscall() for getrandom, futex, etc.).  */
 /* ----------------------------------------------------------------------- */
 
 #ifndef __NR_openat2
@@ -72,7 +73,6 @@ typedef int (*statx_fn)(int, const char *, int, unsigned int, struct statx *);
 typedef ssize_t (*readlink_fn)(const char *, char *, size_t);
 typedef ssize_t (*readlinkat_fn)(int, const char *, char *, size_t);
 typedef char *(*realpath_fn)(const char *, char *);
-typedef long (*syscall_fn)(long, ...);
 
 static open_fn real_open = NULL;
 static open_fn real_open64 = NULL;
@@ -82,7 +82,6 @@ static access_fn real_access = NULL;
 static faccessat_fn real_faccessat = NULL;
 static fopen_fn real_fopen = NULL;
 static fopen_fn real_fopen64 = NULL;
-static syscall_fn real_syscall = NULL;
 
 static void init_real_funcs(void) {
     if (!real_open)    real_open    = (open_fn)    dlsym(RTLD_NEXT, "open");
@@ -93,7 +92,6 @@ static void init_real_funcs(void) {
     if (!real_faccessat)real_faccessat=(faccessat_fn)dlsym(RTLD_NEXT, "faccessat");
     if (!real_fopen)   real_fopen   = (fopen_fn)   dlsym(RTLD_NEXT, "fopen");
     if (!real_fopen64) real_fopen64 = (fopen_fn)   dlsym(RTLD_NEXT, "fopen64");
-    if (!real_syscall) real_syscall = (syscall_fn) dlsym(RTLD_NEXT, "syscall");
 }
 
 /* ----------------------------------------------------------------------- */
@@ -479,12 +477,10 @@ char *realpath(const char *path, char *resolved) {
 /* ----------------------------------------------------------------------- */
 /* openat2 interceptor (Linux 5.6+)                                        */
 /*                                                                         */
-/* openat2 is not wrapped by glibc, so programs call it via                 */
-/* syscall(__NR_openat2, ...). We intercept the generic syscall()          */
-/* function and check if the first argument is __NR_openat2.               */
-/*                                                                         */
-/* If glibc later provides an openat2() wrapper, our exported symbol       */
-/* will take precedence and intercept those calls directly.                */
+/* We export an openat2() wrapper that delegates to the kernel via         */
+/* the raw syscall number. Programs linking against openat2() are          */
+/* intercepted. Raw syscall(__NR_openat2, ...) is not intercepted          */
+/* because wrapping the generic syscall() function breaks Electron/Node.   */
 /* ----------------------------------------------------------------------- */
 
 int openat2(int dirfd, const char *pathname, struct mcptap_open_how *how,
@@ -495,43 +491,5 @@ int openat2(int dirfd, const char *pathname, struct mcptap_open_how *how,
         errno = EACCES;
         return -1;
     }
-    if (!real_syscall)
-        return -1;
-    return (int)real_syscall(__NR_openat2, dirfd, pathname, how, size);
-}
-
-/* Intercept raw syscall() to catch programs that call
- * openat2 via syscall(__NR_openat2, ...). */
-long syscall(long number, ...) {
-    init_real_funcs();
-
-    /* Fast path: if it's not openat2, delegate immediately. */
-    if (number != __NR_openat2) {
-        va_list ap;
-        va_start(ap, number);
-        long a1 = va_arg(ap, long);
-        long a2 = va_arg(ap, long);
-        long a3 = va_arg(ap, long);
-        long a4 = va_arg(ap, long);
-        long a5 = va_arg(ap, long);
-        long a6 = va_arg(ap, long);
-        va_end(ap);
-        return real_syscall(number, a1, a2, a3, a4, a5, a6);
-    }
-
-    /* openat2: extract pathname (2nd arg) and check. */
-    va_list ap;
-    va_start(ap, number);
-    int dirfd = va_arg(ap, int);
-    const char *pathname = va_arg(ap, const char *);
-    void *how = va_arg(ap, void *);
-    size_t size = va_arg(ap, size_t);
-    va_end(ap);
-
-    maybe_reload();
-    if (is_path_blocked(pathname)) {
-        errno = EACCES;
-        return -1;
-    }
-    return real_syscall(number, dirfd, pathname, how, size);
+    return (int)syscall(__NR_openat2, dirfd, pathname, how, size);
 }

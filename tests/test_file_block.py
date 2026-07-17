@@ -2,7 +2,7 @@
 
 Covers:
 - LD_PRELOAD library (libmcptap_fileblock.so) integration
-- openat2 (Linux 5.6+) syscall interception
+- openat2 (Linux 5.6+) wrapper symbol interception
 - Blocklist file management (write, clear, path generation)
 - Generic hook mode (no synthetic tool injection)
 - _build_synthetic_tool_response for custom tool names
@@ -446,6 +446,10 @@ struct test_open_how {
     unsigned long long resolve;
 };
 
+/* Declare the openat2 wrapper exported by libmcptap_fileblock.so.
+ * When LD_PRELOAD is active, this resolves to our interceptor. */
+extern int openat2(int dirfd, const char *pathname, struct test_open_how *how, size_t size);
+
 int main(int argc, char *argv[]) {
     if (argc < 2) return 3;
     const char *target = argv[1];
@@ -456,7 +460,7 @@ int main(int argc, char *argv[]) {
         .resolve = 0,
     };
 
-    int fd = (int)syscall(__NR_openat2, AT_FDCWD, target, &how, sizeof(how));
+    int fd = openat2(AT_FDCWD, target, &how, sizeof(how));
     if (fd < 0) {
         if (errno == ENOSYS) {
             printf("NOSYS\n");
@@ -485,13 +489,24 @@ int main(int argc, char *argv[]) {
 
 
 def _build_openat2_helper(tmp_path):
-    """Build the C test helper that calls openat2 via raw syscall()."""
+    """Build the C test helper that calls the openat2() wrapper symbol."""
     src = tmp_path / "openat2_helper.c"
     binary = tmp_path / "openat2_helper"
     src.write_text(OPENAT2_HELPER_SRC)
     cc = os.environ.get("CC", "gcc")
+    lib_dir = os.path.dirname(LIB_PATH)
     result = subprocess.run(
-        [cc, "-Wall", "-Wextra", "-o", str(binary), str(src)],
+        [
+            cc,
+            "-Wall",
+            "-Wextra",
+            "-o",
+            str(binary),
+            str(src),
+            f"-L{lib_dir}",
+            "-lmcptap_fileblock",
+            f"-Wl,-rpath,{lib_dir}",
+        ],
         capture_output=True,
         text=True,
     )
@@ -512,7 +527,7 @@ def _kernel_version_tuple(release):
 )
 class TestOpenat2Blocking:
     def test_openat2_blocked(self, tmp_path):
-        """openat2 via raw syscall() is blocked for files in the blocklist."""
+        """openat2() wrapper is blocked for files in the blocklist."""
         blocked = tmp_path / "openat2_secret.txt"
         blocked.write_text("openat2 secret content")
 
@@ -539,7 +554,7 @@ class TestOpenat2Blocking:
         assert "BLOCKED" in result.stdout
 
     def test_openat2_non_blocked_file_works(self, tmp_path):
-        """openat2 succeeds for files NOT in the blocklist."""
+        """openat2() wrapper succeeds for files NOT in the blocklist."""
         ok_file = tmp_path / "openat2_ok.txt"
         ok_file.write_text("openat2 ok content")
 
@@ -564,15 +579,12 @@ class TestOpenat2Blocking:
         assert result.returncode == 2
         assert "openat2 ok content" in result.stdout
 
-    def test_openat2_syscall_passthrough(self, tmp_path):
-        """Non-openat2 syscalls still work through our syscall() interceptor."""
-        # This test verifies that our syscall() wrapper doesn't break other syscalls.
-        # We run a simple program that uses various syscalls.
-        blocked = tmp_path / "passthrough_test.txt"
-        blocked.write_text("content")
+    def test_basic_programs_work_with_ld_preload(self, tmp_path):
+        """Basic programs (ls, cat, echo) work normally with LD_PRELOAD active."""
+        target = tmp_path / "ok.txt"
+        target.write_text("content")
 
         blocklist = tmp_path / "blocklist.txt"
-        # Block a different file, not the one we're accessing
         blocklist.write_text("/tmp/nonexistent_passthrough.txt\n")
 
         env = os.environ.copy()
@@ -582,7 +594,6 @@ class TestOpenat2Blocking:
         env.pop("MCPTAP_BLOCKED_DIR", None)
         env.pop("CODEX_THREAD_ID", None)
 
-        # If our syscall() wrapper is broken, even basic programs would crash
         result = subprocess.run(
             ["ls", "-la", str(tmp_path)],
             capture_output=True,
@@ -590,7 +601,7 @@ class TestOpenat2Blocking:
             env=env,
         )
         assert result.returncode == 0
-        assert "passthrough_test.txt" in result.stdout
+        assert "ok.txt" in result.stdout
 
 
 # ---------------------------------------------------------------------------
@@ -637,10 +648,6 @@ int main(int argc, char *argv[]) {
 
     if (strcmp(cmd, "openat") == 0) {
         rc = openat(AT_FDCWD, path, O_RDONLY);
-        if (rc >= 0) close(rc);
-    } else if (strcmp(cmd, "openat2") == 0) {
-        struct test_open_how how = { .flags = O_RDONLY, .mode = 0, .resolve = 0 };
-        rc = (int)syscall(__NR_openat2, AT_FDCWD, path, &how, sizeof(how));
         if (rc >= 0) close(rc);
     } else if (strcmp(cmd, "statx") == 0) {
         struct statx buf;
@@ -730,7 +737,6 @@ def _make_fb_env(blocklist_path, extra=None):
 
 FB_INTERCEPTORS = [
     "openat",
-    "openat2",
     "open64",
     "openat64",
     "fopen64",
