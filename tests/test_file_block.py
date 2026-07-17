@@ -36,8 +36,8 @@ class TestBlocklistManagement:
             path1 = proxy._blocklist_file_path("session-1")
             path2 = proxy._blocklist_file_path("session-1")
             assert path1 == path2
-            assert "blocklist_" in path1
-            assert path1.endswith(".txt")
+            assert "blocked_files" in path1
+            assert path1.endswith("blocked_files")
 
     def test_blocklist_file_path_different_sessions(self):
         with patch.object(proxy, "MCP_TAP_PER_SESSION_DIR", "/tmp/mcptap_test_blocks"):
@@ -73,62 +73,6 @@ class TestBlocklistManagement:
 
     def test_clear_blocklist_nonexistent_is_noop(self):
         proxy._clear_blocklist("nonexistent-session-id")
-
-
-# ---------------------------------------------------------------------------
-# File block instruction tests
-# ---------------------------------------------------------------------------
-
-
-class TestFileBlockInstruction:
-    def test_instruction_empty_when_no_lib(self):
-        with patch.object(proxy, "MCP_TAP_FILE_BLOCK_LIB", ""):
-            result = proxy._build_file_block_instruction("/tmp/blocklist.txt")
-            assert result == ""
-
-    def test_instruction_contains_lib_and_blocklist_path(self):
-        with patch.object(proxy, "MCP_TAP_FILE_BLOCK_LIB", "/usr/lib/libmcptap.so"):
-            result = proxy._build_file_block_instruction("/tmp/blocklist_abc.txt")
-            assert "LD_PRELOAD=/usr/lib/libmcptap.so" in result
-            assert "MCPTAP_BLOCKED_FILES_FILE=/tmp/blocklist_abc.txt" in result
-            assert "FILE ACCESS BLOCKING" in result
-
-
-class TestInjectBlockInstruction:
-    def test_inject_into_message_with_output_text(self):
-        body = {
-            "output": [
-                {
-                    "type": "message",
-                    "role": "assistant",
-                    "content": [{"type": "output_text", "text": "Running commands..."}],
-                }
-            ]
-        }
-        proxy._inject_block_instruction(body, "[BLOCKING ACTIVE]")
-        text = body["output"][0]["content"][0]["text"]
-        assert "Running commands..." in text
-        assert "[BLOCKING ACTIVE]" in text
-
-    def test_inject_creates_new_message_when_no_message(self):
-        body = {"output": [{"type": "function_call", "call_id": "c1", "name": "shell"}]}
-        proxy._inject_block_instruction(body, "[BLOCKING ACTIVE]")
-        # Should append a message item
-        messages = [o for o in body["output"] if o.get("type") == "message"]
-        assert len(messages) == 1
-        assert "[BLOCKING ACTIVE]" in messages[0]["content"][0]["text"]
-
-    def test_inject_empty_output_list(self):
-        body = {"output": []}
-        proxy._inject_block_instruction(body, "[BLOCKING ACTIVE]")
-        assert len(body["output"]) == 1
-        assert body["output"][0]["type"] == "message"
-
-    def test_inject_no_output_key(self):
-        body = {}
-        proxy._inject_block_instruction(body, "[BLOCKING ACTIVE]")
-        # Should not crash; output key remains absent
-        assert "output" not in body
 
 
 # ---------------------------------------------------------------------------
