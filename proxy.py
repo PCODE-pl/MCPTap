@@ -1388,7 +1388,7 @@ async def proxy(request: web.Request) -> web.StreamResponse:
     client_wanted_stream = bool(payload.get("stream"))
 
     LOGGER.info(
-        "%s %s model=%r -> %r reasoning_effort=%r provider=%r stream=%s intercept=%s",
+        "%s %s model=%r -> %r reasoning_effort=%r provider=%r stream=%s intercept=%s hook=%s",
         request.method,
         request.path_qs,
         original_model,
@@ -1397,12 +1397,16 @@ async def proxy(request: web.Request) -> web.StreamResponse:
         MCP_TAP_OPENROUTER_PROVIDER or "OpenRouter-selected",
         client_wanted_stream,
         intercept.enabled,
+        hook_gateway.enabled,
     )
 
-    # Intercept loop only applies to /v1/responses POSTs. Everything else is
-    # rewritten but passed through as before.
+    # The intercept/hook loop applies to /v1/responses POSTs when either MCP
+    # tool interception or the tool-call hook is enabled. The two features are
+    # independent: the hook can gate client tool calls (e.g. shell/exec_command)
+    # even when no MCP intercept config is present. Everything else is
+    # rewritten and passed through as before.
     is_responses_call = request.method == "POST" and path.rstrip("/").endswith("/responses")
-    if not is_responses_call or not intercept.enabled:
+    if not is_responses_call or not (intercept.enabled or hook_gateway.enabled):
         return await _forward_rewritten(
             request,
             session,
