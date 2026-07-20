@@ -284,6 +284,229 @@ static int is_path_blocked(const char *path) {
     return 0;
 }
 
+/* ----------------------------------------------------------------------- */
+/* Escalator + interpreter payload detection (surgical)                   */
+/*                                                                         */
+/* A setuid binary (sudo, su, doas, pkexec, runuser, gksu, ...) starts     */
+/* its child WITHOUT our LD_PRELOAD (glibc drops untrusted preloads for   */
+/* setuid).  The exec* argv-scan via is_path_blocked() already catches     */
+/* direct readers such as `sudo cat <blocked>`, but a child invoked as     */
+/* an interpreter (e.g. `sudo bash -c 'cat <blocked>'`) receives the       */
+/* blocked path as part of a single string argument that is NOT a path     */
+/* itself, so the path-scan does not match.                                */
+/*                                                                         */
+/* This layer blocks such escapes surgically: only when argv[0] is an     */
+/* escalator AND a later argv element is an interpreter AND the remaining  */
+/* argv (payload) contains a reference (substring match, after tilde      */
+/* expansion) to a path on the blocklist.  Legit uses like                */
+/* `sudo bash -c 'systemctl restart nginx'` are NOT affected because the  */
+/* payload contains no blocked-path reference.                            */
+/*                                                                         */
+/* Lists are configurable via environment:                                 */
+/*   MCPTAP_FB_ESCALATORS    (colon-separated, overrides defaults)        */
+/*   MCPTAP_FB_INTERPRETERS  (colon-separated, overrides defaults)        */
+/*   MCPTAP_FB_DISABLE_ESCALATOR_CHECK=1  disables this layer entirely    */
+/* ----------------------------------------------------------------------- */
+
+static const char *DEFAULT_ESCALATORS[] = {
+    "sudo", "su", "doas", "pkexec", "runuser", "gksu", "gksudo",
+    "sudoedit", "pkexec-check", "su-to-root", NULL
+};
+
+static const char *DEFAULT_INTERPRETERS[] = {
+    "bash", "sh", "dash", "zsh", "ksh", "ash", "csh", "tcsh", "fish",
+    "busybox", "python", "python2", "python3", "perl", "ruby", "node",
+    "nodejs", "php", "awk", "gawk", "mawk", "sed", "xargs", "tee", "env",
+    "dd", "make", "nice", "nohup", "strace", "ltrace", "exec", "command",
+    "eval", "source", ">", NULL
+};
+
+/* basename without modifying input; returns pointer into `path` or path. */
+static const char *fb_basename(const char *path) {
+    if (!path) return path;
+    const char *slash = strrchr(path, '/');
+    return slash ? slash + 1 : path;
+}
+
+static int fb_in_list(const char *name, const char *const *defaults,
+                      const char *env_var) {
+    if (!name || !*name)
+        return 0;
+
+    const char *env_list = getenv(env_var);
+    if (env_list && *env_list) {
+        /* env overrides defaults; colon-separated. Empty entry disables. */
+        const char *p = env_list;
+        while (*p) {
+            const char *colon = strchr(p, ':');
+            size_t len = colon ? (size_t)(colon - p) : strlen(p);
+            if (len > 0 && strlen(name) == len && strncmp(name, p, len) == 0)
+                return 1;
+            if (!colon) break;
+            p = colon + 1;
+        }
+        return 0;
+    }
+
+    for (int i = 0; defaults[i]; i++) {
+        if (strcmp(name, defaults[i]) == 0)
+            return 1;
+    }
+    return 0;
+}
+
+static int is_escalator(const char *argv0) {
+    if (getenv("MCPTAP_FB_DISABLE_ESCALATOR_CHECK") &&
+        getenv("MCPTAP_FB_DISABLE_ESCALATOR_CHECK")[0] == '1')
+        return 0;
+    return fb_in_list(fb_basename(argv0), DEFAULT_ESCALATORS,
+                      "MCPTAP_FB_ESCALATORS");
+}
+
+static int is_interpreter(const char *arg) {
+    return fb_in_list(fb_basename(arg), DEFAULT_INTERPRETERS,
+                      "MCPTAP_FB_INTERPRETERS");
+}
+
+/* Check if any blocklist path appears as a substring of `haystack`.
+ *
+ * `haystack` is typically a concatenated interpreter payload like
+ * "cat ~/.fzf-history" or "F=~/.secret; cat \"$F\"".  The blocklist stores
+ * entries in their expanded absolute form (e.g. "/home/user/.fzf-history"),
+ * so we expand every `~` token inside `haystack` to $HOME before matching,
+ * not only a leading `~`.  This catches payloads that reference the blocked
+ * path via `~` even when the `~` is not at the start of the string.
+ *
+ * As a fallback we also match the raw (unexpanded) haystack, in case the
+ * blocklist entry was stored in its ~-form (realpath failed at load time). */
+static int payload_contains_blocked_path(const char *haystack) {
+    if (!haystack || !*haystack)
+        return 0;
+
+    if (!blocked_initialized)
+        load_blocklist();
+    if (blocked_count == 0)
+        return 0;
+
+    /* Build an expanded copy of haystack: replace every standalone `~`
+     * (i.e. `~` at start or preceded by whitespace/`;`/`=`/`(`/`{`) with
+     * $HOME, so payloads like "cat ~/.fzf-history" or "F=~/.secret" get the
+     * home path substituted.  Only `~/` and `~` followed by end-of-string
+     * are treated as home-reference; `~user` is left untouched. */
+    const char *home = getenv("HOME");
+    size_t home_len = home ? strlen(home) : 0;
+    char expanded[16384];
+    size_t off = 0;
+    const char *p = haystack;
+    while (*p && off < sizeof(expanded) - 1) {
+        if (*p == '~' && home && home_len > 0 &&
+            (p == haystack ||
+             p[-1] == ' ' || p[-1] == '\t' ||
+             p[-1] == ';' || p[-1] == '=' ||
+             p[-1] == '(' || p[-1] == '{' ||
+             p[-1] == '\n')) {
+            /* Only expand `~/` or `~` at end; leave `~user` alone. */
+            char next = p[1];
+            if (next == '/' || next == '\0' || next == ' ' || next == '\t' ||
+                next == ';' || next == '"' || next == '\'') {
+                if (off + home_len < sizeof(expanded) - 1) {
+                    memcpy(expanded + off, home, home_len);
+                    off += home_len;
+                }
+                p++;
+                continue;
+            }
+        }
+        expanded[off++] = *p++;
+    }
+    expanded[off] = '\0';
+
+    /* Match against expanded form. */
+    for (int i = 0; i < blocked_count; i++) {
+        if (!blocked_paths[i]) continue;
+        if (strstr(expanded, blocked_paths[i]))
+            return 1;
+        /* Fallback: also match against the raw haystack in case the
+         * blocklist entry was stored in ~-form (realpath failed at load). */
+        if (strstr(haystack, blocked_paths[i]))
+            return 1;
+    }
+    return 0;
+}
+
+/* Surgical escalator+interpreter+payload detection.
+ *
+ * Returns 1 if the argv should be blocked:
+ *   - argv[0] is an escalator (sudo, su, ...), AND
+ *   - some argv[i] (i>=1) is an interpreter (bash, python, ...) OR a plain
+ *     path argument that itself is/contains a blocked path, AND
+ *   - either the interpreter's payload (concat of argv after the
+ *     interpreter) contains a blocked path as a substring, OR any argv[i>=1]
+ *     contains a blocked path as a substring.
+ *
+ * This blocks e.g.:
+ *   sudo bash -c 'cat ~/.fzf-history'
+ *   sudo python3 -c "print(open('/home/u/.secret').read())"
+ *   sudo env /home/u/.secret bash
+ *   sudo bash -c 'F=~/.fzf-history; cat "$F"'
+ * while leaving intact:
+ *   sudo bash -c 'systemctl restart nginx'
+ *   sudo service firebird3.0 start
+ *   sudo cat /non-blocked/file
+ */
+static int is_escalator_interpreter_payload_blocked(char *const argv[]) {
+    if (!argv || !argv[0])
+        return 0;
+
+    if (!is_escalator(argv[0]))
+        return 0;
+
+    /* After an escalator, scan the rest of argv.  We block if EITHER:
+     * (a) any argv[i>=1] contains a blocked path as a substring (covers
+     *     `sudo env /home/u/.secret bash` and direct path leaks in args),
+     * OR (b) we encounter an interpreter and its payload (concat of args
+     *     after it) contains a blocked path as a substring (covers
+     *     `sudo bash -c 'cat ~/.fzf-history'`). */
+    int found_interpreter = 0;
+
+    /* First pass: check for substring-match of blocked paths in any arg. */
+    for (int i = 1; argv[i]; i++) {
+        if (payload_contains_blocked_path(argv[i]))
+            return 1;
+    }
+
+    /* Second pass: locate an interpreter and check its concatenated payload. */
+    for (int i = 1; argv[i]; i++) {
+        if (is_interpreter(argv[i])) {
+            found_interpreter = 1;
+            /* Concatenate everything after the interpreter into one string
+             * and run a substring check. */
+            char payload[16384];
+            size_t off = 0;
+            for (int j = i + 1; argv[j] && off < sizeof(payload) - 2; j++) {
+                size_t len = strlen(argv[j]);
+                if (off > 0 && off < sizeof(payload) - 1) {
+                    payload[off++] = ' ';
+                }
+                if (off + len >= sizeof(payload) - 1)
+                    len = sizeof(payload) - 1 - off;
+                memcpy(payload + off, argv[j], len);
+                off += len;
+            }
+            payload[off] = '\0';
+            if (off > 0 && payload_contains_blocked_path(payload))
+                return 1;
+            /* If the interpreter is reached but its payload is empty (e.g.
+             * `sudo bash` with no further args), we do not block on that
+             * alone -- a bare interactive `sudo bash` is unusual for an
+             * agent and not a substring-leak. */
+        }
+    }
+
+    (void)found_interpreter;
+    return 0;
+}
+
 /* Check whether any argument in argv looks like a path matching the file
  * blocklist. This is used by the exec* interceptors to stop a child process
  * (e.g. sudo, cp, dd) from reading a blocked file before it is spawned in a
@@ -296,10 +519,20 @@ static int is_argv_blocked(char *const argv[]) {
     if (!argv)
         return 0;
 
+    /* Direct path scan: blocks `sudo cat <blocked>`, `sudo cp <blocked> dst`,
+     * etc., where an argv element IS the blocked path. */
     for (int i = 1; argv[i]; i++) {
         if (is_path_blocked(argv[i]))
             return 1;
     }
+
+    /* Surgical escalator+interpreter+payload scan: blocks
+     * `sudo bash -c 'cat <blocked>'`, `sudo python3 -c "..."`, etc., where
+     * the blocked path is embedded as a substring of an interpreter's
+     * payload string rather than as a standalone argv element. */
+    if (is_escalator_interpreter_payload_blocked(argv))
+        return 1;
+
     return 0;
 }
 

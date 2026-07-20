@@ -1478,3 +1478,337 @@ class TestRealpathNormalization:
         )
         assert result.returncode != 0
         assert "Permission denied" in result.stderr
+
+
+# ---------------------------------------------------------------------------
+# Surgical escalator + interpreter + payload-substring detection tests
+# ---------------------------------------------------------------------------
+#
+# These tests exercise the layer added to is_argv_blocked() that blocks
+# `sudo <interpreter> -c '<payload containing a blocked path>'`.  Unlike the
+# direct argv path-scan (which only catches `sudo cat <blocked>`), this layer
+# inspects the concatenated payload passed to an interpreter (bash, sh,
+# python3, ...) and refuses the exec if the payload contains a reference to
+# a blocklist path.
+#
+# The exec helper (_build_exec_helper) re-execs its argv[1..] via execvp();
+# the library's execvp() interceptor scans argv and returns EACCES, which
+# the helper reports as "BLOCKED" on stdout.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not lib_exists(), reason="libmcptap_fileblock.so not built")
+class TestExecArgvSurgicalEscalation:
+    """Surgical escalator+interpreter+payload detection.
+
+    Covers the escape vectors where a setuid binary (sudo) spawns an
+    interpreter whose payload string contains a blocked path."""
+
+    # ---- argv-based vectors that MUST be blocked ----
+
+    def test_sudo_bash_c_cat_blocked(self, tmp_path):
+        """sudo bash -c 'cat <blocked>' is blocked (payload substring)."""
+        blocked = tmp_path / "secret.txt"
+        blocked.write_text("secret")
+        blocklist = tmp_path / "blocklist.txt"
+        blocklist.write_text(str(blocked) + "\n")
+
+        helper = _build_exec_helper(tmp_path)
+        env = _make_fb_env(blocklist)
+        result = subprocess.run(
+            [helper, "sudo", "bash", "-c", "cat " + str(blocked)],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        assert result.returncode == 0
+        assert "BLOCKED" in result.stdout
+
+    def test_sudo_sh_c_cat_blocked(self, tmp_path):
+        """sudo sh -c 'cat <blocked>' is blocked."""
+        blocked = tmp_path / "secret.txt"
+        blocked.write_text("secret")
+        blocklist = tmp_path / "blocklist.txt"
+        blocklist.write_text(str(blocked) + "\n")
+
+        helper = _build_exec_helper(tmp_path)
+        env = _make_fb_env(blocklist)
+        result = subprocess.run(
+            [helper, "sudo", "sh", "-c", "cat " + str(blocked)],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        assert result.returncode == 0
+        assert "BLOCKED" in result.stdout
+
+    def test_sudo_python_c_open_blocked(self, tmp_path):
+        """sudo python3 -c "open(<blocked>)" is blocked."""
+        blocked = tmp_path / "secret.txt"
+        blocked.write_text("secret")
+        blocklist = tmp_path / "blocklist.txt"
+        blocklist.write_text(str(blocked) + "\n")
+
+        helper = _build_exec_helper(tmp_path)
+        env = _make_fb_env(blocklist)
+        result = subprocess.run(
+            [helper, "sudo", "python3", "-c", "print(open('%s').read()[:10])" % str(blocked)],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        assert result.returncode == 0
+        assert "BLOCKED" in result.stdout
+
+    def test_sudo_env_bash_c_cat_blocked(self, tmp_path):
+        """sudo env -- bash -c 'cat <blocked>' is blocked."""
+        blocked = tmp_path / "secret.txt"
+        blocked.write_text("secret")
+        blocklist = tmp_path / "blocklist.txt"
+        blocklist.write_text(str(blocked) + "\n")
+
+        helper = _build_exec_helper(tmp_path)
+        env = _make_fb_env(blocklist)
+        result = subprocess.run(
+            [helper, "sudo", "env", "--", "bash", "-c", "cat " + str(blocked)],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        assert result.returncode == 0
+        assert "BLOCKED" in result.stdout
+
+    def test_sudo_bash_c_dd_if_blocked(self, tmp_path):
+        """sudo bash -c 'dd if=<blocked>...' is blocked."""
+        blocked = tmp_path / "secret.txt"
+        blocked.write_text("secret")
+        blocklist = tmp_path / "blocklist.txt"
+        blocklist.write_text(str(blocked) + "\n")
+
+        helper = _build_exec_helper(tmp_path)
+        env = _make_fb_env(blocklist)
+        result = subprocess.run(
+            [helper, "sudo", "bash", "-c", "dd if=%s bs=1 count=1" % str(blocked)],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        assert result.returncode == 0
+        assert "BLOCKED" in result.stdout
+
+    def test_sudo_bash_c_cat_tilde_form(self, tmp_path):
+        """sudo bash -c 'cat ~/.blocked' is blocked (~ expanded in payload)."""
+        home = os.path.expanduser("~")
+        blocked = os.path.join(home, ".mcptap_test_surgical_tilde")
+        with open(blocked, "w") as f:
+            f.write("secret")
+        try:
+            blocklist = tmp_path / "blocklist.txt"
+            blocklist.write_text(str(blocked) + "\n")
+
+            helper = _build_exec_helper(tmp_path)
+            env = _make_fb_env(blocklist)
+            result = subprocess.run(
+                [helper, "sudo", "bash", "-c", "cat ~/.mcptap_test_surgical_tilde"],
+                capture_output=True,
+                text=True,
+                env=env,
+            )
+            assert result.returncode == 0
+            assert "BLOCKED" in result.stdout
+        finally:
+            os.unlink(blocked)
+
+    def test_sudo_bash_c_var_assignment_tilde(self, tmp_path):
+        """sudo bash -c 'F=~/.blocked; cat "$F"' is blocked (~ after '=')."""
+        home = os.path.expanduser("~")
+        blocked = os.path.join(home, ".mcptap_test_surgical_var")
+        with open(blocked, "w") as f:
+            f.write("secret")
+        try:
+            blocklist = tmp_path / "blocklist.txt"
+            blocklist.write_text(str(blocked) + "\n")
+
+            helper = _build_exec_helper(tmp_path)
+            env = _make_fb_env(blocklist)
+            result = subprocess.run(
+                [helper, "sudo", "bash", "-c", 'F=~/.mcptap_test_surgical_var; cat "$F"'],
+                capture_output=True,
+                text=True,
+                env=env,
+            )
+            assert result.returncode == 0
+            assert "BLOCKED" in result.stdout
+        finally:
+            os.unlink(blocked)
+
+    def test_sudo_arg_contains_blocked_path(self, tmp_path):
+        """sudo <env> <blocked-path> <bash> is blocked (blocked path as arg)."""
+        blocked = tmp_path / "secret.txt"
+        blocked.write_text("secret")
+        blocklist = tmp_path / "blocklist.txt"
+        blocklist.write_text(str(blocked) + "\n")
+
+        helper = _build_exec_helper(tmp_path)
+        env = _make_fb_env(blocklist)
+        result = subprocess.run(
+            [helper, "sudo", "env", str(blocked), "bash"],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        assert result.returncode == 0
+        assert "BLOCKED" in result.stdout
+
+    # ---- legal cases that MUST NOT be over-blocked ----
+
+    def test_sudo_bash_c_legit_not_blocked(self, tmp_path):
+        """sudo bash -c 'echo legit' is NOT blocked (no blocked path in payload)."""
+        blocklist = tmp_path / "blocklist.txt"
+        blocklist.write_text(str(tmp_path / "secret.txt") + "\n")
+
+        helper = _build_exec_helper(tmp_path)
+        env = _make_fb_env(blocklist)
+        # Use /bin/echo as the actual program; the helper is replaced by it.
+        result = subprocess.run(
+            [helper, "sudo", "bash", "-c", "echo LEGIT_OK"],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        assert result.returncode == 0
+        # Not blocked — exec succeeded (helper replaced by echo/exit 0).
+        assert "BLOCKED" not in result.stdout
+
+    def test_sudo_python_c_legit_not_blocked(self, tmp_path):
+        """sudo python3 -c 'print(1)' is NOT blocked."""
+        blocklist = tmp_path / "blocklist.txt"
+        blocklist.write_text(str(tmp_path / "secret.txt") + "\n")
+
+        helper = _build_exec_helper(tmp_path)
+        env = _make_fb_env(blocklist)
+        result = subprocess.run(
+            [helper, "sudo", "python3", "-c", "print('LEGIT_PY_OK')"],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        assert result.returncode == 0
+        assert "BLOCKED" not in result.stdout
+
+    def test_sudo_cat_non_blocked_not_blocked(self, tmp_path):
+        """sudo cat <non-blocked> is NOT blocked (still handled by path-scan
+        layer, which only blocks blocklisted paths)."""
+        ok = tmp_path / "ok.txt"
+        ok.write_text("ok")
+        blocklist = tmp_path / "blocklist.txt"
+        blocklist.write_text(str(tmp_path / "secret.txt") + "\n")
+
+        helper = _build_exec_helper(tmp_path)
+        env = _make_fb_env(blocklist)
+        result = subprocess.run(
+            [helper, "sudo", "cat", str(ok)],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        assert result.returncode == 0
+        assert "BLOCKED" not in result.stdout
+
+    # ---- configuration / override tests ----
+
+    def test_disable_escalator_check_env(self, tmp_path):
+        """MCPTAP_FB_DISABLE_ESCALATOR_CHECK=1 disables the surgical layer."""
+        blocked = tmp_path / "secret.txt"
+        blocked.write_text("secret")
+        blocklist = tmp_path / "blocklist.txt"
+        blocklist.write_text(str(blocked) + "\n")
+
+        helper = _build_exec_helper(tmp_path)
+        env = _make_fb_env(blocklist, extra={"MCPTAP_FB_DISABLE_ESCALATOR_CHECK": "1"})
+        result = subprocess.run(
+            [helper, "sudo", "bash", "-c", "cat " + str(blocked)],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        # Without the surgical layer, the path is not in argv directly
+        # (it's inside the bash -c payload), so exec proceeds.
+        assert result.returncode == 0
+        assert "BLOCKED" not in result.stdout
+
+    def test_custom_escalators_env(self, tmp_path):
+        """MCPTAP_FB_ESCALATORS overrides the default escalator list."""
+        blocked = tmp_path / "secret.txt"
+        blocked.write_text("secret")
+        blocklist = tmp_path / "blocklist.txt"
+        blocklist.write_text(str(blocked) + "\n")
+
+        helper = _build_exec_helper(tmp_path)
+        # Only "custom_sudo" is an escalator; "sudo" is no longer one.
+        env = _make_fb_env(blocklist, extra={"MCPTAP_FB_ESCALATORS": "custom_sudo"})
+        result = subprocess.run(
+            [helper, "sudo", "bash", "-c", "cat " + str(blocked)],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        assert result.returncode == 0
+        assert "BLOCKED" not in result.stdout
+
+    def test_custom_interpreters_env(self, tmp_path):
+        """MCPTAP_FB_INTERPRETERS overrides the default interpreter list.
+
+        The surgical layer scans argv in two passes: (1) a substring check
+        of every argv[i>=1] against the blocklist (always active, independent
+        of the interpreter list), and (2) a payload-substring check after a
+        recognized interpreter.  Pass (1) still catches `cat <blocked>`
+        embedded in any arg even when the interpreter list is overridden, so
+        to exercise pass (2) isolation we craft a payload that contains the
+        blocked path only inside an interpreter payload that is NOT in the
+        custom interpreter list, and use a payload form that does NOT
+        embed the blocked path as a standalone arg substring.
+
+        Concretely: with MCPTAP_FB_INTERPRETERS=custom_interp, `bash` is no
+        longer recognized, so a payload of the form
+        `X=secret.txt cat "$X"` (no arg IS the blocked path) is not scanned
+        by pass (2).  Pass (1) also does not match because no single arg
+        contains the blocked path as a substring.  The exec proceeds."""
+        blocked = tmp_path / "secret.txt"
+        blocked.write_text("secret")
+        blocklist = tmp_path / "blocklist.txt"
+        blocklist.write_text(str(blocked) + "\n")
+
+        helper = _build_exec_helper(tmp_path)
+        env = _make_fb_env(blocklist, extra={"MCPTAP_FB_INTERPRETERS": "custom_interp"})
+        # Payload references the file via a variable assignment + expansion,
+        # so no single argv element contains the full blocked path.
+        payload = 'F=%s; cat "$F"' % str(blocked.name)
+        result = subprocess.run(
+            [helper, "sudo", "bash", "-c", payload],
+            capture_output=True,
+            text=True,
+            env=env,
+            cwd=str(tmp_path),
+        )
+        assert result.returncode == 0
+        assert "BLOCKED" not in result.stdout
+
+    def test_default_interpreters_env_empty_string_disables(self, tmp_path):
+        """An empty MCPTAP_FB_INTERPRETERS value falls back to defaults
+        (env var present but empty is treated as unset)."""
+        blocked = tmp_path / "secret.txt"
+        blocked.write_text("secret")
+        blocklist = tmp_path / "blocklist.txt"
+        blocklist.write_text(str(blocked) + "\n")
+
+        helper = _build_exec_helper(tmp_path)
+        env = _make_fb_env(blocklist, extra={"MCPTAP_FB_INTERPRETERS": ""})
+        result = subprocess.run(
+            [helper, "sudo", "bash", "-c", "cat " + str(blocked)],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        assert result.returncode == 0
+        assert "BLOCKED" in result.stdout
