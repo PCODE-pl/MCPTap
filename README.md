@@ -722,6 +722,77 @@ reads the control file at
    MCPTap writes them to the per-session control file. The library reloads
    the file every second, so blocking takes effect immediately.
 
+### File-block limitations and configuration
+
+The LD_PRELOAD library blocks file access by intercepting libc syscalls in
+the **parent process** (Codex and its shell children). Because `glibc`
+drops `LD_PRELOAD` libraries when executing a **setuid** binary (such as
+`sudo`, `su`, `doas`, `pkexec`), a child started via an escalator runs
+**without** the library and would otherwise be able to read a blocked file.
+
+To close that escape vector, the library also intercepts `execve`,
+`execv`, `execvp`, `execvpe`, `posix_spawn`, and `posix_spawnp` in the
+parent and inspects `argv` before the child is spawned. This happens in
+two layers:
+
+1. **Path-scan** — each `argv[i>=1]` is resolved (tilde expansion, CWD
+   join, symlink resolution) and compared against the blocklist. This
+   blocks `sudo cat <blocked>`, `sudo cp <blocked> dst`, etc., where an
+   argument **is** the blocked path.
+2. **Surgical escalator + interpreter + payload scan** — when `argv[0]`
+   is a privilege-escalator (`sudo`, `su`, `doas`, `pkexec`, `runuser`,
+   `gksu`, ...) and a later argument is an interpreter (`bash`, `sh`,
+   `python3`, `perl`, `xargs`, `dd`, ...), the concatenated **payload**
+   (everything after the interpreter) is searched for a blocklist path
+   as a substring (with `~` expanded anywhere in the payload). This
+   blocks `sudo bash -c 'cat ~/.fzf-history'`,
+   `sudo python3 -c "open('/home/u/.secret').read()"`, etc., without
+   disabling `sudo bash -c 'systemctl restart nginx'` (whose payload
+   contains no blocked path).
+
+**Known limitations** (the surgical layer is **not** a complete sandbox;
+these escapes are accepted as documented constraints of user-space
+`LD_PRELOAD` interception and require a system-level mechanism such as
+Landlock, AppArmor, or removal of `NOPASSWD` sudoers entries to fully
+close):
+
+- **Stdin / heredoc payloads** — a blocked path passed through a pipe or
+  heredoc instead of `argv` is not visible to the interceptor:
+  ```sh
+  echo 'cat ~/.fzf-history' | sudo bash          # NOT blocked
+  echo ~/.fzf-history   | sudo xargs cat          # NOT blocked
+  sudo bash <<EOF                                 # NOT blocked
+  cat ~/.fzf-history
+  EOF
+  ```
+  The library only sees `argv`; the file path never appears there.
+- **Obfuscated paths** — a payload that reconstructs the blocked path at
+  runtime defeats the static substring scan:
+  ```sh
+  sudo bash -c 'F=~/.fzf-; F=${F}history; cat "$F"'   # NOT blocked
+  sudo bash -c 'cat $(echo L2hvbWUv...cngK | base64 -d)'  # NOT blocked
+  ```
+  Analyzing shell semantics in user space is infeasible.
+- **Path-normalization aliases** — while `./`, `../`, and symlinks are
+  resolved for the path-scan layer, the surgical payload scan uses
+  substring matching against the **expanded** form, so exotic aliasing
+  (`//`, redundant `/./`, Unicode look-alikes) inside a payload string
+  may also evade it.
+
+**Configuration via environment variables** (all optional):
+
+| Variable | Default | Effect |
+| --- | --- | --- |
+| `MCPTAP_FB_ESCALATORS` | built-in list (`sudo`, `su`, `doas`, `pkexec`, `runuser`, `gksu`, `gksudo`, `sudoedit`, ...) | Colon-separated list of `argv[0]` basenames treated as privilege-escalators. When set, it **overrides** the defaults (an empty value falls back to defaults). |
+| `MCPTAP_FB_INTERPRETERS` | built-in list (`bash`, `sh`, `dash`, `python3`, `perl`, `xargs`, `dd`, `env`, `tee`, ...) | Colon-separated list of basenames treated as interpreters. When set, it **overrides** the defaults (an empty value falls back to defaults). |
+| `MCPTAP_FB_DISABLE_ESCALATOR_CHECK` | unset | When set to `1`, the surgical escalator+interpreter layer is disabled entirely (only the path-scan layer remains active). |
+
+For complete sandboxing of setuid escape vectors, combine the library
+with a system-level mechanism (Landlock on kernel ≥ 5.13, an AppArmor
+profile for `/usr/bin/sudo`, or removal of `NOPASSWD: ALL` from
+`sudoers`) — these operate at the kernel level and are not subject to
+the `argv`-only visibility constraint of `LD_PRELOAD`.
+
 ### Session tracking
 
 MCPTap tracks session token usage and elapsed time per session. The session ID
