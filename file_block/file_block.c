@@ -107,6 +107,11 @@ static int blocked_initialized = 0;
  * intercepted. */
 static int _loading_blocklist = 0;
 
+/* Re-entrancy guard: when set, interceptors skip blocklist checks so that
+ * calls to realpath() from inside is_path_blocked() do not recurse back
+ * through our own realpath() interceptor. */
+static int _checking = 0;
+
 /* Build the path to the per-session control file.
  * Uses MCPTAP_BLOCKED_FILES_FILE if set (for testing / override).
  * Otherwise constructs: <MCPTAP_BLOCKED_DIR>/<CODEX_THREAD_ID>/blocked_files
@@ -209,7 +214,19 @@ static void load_blocklist(void) {
 
         char expanded[8192];
         expand_tilde(p, expanded, sizeof(expanded));
-        blocked_paths[blocked_count] = strdup(expanded);
+
+        /* Normalize the blocklist entry to an absolute, symlink-resolved
+         * form so it matches the realpath-normalized candidate path checked
+         * in is_path_blocked(). Falls back to the expanded (tilde-resolved)
+         * form if realpath() fails (e.g. the blocked file does not exist
+         * yet at load time). */
+        char normalized[8192];
+        realpath_fn real_realpath = (realpath_fn)dlsym(RTLD_NEXT, "realpath");
+        _loading_blocklist = 1;
+        char *rp = real_realpath(expanded, normalized);
+        _loading_blocklist = 0;
+        const char *to_store = rp ? normalized : expanded;
+        blocked_paths[blocked_count] = strdup(to_store);
         if (blocked_paths[blocked_count])
             blocked_count++;
     }
@@ -220,8 +237,9 @@ static int is_path_blocked(const char *path) {
     if (!path)
         return 0;
 
-    /* Skip checks while loading the blocklist to prevent recursion */
-    if (_loading_blocklist)
+    /* Skip checks while loading the blocklist or already inside a check to
+     * prevent recursion. */
+    if (_loading_blocklist || _checking)
         return 0;
 
     if (!blocked_initialized)
@@ -230,23 +248,56 @@ static int is_path_blocked(const char *path) {
     if (blocked_count == 0)
         return 0;
 
-    /* Resolve absolute path */
-    char abs_path[8192];
+    /* Normalize the candidate path to an absolute, symlink-resolved form so
+     * that "./", "..", and symlink aliases cannot bypass the blocklist.
+     * The blocklist entries are likewise normalized at load time. */
+    const char *candidate = path;
+    char expanded[8192];
+    char resolved[8192];
+
     if (path[0] == '~') {
-        expand_tilde(path, abs_path, sizeof(abs_path));
-        path = abs_path;
+        expand_tilde(path, expanded, sizeof(expanded));
+        candidate = expanded;
     } else if (path[0] != '/') {
-        /* Try to resolve relative path */
         char cwd[4096];
         if (getcwd(cwd, sizeof(cwd))) {
-            snprintf(abs_path, sizeof(abs_path), "%s/%s", cwd, path);
-            path = abs_path;
+            snprintf(expanded, sizeof(expanded), "%s/%s", cwd, path);
+            candidate = expanded;
         }
     }
 
+    /* Resolve symlinks using the REAL realpath, bypassing our own
+     * interceptor via the guard. If it fails (e.g. path does not exist
+     * yet), fall back to the expanded absolute form. */
+    _checking = 1;
+    realpath_fn real_realpath = (realpath_fn)dlsym(RTLD_NEXT, "realpath");
+    char *rp = real_realpath(candidate, resolved);
+    _checking = 0;
+    if (rp)
+        candidate = resolved;
+
     for (int i = 0; i < blocked_count; i++) {
         if (!blocked_paths[i]) continue;
-        if (strcmp(path, blocked_paths[i]) == 0)
+        if (strcmp(candidate, blocked_paths[i]) == 0)
+            return 1;
+    }
+    return 0;
+}
+
+/* Check whether any argument in argv looks like a path matching the file
+ * blocklist. This is used by the exec* interceptors to stop a child process
+ * (e.g. sudo, cp, dd) from reading a blocked file before it is spawned in a
+ * context where LD_PRELOAD would no longer be honored (setuid binaries).
+ *
+ * Each argv element is treated as a potential filesystem path: tilde is
+ * expanded, relative paths are resolved against CWD, and symlinks are
+ * resolved. Non-path arguments simply do not match and are skipped. */
+static int is_argv_blocked(char *const argv[]) {
+    if (!argv)
+        return 0;
+
+    for (int i = 1; argv[i]; i++) {
+        if (is_path_blocked(argv[i]))
             return 1;
     }
     return 0;
@@ -492,4 +543,112 @@ int openat2(int dirfd, const char *pathname, struct mcptap_open_how *how,
         return -1;
     }
     return (int)syscall(__NR_openat2, dirfd, pathname, how, size);
+}
+
+/* ----------------------------------------------------------------------- */
+/* exec* and posix_spawn* interceptors                                     */
+/*                                                                         */
+/* A child process started via a setuid binary (sudo, su, pkexec, ...)     */
+/* runs WITHOUT our LD_PRELOAD library, because glibc refuses to load      */
+/* LD_PRELOAD libraries from untrusted directories for setuid programs.    */
+/* That means any blocked file could be read by spawning e.g.              */
+/* "sudo cat /path/to/blocked".                                            */
+/*                                                                         */
+/* To close that escape vector we intercept execve/execvpe/execvp/         */
+/* posix_spawn/posix_spawnp here, in the parent process (where the         */
+/* library is still active), and scan argv for any argument that resolves   */
+/* to a blocked path. If found, we refuse the exec with EACCES.            */
+/*                                                                         */
+/* This blocks "sudo cat ~/.fzf-history" without disabling sudo for        */
+/* unrelated commands (e.g. "sudo service firebird start").               */
+/* ----------------------------------------------------------------------- */
+
+typedef int (*execve_fn)(const char *, char *const[], char *const[]);
+typedef int (*execvp_fn)(const char *, char *const[]);
+typedef int (*execvpe_fn)(const char *, char *const[], char *const[]);
+typedef int (*posix_spawn_fn)(pid_t *, const char *,
+                              const void *, const void *,
+                              char *const[], char *const[]);
+typedef int (*posix_spawnp_fn)(pid_t *, const char *,
+                               const void *, const void *,
+                               char *const[], char *const[]);
+
+static execve_fn real_execve = NULL;
+static execvp_fn real_execvp = NULL;
+static execvpe_fn real_execvpe = NULL;
+static posix_spawn_fn real_posix_spawn = NULL;
+static posix_spawnp_fn real_posix_spawnp = NULL;
+
+static void init_exec_funcs(void) {
+    if (!real_execve)       real_execve       = (execve_fn)dlsym(RTLD_NEXT, "execve");
+    if (!real_execvp)       real_execvp       = (execvp_fn)dlsym(RTLD_NEXT, "execvp");
+    if (!real_execvpe)      real_execvpe      = (execvpe_fn)dlsym(RTLD_NEXT, "execvpe");
+    if (!real_posix_spawn)  real_posix_spawn  = (posix_spawn_fn)dlsym(RTLD_NEXT, "posix_spawn");
+    if (!real_posix_spawnp) real_posix_spawnp = (posix_spawnp_fn)dlsym(RTLD_NEXT, "posix_spawnp");
+}
+
+int execve(const char *pathname, char *const argv[], char *const envp[]) {
+    init_exec_funcs();
+    maybe_reload();
+    if (is_argv_blocked(argv)) {
+        errno = EACCES;
+        return -1;
+    }
+    return real_execve(pathname, argv, envp);
+}
+
+int execv(const char *pathname, char *const argv[]) {
+    init_exec_funcs();
+    maybe_reload();
+    if (is_argv_blocked(argv)) {
+        errno = EACCES;
+        return -1;
+    }
+    /* execv has no envp argument; pass environ. */
+    extern char **environ;
+    return real_execve(pathname, argv, environ);
+}
+
+int execvp(const char *file, char *const argv[]) {
+    init_exec_funcs();
+    maybe_reload();
+    if (is_argv_blocked(argv)) {
+        errno = EACCES;
+        return -1;
+    }
+    return real_execvp(file, argv);
+}
+
+int execvpe(const char *file, char *const argv[], char *const envp[]) {
+    init_exec_funcs();
+    maybe_reload();
+    if (is_argv_blocked(argv)) {
+        errno = EACCES;
+        return -1;
+    }
+    return real_execvpe(file, argv, envp);
+}
+
+int posix_spawn(pid_t *pid, const char *path,
+                const void *file_actions, const void *attrp,
+                char *const argv[], char *const envp[]) {
+    init_exec_funcs();
+    maybe_reload();
+    if (is_argv_blocked(argv)) {
+        errno = EACCES;
+        return -1;
+    }
+    return real_posix_spawn(pid, path, file_actions, attrp, argv, envp);
+}
+
+int posix_spawnp(pid_t *pid, const char *file,
+                 const void *file_actions, const void *attrp,
+                 char *const argv[], char *const envp[]) {
+    init_exec_funcs();
+    maybe_reload();
+    if (is_argv_blocked(argv)) {
+        errno = EACCES;
+        return -1;
+    }
+    return real_posix_spawnp(pid, file, file_actions, attrp, argv, envp);
 }

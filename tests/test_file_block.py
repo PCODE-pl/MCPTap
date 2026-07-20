@@ -1181,3 +1181,300 @@ class TestToolLevelBlocking:
         )
         assert result.returncode != 0
         assert "Permission denied" in result.stderr
+
+
+# ---------------------------------------------------------------------------
+# exec* argv-scan tests — blocking child processes targeting blocked files
+# ---------------------------------------------------------------------------
+
+
+EXEC_HELPER_SRC = r"""
+#define _GNU_SOURCE
+#include <stdio.h>
+#include <string.h>
+#include <errno.h>
+#include <unistd.h>
+
+int main(int argc, char *argv[]) {
+    if (argc < 2) {
+        fprintf(stderr, "Usage: %s <prog> [args...]\n", argv[0]);
+        return 3;
+    }
+    /* Re-exec the given program with the remaining args. Our execve
+     * interceptor scans argv before the child starts. */
+    execvp(argv[1], &argv[1]);
+    if (errno == EACCES) {
+        printf("BLOCKED\n");
+        return 0;
+    }
+    /* If exec succeeded we never reach here; if it failed for another
+     * reason, report it. */
+    printf("ERROR errno=%d\n", errno);
+    return 1;
+}
+"""
+
+
+def _build_exec_helper(tmp_path):
+    """Build the C helper that calls execvp() so the exec interceptor runs."""
+    src = tmp_path / "exec_helper.c"
+    binary = tmp_path / "exec_helper"
+    src.write_text(EXEC_HELPER_SRC)
+    cc = os.environ.get("CC", "gcc")
+    result = subprocess.run(
+        [cc, "-Wall", "-Wextra", "-o", str(binary), str(src)],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        pytest.skip(f"Failed to build exec helper: {result.stderr}")
+    return str(binary)
+
+
+@pytest.mark.skipif(not lib_exists(), reason="libmcptap_fileblock.so not built")
+class TestExecArgvScan:
+    """exec* interceptors block child processes whose argv references a
+    blocked file, so setuid binaries (sudo) cannot read it after escaping
+    LD_PRELOAD."""
+
+    def test_sudo_cat_blocked_file_blocked(self, tmp_path):
+        """sudo cat <blocked> is refused before sudo starts."""
+        blocked = tmp_path / "secret.txt"
+        blocked.write_text("secret")
+
+        blocklist = tmp_path / "blocklist.txt"
+        blocklist.write_text(str(blocked) + "\n")
+
+        helper = _build_exec_helper(tmp_path)
+        env = _make_fb_env(blocklist)
+        result = subprocess.run(
+            [helper, "sudo", "cat", str(blocked)],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        assert result.returncode == 0
+        assert "BLOCKED" in result.stdout
+
+    def test_sudo_unrelated_command_passes(self, tmp_path):
+        """An exec with no blocked argv is allowed through; the child runs
+        and produces its own output."""
+        blocklist = tmp_path / "blocklist.txt"
+        blocklist.write_text("/tmp/nonexistent_exec.txt\n")
+
+        helper = _build_exec_helper(tmp_path)
+        env = _make_fb_env(blocklist)
+        # /bin/echo prints a marker on stdout; the helper is replaced by it
+        # so we see the marker and never see "BLOCKED".
+        result = subprocess.run(
+            [helper, "/bin/echo", "PASSTHROUGH"],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        assert result.returncode == 0
+        assert "PASSTHROUGH" in result.stdout
+        assert "BLOCKED" not in result.stdout
+
+    def test_cat_blocked_file_via_execvp(self, tmp_path):
+        """Direct cat <blocked> through execvp is blocked at exec time too."""
+        blocked = tmp_path / "secret.txt"
+        blocked.write_text("secret")
+
+        blocklist = tmp_path / "blocklist.txt"
+        blocklist.write_text(str(blocked) + "\n")
+
+        helper = _build_exec_helper(tmp_path)
+        env = _make_fb_env(blocklist)
+        result = subprocess.run(
+            [helper, "cat", str(blocked)],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        assert result.returncode == 0
+        assert "BLOCKED" in result.stdout
+
+    def test_exec_blocked_with_tilde_arg(self, tmp_path):
+        """A tilde argv argument that resolves to a blocked HOME-relative
+        file is blocked at exec time."""
+        home = os.path.expanduser("~")
+        test_file = os.path.join(home, ".mcptap_test_exec_block")
+        with open(test_file, "w") as f:
+            f.write("secret")
+
+        blocklist = tmp_path / "blocklist.txt"
+        blocklist.write_text("~/.mcptap_test_exec_block\n")
+
+        helper = _build_exec_helper(tmp_path)
+        env = _make_fb_env(blocklist)
+        try:
+            result = subprocess.run(
+                [helper, "cat", "~/.mcptap_test_exec_block"],
+                capture_output=True,
+                text=True,
+                env=env,
+            )
+            assert result.returncode == 0
+            assert "BLOCKED" in result.stdout
+        finally:
+            os.unlink(test_file)
+
+    def test_exec_blocked_with_dot_relative_arg(self, tmp_path):
+        """A "./<name>" argv that resolves to a blocked file is blocked."""
+        blocked = tmp_path / "secret.txt"
+        blocked.write_text("secret")
+
+        blocklist = tmp_path / "blocklist.txt"
+        blocklist.write_text(str(blocked) + "\n")
+
+        helper = _build_exec_helper(tmp_path)
+        env = _make_fb_env(blocklist)
+        # Run from tmp_path so "./secret.txt" resolves to the blocked file.
+        result = subprocess.run(
+            [helper, "cat", "./secret.txt"],
+            capture_output=True,
+            text=True,
+            env=env,
+            cwd=str(tmp_path),
+        )
+        assert result.returncode == 0
+        assert "BLOCKED" in result.stdout
+
+    def test_exec_blocked_via_symlink(self, tmp_path):
+        """A symlink pointing to a blocked file is blocked at exec time."""
+        blocked = tmp_path / "secret.txt"
+        blocked.write_text("secret")
+        link = tmp_path / "link_to_secret.txt"
+        os.symlink(str(blocked), str(link))
+
+        blocklist = tmp_path / "blocklist.txt"
+        blocklist.write_text(str(blocked) + "\n")
+
+        helper = _build_exec_helper(tmp_path)
+        env = _make_fb_env(blocklist)
+        result = subprocess.run(
+            [helper, "cat", str(link)],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        assert result.returncode == 0
+        assert "BLOCKED" in result.stdout
+
+
+# ---------------------------------------------------------------------------
+# realpath-normalization tests — "./", "..", and symlink aliases
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not lib_exists(), reason="libmcptap_fileblock.so not built")
+class TestRealpathNormalization:
+    """Blocked paths are matched via realpath so trivial path aliases
+    (./, ../, symlinks) cannot bypass the blocklist."""
+
+    def test_dot_relative_path_blocked(self, tmp_path):
+        """Accessing a blocked file via ./name is blocked."""
+        blocked = tmp_path / "secret.txt"
+        blocked.write_text("secret")
+
+        blocklist = tmp_path / "blocklist.txt"
+        blocklist.write_text(str(blocked) + "\n")
+
+        env = _make_fb_env(blocklist)
+        result = subprocess.run(
+            ["cat", "./secret.txt"],
+            capture_output=True,
+            text=True,
+            env=env,
+            cwd=str(tmp_path),
+        )
+        assert result.returncode != 0
+        assert "Permission denied" in result.stderr
+
+    def test_dotdot_relative_path_blocked(self, tmp_path):
+        """Accessing a blocked file via ../subdir/name is blocked."""
+        subdir = tmp_path / "subdir"
+        subdir.mkdir()
+        blocked = subdir / "secret.txt"
+        blocked.write_text("secret")
+
+        blocklist = tmp_path / "blocklist.txt"
+        blocklist.write_text(str(blocked) + "\n")
+
+        nested = tmp_path / "subdir" / "nested"
+        nested.mkdir()
+        env = _make_fb_env(blocklist)
+        result = subprocess.run(
+            ["cat", "../secret.txt"],
+            capture_output=True,
+            text=True,
+            env=env,
+            cwd=str(nested),
+        )
+        assert result.returncode != 0
+        assert "Permission denied" in result.stderr
+
+    def test_symlink_to_blocked_file_blocked(self, tmp_path):
+        """A symlink pointing to a blocked file is blocked."""
+        blocked = tmp_path / "secret.txt"
+        blocked.write_text("secret")
+        link = tmp_path / "link.txt"
+        os.symlink(str(blocked), str(link))
+
+        blocklist = tmp_path / "blocklist.txt"
+        blocklist.write_text(str(blocked) + "\n")
+
+        env = _make_fb_env(blocklist)
+        result = subprocess.run(
+            ["cat", str(link)],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        assert result.returncode != 0
+        assert "Permission denied" in result.stderr
+
+    def test_blocked_file_via_symlink_in_blocklist(self, tmp_path):
+        """Listing a symlink in the blocklist also blocks the target via
+        realpath normalization of the candidate path."""
+        target = tmp_path / "real_secret.txt"
+        target.write_text("secret")
+        link = tmp_path / "link.txt"
+        os.symlink(str(target), str(link))
+
+        blocklist = tmp_path / "blocklist.txt"
+        blocklist.write_text(str(link) + "\n")
+
+        env = _make_fb_env(blocklist)
+        # Access the real target — realpath of target == realpath of link,
+        # so the candidate is blocked.
+        result = subprocess.run(
+            ["cat", str(target)],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        assert result.returncode != 0
+        assert "Permission denied" in result.stderr
+
+    def test_nonexistent_blocked_path_resolved_against_cwd(self, tmp_path):
+        """Relative candidate paths are resolved against CWD before
+        comparison, even if the file does not exist (falls back to the
+        joined CWD+name form)."""
+        blocked_abs = tmp_path / "secret.txt"
+        blocked_abs.write_text("secret")
+
+        blocklist = tmp_path / "blocklist.txt"
+        blocklist.write_text(str(blocked_abs) + "\n")
+
+        env = _make_fb_env(blocklist)
+        result = subprocess.run(
+            ["cat", "secret.txt"],
+            capture_output=True,
+            text=True,
+            env=env,
+            cwd=str(tmp_path),
+        )
+        assert result.returncode != 0
+        assert "Permission denied" in result.stderr
