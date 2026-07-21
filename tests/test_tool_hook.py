@@ -550,6 +550,25 @@ class TestSyntheticResponse:
         assert parsed is not None
         assert parsed["id"] == resp["id"]
 
+    def test_build_sse_from_response_emits_output_item_events(self):
+        """SSE stream must include output_item.added/done for each output item."""
+        item = make_function_call_item("fc_1", "shell", {"cmd": "ls"})
+        resp = make_response([item])
+        sse_bytes = proxy._build_sse_from_response(resp)
+        assert b"response.output_item.added" in sse_bytes
+        assert b"response.output_item.done" in sse_bytes
+        # Verify output items can be recovered via _response_json_from_sse
+        parsed = proxy._response_json_from_sse(sse_bytes)
+        assert parsed is not None
+        assert parsed["output"][0]["call_id"] == "fc_1"
+
+    def test_build_sse_from_response_empty_output_no_item_events(self):
+        """Empty output list must not emit any output_item events."""
+        resp = make_response([])
+        sse_bytes = proxy._build_sse_from_response(resp)
+        assert b"response.output_item.added" not in sse_bytes
+        assert b"response.output_item.done" not in sse_bytes
+
 
 # ---------------------------------------------------------------------------
 # Integration: end-to-end flow with mock upstream
