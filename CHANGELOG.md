@@ -1,9 +1,5 @@
 # Changelog
 
-All notable changes to MCPTap are documented in this file.
-
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
-
 ## [2.0.0]
 
 ### Added
@@ -89,3 +85,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   Electron/Node.js (see Fixed above). Raw `syscall(__NR_openat2, …)` is no
   longer intercepted; programs linking against the `openat2()` wrapper symbol
   are still intercepted.
+
+### Full Changelog
+
+[https://github.com/PCODE-pl/MCPTap/compare/v1.3.0...v2.0.0](https://github.com/PCODE-pl/MCPTap/compare/v1.3.0...v2.0.0)
