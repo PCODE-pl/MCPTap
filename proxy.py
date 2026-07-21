@@ -919,14 +919,28 @@ def _build_hook_error_response(error_message: str, forced_model: str) -> Dict[st
 def _build_sse_from_response(response: Dict[str, Any]) -> bytes:
     """Build a minimal SSE byte stream from a response dict.
 
-    Emits response.created, response.output_item.added, response.completed events
-    so the client can parse the response.
+    Emits response.created, response.output_item.added, response.output_item.done
+    and response.completed events so the client can parse the response and
+    extract individual output items (e.g. function_call items).
     """
-    lines = []
+    lines: List[str] = []
     created_payload = {"type": "response.created", "response": response}
     lines.append("event: response.created")
     lines.append(f"data: {json.dumps(created_payload, ensure_ascii=False)}")
     lines.append("")
+
+    for item in response.get("output") or []:
+        if not isinstance(item, dict):
+            continue
+        added_payload = {"type": "response.output_item.added", "item": item}
+        lines.append("event: response.output_item.added")
+        lines.append(f"data: {json.dumps(added_payload, ensure_ascii=False)}")
+        lines.append("")
+        done_payload = {"type": "response.output_item.done", "item": item}
+        lines.append("event: response.output_item.done")
+        lines.append(f"data: {json.dumps(done_payload, ensure_ascii=False)}")
+        lines.append("")
+
     completed_payload = {"type": "response.completed", "response": response}
     lines.append("event: response.completed")
     lines.append(f"data: {json.dumps(completed_payload, ensure_ascii=False)}")

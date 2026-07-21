@@ -271,7 +271,8 @@ Example response shape:
   "forced_provider": null,
   "provider_fallbacks_disabled": false,
   "mcp_intercept": null,
-  "per_model_config": {}
+  "per_model_config": {},
+  "use_tool_hook": {}
 }
 ```
 
@@ -683,10 +684,11 @@ rewritten version. The model never knows its command was modified, and the
 client sees the rewritten command in its UI.
 
 Use cases:
-- wrap shell commands with a token-compression proxy such as
+
+* wrap shell commands with a token-compression proxy such as
   [RTK](https://github.com/rtk-ai/rtk) for 60–90% token savings,
-- inject environment variables or flags into commands,
-- normalize command names across different clients.
+* inject environment variables or flags into commands,
+* normalize command names across different clients.
 
 The rewrite works in both synthetic tool mode and direct hook mode, and is
 compatible with streaming SSE responses — MCPTap re-serializes the response
@@ -751,6 +753,7 @@ Model calls: exec_command(cmd="git status")
 ```
 
 To enable:
+
 1. Install RTK: ``brew install rtk`` or
    ``curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh``
 2. Verify: ``rtk --version``

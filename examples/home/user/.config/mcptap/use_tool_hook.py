@@ -152,6 +152,25 @@ def _rewrite_tool_calls(
 
 def main() -> None:
     data = json.load(sys.stdin)
+
+    # used_tokens = data.get("used_tokens", 0)
+    # used_time = data.get("used_time_seconds", 0.0)
+    # if used_tokens > 10000 or used_time > 120:
+    #     print(
+    #         json.dumps(
+    #             {
+    #                 "action": "block",
+    #                 "message": (
+    #                     "You have used significant resources this session "
+    #                     f"({used_tokens} tokens, {used_time:.0f}s). "
+    #                     "Use the consult_council tool to review your approach "
+    #                     "before making more tool calls."
+    #                 ),
+    #             }
+    #         )
+    #     )
+    #     return
+
     tool_calls = data.get("tool_calls", [])
 
     response: dict = {"action": "allow", "blocked_files": SENSITIVE_FILES}
