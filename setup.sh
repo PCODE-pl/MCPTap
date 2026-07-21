@@ -517,8 +517,6 @@ main() {
 
     install_files "$SOURCE_DIR"
 
-    # TODO: remove
-    # if [ "$WITH_FILE_BLOCK" -eq 1 ] && [ "$PROXY_ENV_NEW" -eq 1 ]; then
     if [ "$WITH_FILE_BLOCK" -eq 1 ]; then
         wire_file_block_in_proxy_env
     fi
@@ -550,8 +548,6 @@ Health check after service start:
 EOF
     printf '%b' "$NC"
 
-    # TODO: remove
-    # if [ "$WITH_FILE_BLOCK" -eq 1 ] && [ "$PROXY_ENV_NEW" -eq 1 ]; then
     if [ "$WITH_FILE_BLOCK" -eq 1 ]; then
         log "File-block library enabled. Start Codex with:"
         log "  LD_PRELOAD=$HOME/.local/lib/libmcptap_fileblock.so codex --profile=mcptap"
