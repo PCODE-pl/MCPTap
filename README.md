@@ -76,6 +76,7 @@ MCPTap is designed for workflows like:
 * using Codex CLI through OpenRouter or Requesty,
 * forcing a cheaper model for normal work and a stronger model for planning,
 * giving a weaker model access to a stronger “expert” model through an MCP tool,
+* disabling access to sensitive files,
 * hiding complex MCP orchestration from the client,
 * debugging model/tool traffic,
 * testing provider fallback behavior,
@@ -89,6 +90,7 @@ MCPTap requires:
 * `curl` or `wget` for installation,
 * an OpenRouter or Requesty API key,
 * optionally, an MCP server if you want MCP tool interception.
+* optionally C compiler, make, and C library headers if you want file access blocking.
 
 Runtime Python dependencies:
 
