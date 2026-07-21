@@ -883,3 +883,295 @@ class TestEndToEndFlow:
         )
         await gw.set_pending("s2", state2)
         assert await gw.get_pending("s2") is not None
+
+
+# ---------------------------------------------------------------------------
+# Tool call rewrite (updated_tool_calls) tests
+# ---------------------------------------------------------------------------
+
+
+class TestApplyToolCallUpdates:
+    """Tests for _apply_tool_call_updates()."""
+
+    def test_no_updates_returns_false(self):
+        body = {"output": [make_function_call_item("c1", "shell", {"cmd": "ls"})]}
+        assert proxy._apply_tool_call_updates(body, []) is False
+
+    def test_empty_updates_returns_false(self):
+        body = {"output": [make_function_call_item("c1", "shell", {"cmd": "ls"})]}
+        assert proxy._apply_tool_call_updates(body, []) is False
+
+    def test_update_arguments_dict(self):
+        body = {"output": [make_function_call_item("c1", "shell", {"cmd": "git status"})]}
+        updates = [{"call_id": "c1", "name": "shell", "arguments": {"cmd": "rtk git status"}}]
+        modified = proxy._apply_tool_call_updates(body, updates)
+        assert modified is True
+        item = body["output"][0]
+        assert json.loads(item["arguments"]) == {"cmd": "rtk git status"}
+
+    def test_update_arguments_string(self):
+        body = {"output": [make_function_call_item("c1", "shell", {"cmd": "ls"})]}
+        updates = [{"call_id": "c1", "arguments": '{"cmd": "rtk ls"}'}]
+        modified = proxy._apply_tool_call_updates(body, updates)
+        assert modified is True
+        item = body["output"][0]
+        assert item["arguments"] == '{"cmd": "rtk ls"}'
+
+    def test_update_name_only(self):
+        body = {"output": [make_function_call_item("c1", "shell", {"cmd": "ls"})]}
+        updates = [{"call_id": "c1", "name": "exec_command"}]
+        modified = proxy._apply_tool_call_updates(body, updates)
+        assert modified is True
+        assert body["output"][0]["name"] == "exec_command"
+        # arguments should be unchanged
+        assert json.loads(body["output"][0]["arguments"]) == {"cmd": "ls"}
+
+    def test_update_no_matching_call_id(self):
+        body = {"output": [make_function_call_item("c1", "shell", {"cmd": "ls"})]}
+        updates = [{"call_id": "nonexistent", "arguments": {"cmd": "rtk ls"}}]
+        modified = proxy._apply_tool_call_updates(body, updates)
+        assert modified is False
+        # body unchanged
+        assert json.loads(body["output"][0]["arguments"]) == {"cmd": "ls"}
+
+    def test_update_multiple_calls(self):
+        body = {
+            "output": [
+                make_function_call_item("c1", "shell", {"cmd": "git status"}),
+                make_function_call_item("c2", "shell", {"cmd": "ls -la"}),
+                make_function_call_item("c3", "shell", {"cmd": "git log"}),
+            ]
+        }
+        updates = [
+            {"call_id": "c1", "arguments": {"cmd": "rtk git status"}},
+            {"call_id": "c3", "arguments": {"cmd": "rtk git log"}},
+        ]
+        modified = proxy._apply_tool_call_updates(body, updates)
+        assert modified is True
+        assert json.loads(body["output"][0]["arguments"]) == {"cmd": "rtk git status"}
+        assert json.loads(body["output"][1]["arguments"]) == {"cmd": "ls -la"}
+        assert json.loads(body["output"][2]["arguments"]) == {"cmd": "rtk git log"}
+
+    def test_update_with_empty_call_id_ignored(self):
+        body = {"output": [make_function_call_item("c1", "shell", {"cmd": "ls"})]}
+        updates = [{"call_id": "", "arguments": {"cmd": "rtk ls"}}]
+        modified = proxy._apply_tool_call_updates(body, updates)
+        assert modified is False
+
+    def test_update_non_function_call_items_ignored(self):
+        body = {
+            "output": [
+                {"type": "message", "content": "hello"},
+                make_function_call_item("c1", "shell", {"cmd": "ls"}),
+            ]
+        }
+        updates = [{"call_id": "c1", "arguments": {"cmd": "rtk ls"}}]
+        modified = proxy._apply_tool_call_updates(body, updates)
+        assert modified is True
+        assert json.loads(body["output"][1]["arguments"]) == {"cmd": "rtk ls"}
+
+    def test_update_no_output_list(self):
+        body = {}
+        updates = [{"call_id": "c1", "arguments": {"cmd": "rtk ls"}}]
+        assert proxy._apply_tool_call_updates(body, updates) is False
+
+    def test_update_empty_name_keeps_existing(self):
+        body = {"output": [make_function_call_item("c1", "shell", {"cmd": "ls"})]}
+        updates = [{"call_id": "c1", "name": "", "arguments": {"cmd": "rtk ls"}}]
+        modified = proxy._apply_tool_call_updates(body, updates)
+        assert modified is True
+        # name should remain "shell" (empty name is falsy, not applied)
+        assert body["output"][0]["name"] == "shell"
+        assert json.loads(body["output"][0]["arguments"]) == {"cmd": "rtk ls"}
+
+
+class TestReSerializeResponse:
+    """Tests for _re_serialize_response()."""
+
+    def test_json_mode(self):
+        body = make_response([make_function_call_item("c1", "shell", {"cmd": "ls"})])
+        raw = proxy._re_serialize_response(body, client_wanted_stream=False)
+        assert isinstance(raw, bytes)
+        parsed = json.loads(raw)
+        assert parsed["output"][0]["call_id"] == "c1"
+
+    def test_sse_mode(self):
+        body = make_response([make_function_call_item("c1", "shell", {"cmd": "ls"})])
+        raw = proxy._re_serialize_response(body, client_wanted_stream=True)
+        assert isinstance(raw, bytes)
+        assert b"response.created" in raw
+        assert b"response.completed" in raw
+        # Verify it can be parsed back
+        parsed = proxy._response_json_from_sse(raw)
+        assert parsed is not None
+        assert parsed["output"][0]["call_id"] == "c1"
+
+    def test_json_mode_roundtrip_preserves_arguments(self):
+        body = make_response([make_function_call_item("c1", "exec_command", {"cmd": "rtk git status"})])
+        raw = proxy._re_serialize_response(body, client_wanted_stream=False)
+        parsed = json.loads(raw)
+        assert json.loads(parsed["output"][0]["arguments"]) == {"cmd": "rtk git status"}
+
+
+class TestHookWithUpdatedToolCalls:
+    """Integration tests for updated_tool_calls through the hook gateway."""
+
+    @pytest.mark.asyncio
+    async def test_hook_returns_updated_tool_calls(self):
+        """Hook script returns updated_tool_calls in allow decision."""
+        import tempfile
+
+        fd, hook_path = tempfile.mkstemp(suffix=".py")
+        os.close(fd)
+        with open(hook_path, "w") as f:
+            f.write(
+                "#!/usr/bin/env python3\n"
+                "import json, sys\n"
+                "data = json.load(sys.stdin)\n"
+                "tc = data['tool_calls'][0]\n"
+                "print(json.dumps({\n"
+                "    'action': 'allow',\n"
+                "    'updated_tool_calls': [\n"
+                "        {'call_id': tc['call_id'], 'arguments': {'cmd': 'rtk git status'}}\n"
+                "    ]\n"
+                "}))\n"
+            )
+        os.chmod(hook_path, 0o755)
+
+        try:
+            with patch.object(proxy, "MCP_TAP_USE_TOOL_HOOK", hook_path):
+                with patch.object(proxy, "MCP_TAP_USE_TOOL_HOOK_TIMEOUT", 10.0):
+                    tracker = proxy.SessionTracker()
+                    gw = proxy.ToolHookGateway(tracker)
+                    state = proxy.PendingState(
+                        session_id="s1",
+                        saved_status=200,
+                        saved_headers={},
+                        saved_raw=b"",
+                        saved_body_json=make_response(
+                            [make_function_call_item("c1", "exec_command", {"cmd": "git status"})]
+                        ),
+                        client_tool_calls=[
+                            {"call_id": "c1", "name": "exec_command", "arguments": {"cmd": "git status"}}
+                        ],
+                        get_goal_result={},
+                        forced_model="m",
+                        used_tokens=500,
+                        used_time_seconds=10.0,
+                    )
+                    decision = await gw.run_hook(state)
+                    assert decision["action"] == "allow"
+                    assert "updated_tool_calls" in decision
+                    assert len(decision["updated_tool_calls"]) == 1
+                    assert decision["updated_tool_calls"][0]["call_id"] == "c1"
+                    assert decision["updated_tool_calls"][0]["arguments"]["cmd"] == "rtk git status"
+        finally:
+            os.unlink(hook_path)
+
+    @pytest.mark.asyncio
+    async def test_updated_tool_calls_modifies_response_body(self):
+        """End-to-end: hook returns updated_tool_calls, response body is modified."""
+        import tempfile
+
+        fd, hook_path = tempfile.mkstemp(suffix=".py")
+        os.close(fd)
+        with open(hook_path, "w") as f:
+            f.write(
+                "#!/usr/bin/env python3\n"
+                "import json, sys\n"
+                "data = json.load(sys.stdin)\n"
+                "tc = data['tool_calls'][0]\n"
+                "print(json.dumps({\n"
+                "    'action': 'allow',\n"
+                "    'updated_tool_calls': [\n"
+                "        {'call_id': tc['call_id'], 'arguments': {'cmd': 'rtk git status'}}\n"
+                "    ]\n"
+                "}))\n"
+            )
+        os.chmod(hook_path, 0o755)
+
+        try:
+            with patch.object(proxy, "MCP_TAP_USE_TOOL_HOOK", hook_path):
+                with patch.object(proxy, "MCP_TAP_USE_TOOL_HOOK_TIMEOUT", 10.0):
+                    saved_resp = make_response(
+                        [make_function_call_item("c1", "exec_command", {"cmd": "git status"})],
+                        total_tokens=500,
+                    )
+                    state = proxy.PendingState(
+                        session_id="s1",
+                        saved_status=200,
+                        saved_headers={"Content-Type": "application/json"},
+                        saved_raw=json.dumps(saved_resp).encode("utf-8"),
+                        saved_body_json=saved_resp,
+                        client_tool_calls=[
+                            {"call_id": "c1", "name": "exec_command", "arguments": {"cmd": "git status"}}
+                        ],
+                        get_goal_result={},
+                        forced_model="test-model",
+                        used_tokens=500,
+                        used_time_seconds=10.0,
+                    )
+
+                    # Simulate what the allow branch does
+                    tracker = proxy.SessionTracker()
+                    gw = proxy.ToolHookGateway(tracker)
+                    decision = await gw.run_hook(state)
+                    assert decision["action"] == "allow"
+
+                    updated = decision.get("updated_tool_calls", [])
+                    response_raw = state.saved_raw
+                    if updated:
+                        modified = proxy._apply_tool_call_updates(state.saved_body_json, updated)
+                        if modified:
+                            response_raw = proxy._re_serialize_response(state.saved_body_json, False)
+
+                    # Verify the response was modified
+                    parsed = json.loads(response_raw)
+                    assert json.loads(parsed["output"][0]["arguments"]) == {"cmd": "rtk git status"}
+        finally:
+            os.unlink(hook_path)
+
+    @pytest.mark.asyncio
+    async def test_allow_without_updated_tool_calls_uses_saved_raw(self):
+        """When hook allows without updated_tool_calls, saved_raw is used unchanged."""
+        hook_path = make_hook_script("allow")
+        try:
+            with patch.object(proxy, "MCP_TAP_USE_TOOL_HOOK", hook_path):
+                with patch.object(proxy, "MCP_TAP_USE_TOOL_HOOK_TIMEOUT", 10.0):
+                    saved_resp = make_response(
+                        [make_function_call_item("c1", "exec_command", {"cmd": "git status"})],
+                        total_tokens=500,
+                    )
+                    saved_raw = json.dumps(saved_resp).encode("utf-8")
+                    state = proxy.PendingState(
+                        session_id="s1",
+                        saved_status=200,
+                        saved_headers={"Content-Type": "application/json"},
+                        saved_raw=saved_raw,
+                        saved_body_json=saved_resp,
+                        client_tool_calls=[
+                            {"call_id": "c1", "name": "exec_command", "arguments": {"cmd": "git status"}}
+                        ],
+                        get_goal_result={},
+                        forced_model="test-model",
+                        used_tokens=500,
+                        used_time_seconds=10.0,
+                    )
+                    tracker = proxy.SessionTracker()
+                    gw = proxy.ToolHookGateway(tracker)
+                    decision = await gw.run_hook(state)
+                    assert decision["action"] == "allow"
+                    assert "updated_tool_calls" not in decision
+                    # No updates, so response_raw stays as saved_raw
+                    updated = decision.get("updated_tool_calls", [])
+                    response_raw = state.saved_raw
+                    if updated:
+                        modified = proxy._apply_tool_call_updates(state.saved_body_json, updated)
+                        if modified:
+                            response_raw = proxy._re_serialize_response(state.saved_body_json, False)
+                    # Response unchanged
+                    assert response_raw == saved_raw
+                    parsed = json.loads(response_raw)
+                    assert json.loads(parsed["output"][0]["arguments"]) == {"cmd": "git status"}
+        finally:
+            os.unlink(hook_path)

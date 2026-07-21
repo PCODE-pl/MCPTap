@@ -23,6 +23,9 @@ Features
 - **Tool-call hook gateway**: when MCP_TAP_USE_TOOL_HOOK points to a hook
   script, the proxy intercepts client tool calls, injects a synthetic
   ``get_goal`` call, and runs the hook to allow or block the response.
+  The hook can also return ``updated_tool_calls`` to rewrite tool call
+  arguments (e.g. wrap shell commands with ``rtk``) before the response
+  is returned to the client.
 - **Session tracking**: UUIDv7-based session tracking with token accumulation
   and elapsed-time measurement per conversation.
 - **File logging**: optional request/response logging to MCP_TAP_LOG_FILE.
@@ -698,7 +701,17 @@ class ToolHookGateway:
     async def run_hook(self, state: PendingState) -> Dict[str, Any]:
         """Run the hook script and return its decision.
 
-        Returns {"action": "allow"} or {"action": "block", "message": "..."}.
+        Returns one of:
+            {"action": "allow"}
+            {"action": "allow", "blocked_files": [...]}
+            {"action": "allow", "updated_tool_calls": [...]}
+            {"action": "block", "message": "..."}
+
+        ``updated_tool_calls`` lets the hook rewrite tool call arguments
+        (e.g. ``cmd`` field) before the response is returned to the client.
+        Each entry must contain a ``call_id`` and may override ``name``
+        and/or ``arguments``.
+
         On timeout, non-zero exit, or invalid JSON, raises RuntimeError.
         """
         hook_input = {
@@ -1181,6 +1194,74 @@ def _extract_intercepted_calls(
         if name in intercept.tool_names() and call_id:
             hits.append((item, call_id, name, arguments))
     return hits
+
+
+def _apply_tool_call_updates(
+    body_json: Dict[str, Any],
+    updated_tool_calls: List[Dict[str, Any]],
+) -> bool:
+    """Apply updated arguments to function_call items in the response body.
+
+    Each entry in ``updated_tool_calls`` must have a ``call_id`` and may
+    override ``name`` and/or ``arguments``.  The ``arguments`` field is
+    stored as a JSON string inside function_call items.
+
+    Returns ``True`` if any item was modified, ``False`` otherwise.
+    """
+    if not updated_tool_calls:
+        return False
+
+    updates_by_id: Dict[str, Dict[str, Any]] = {}
+    for upd in updated_tool_calls:
+        call_id = upd.get("call_id")
+        if not call_id:
+            continue
+        updates_by_id[call_id] = upd
+
+    if not updates_by_id:
+        return False
+
+    output = body_json.get("output") or []
+    if not isinstance(output, list):
+        return False
+
+    modified = False
+    for item in output:
+        if not isinstance(item, dict):
+            continue
+        if item.get("type") != "function_call":
+            continue
+        call_id = item.get("call_id")
+        if call_id not in updates_by_id:
+            continue
+        upd = updates_by_id[call_id]
+        if "name" in upd and upd["name"]:
+            item["name"] = upd["name"]
+            modified = True
+        if "arguments" in upd:
+            args_val = upd["arguments"]
+            if isinstance(args_val, (dict, list)):
+                item["arguments"] = json.dumps(args_val, ensure_ascii=False)
+            else:
+                item["arguments"] = str(args_val)
+            modified = True
+
+    return modified
+
+
+def _re_serialize_response(
+    saved_body_json: Dict[str, Any],
+    client_wanted_stream: bool,
+) -> bytes:
+    """Re-serialize a response body to bytes for the client.
+
+    For non-stream responses this produces a JSON byte string.  For stream
+    responses this builds a minimal SSE byte stream via
+    ``_build_sse_from_response``.
+    """
+    if client_wanted_stream:
+        return _build_sse_from_response(saved_body_json)
+    return json.dumps(saved_body_json, ensure_ascii=False).encode("utf-8")
 
 
 # ---------------------------------------------------------------------------
@@ -1837,20 +1918,33 @@ async def _handle_direct_hook(
 
     if action == "allow":
         blocked_files = decision.get("blocked_files", [])
+        updated_tool_calls = decision.get("updated_tool_calls", [])
         LOGGER.info(
-            "Tool hook allowed tool calls for session=%s (blocked_files=%d)",
+            "Tool hook allowed tool calls for session=%s (blocked_files=%d, updated_tool_calls=%d)",
             session_id,
             len(blocked_files),
+            len(updated_tool_calls),
         )
 
         if blocked_files:
             _write_blocklist(session_id, blocked_files)
 
+        response_raw = pending_state.saved_raw
+        if updated_tool_calls:
+            modified = _apply_tool_call_updates(pending_state.saved_body_json, updated_tool_calls)
+            if modified:
+                response_raw = _re_serialize_response(pending_state.saved_body_json, client_wanted_stream)
+                LOGGER.info(
+                    "Tool hook applied %d tool call updates for session=%s",
+                    len(updated_tool_calls),
+                    session_id,
+                )
+
         return await _emit_buffered_response(
             request,
             status=pending_state.saved_status,
             headers=pending_state.saved_headers,
-            raw=pending_state.saved_raw,
+            raw=response_raw,
         )
 
     # action == "block"
@@ -1957,21 +2051,34 @@ async def _handle_hook_decision(
 
     if action == "allow":
         blocked_files = decision.get("blocked_files", [])
+        updated_tool_calls = decision.get("updated_tool_calls", [])
         LOGGER.info(
-            "Tool hook allowed tool calls for session=%s (blocked_files=%d)",
+            "Tool hook allowed tool calls for session=%s (blocked_files=%d, updated_tool_calls=%d)",
             session_id,
             len(blocked_files),
+            len(updated_tool_calls),
         )
         await hook_gateway.clear_pending(session_id)
 
         if blocked_files:
             _write_blocklist(session_id, blocked_files)
 
+        response_raw = pending_state.saved_raw
+        if updated_tool_calls:
+            modified = _apply_tool_call_updates(pending_state.saved_body_json, updated_tool_calls)
+            if modified:
+                response_raw = _re_serialize_response(pending_state.saved_body_json, client_wanted_stream)
+                LOGGER.info(
+                    "Tool hook applied %d tool call updates for session=%s",
+                    len(updated_tool_calls),
+                    session_id,
+                )
+
         return await _emit_buffered_response(
             request,
             status=pending_state.saved_status,
             headers=pending_state.saved_headers,
-            raw=pending_state.saved_raw,
+            raw=response_raw,
         )
 
     # action == "block"

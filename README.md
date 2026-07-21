@@ -23,7 +23,8 @@ MCPTap can:
 * log upstream requests and responses,
 * support normal JSON responses and streaming SSE responses,
 * expose a local health endpoint,
-* run a configurable hook before client tool calls to allow or block them.
+* run a configurable hook before client tool calls to allow or block them,
+* rewrite tool call arguments via the hook (e.g. wrap shell commands with RTK for token compression).
 
 ## High-level flow
 
@@ -649,6 +650,14 @@ or with file access blocking:
 {"action": "allow", "blocked_files": ["/path/to/secret.py", "~/.git-credentials"]}
 ```
 
+or with tool call argument rewriting:
+
+```json
+{"action": "allow", "updated_tool_calls": [
+  {"call_id": "fc_abc123", "name": "exec_command", "arguments": {"cmd": "rtk git status"}}
+]}
+```
+
 or:
 
 ```json
@@ -658,6 +667,30 @@ or:
 If the hook times out, exits with a non-zero code, or returns invalid JSON,
 MCPTap stops the turn with a ``use_tool_hook_error`` and the tool calls are
 not executed.
+
+#### ``updated_tool_calls``
+
+When ``updated_tool_calls`` is present in an ``allow`` response, MCPTap
+rewrites the matching tool call arguments in the model's response before
+returning it to the client. Each entry must contain a ``call_id`` and may
+override ``name`` and/or ``arguments``. Arguments may be provided as a dict
+or a JSON string.
+
+This enables transparent command rewriting: the model emits a normal tool
+call (e.g. ``exec_command`` with ``cmd: "git status"``), the hook rewrites the
+command (e.g. to ``rtk git status``), and the client receives and executes the
+rewritten version. The model never knows its command was modified, and the
+client sees the rewritten command in its UI.
+
+Use cases:
+- wrap shell commands with a token-compression proxy such as
+  [RTK](https://github.com/rtk-ai/rtk) for 60–90% token savings,
+- inject environment variables or flags into commands,
+- normalize command names across different clients.
+
+The rewrite works in both synthetic tool mode and direct hook mode, and is
+compatible with streaming SSE responses — MCPTap re-serializes the response
+body when updates are applied.
 
 When ``blocked_files`` is present in an ``allow`` response, MCPTap writes the
 list to a per-session control file at
@@ -699,6 +732,33 @@ else:
 This example blocks tool calls when the session exceeds 10000 tokens or 120
 seconds, instructing the model to use ``consult_council`` first. When allowed,
 it also blocks access to sensitive files via the LD_PRELOAD library.
+
+### RTK integration via ``updated_tool_calls``
+
+The example hook script installed by MCPTap includes optional
+[RTK](https://github.com/rtk-ai/rtk) (Rust Token Killer) integration. When the
+``rtk`` binary is on ``PATH`` and meets the minimum version (0.23.0+), the hook
+automatically rewrites shell commands in tool calls through ``rtk rewrite``,
+reducing token consumption by 60–90%.
+
+```text
+Model calls: exec_command(cmd="git status")
+  → hook detects rtk on PATH
+  → hook calls: rtk rewrite "git status" → "rtk git status"
+  → hook returns: updated_tool_calls: [{call_id: ..., arguments: {cmd: "rtk git status"}}]
+  → MCPTap rewrites the response
+  → client executes: rtk git status (compressed output)
+```
+
+To enable:
+1. Install RTK: ``brew install rtk`` or
+   ``curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh``
+2. Verify: ``rtk --version``
+3. The hook script auto-detects RTK — no configuration change needed.
+
+The hook checks ``rtk --version`` on each invocation and gracefully skips
+rewriting if RTK is absent or too old, so the hook works with or without RTK
+installed.
 
 ### File access blocking setup
 
