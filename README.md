@@ -756,8 +756,9 @@ these escapes are accepted as documented constraints of user-space
 Landlock, AppArmor, or removal of `NOPASSWD` sudoers entries to fully
 close):
 
-- **Stdin / heredoc payloads** — a blocked path passed through a pipe or
+* **Stdin / heredoc payloads** — a blocked path passed through a pipe or
   heredoc instead of `argv` is not visible to the interceptor:
+
   ```sh
   echo 'cat ~/.fzf-history' | sudo bash          # NOT blocked
   echo ~/.fzf-history   | sudo xargs cat          # NOT blocked
@@ -765,15 +766,20 @@ close):
   cat ~/.fzf-history
   EOF
   ```
+
   The library only sees `argv`; the file path never appears there.
-- **Obfuscated paths** — a payload that reconstructs the blocked path at
+
+* **Obfuscated paths** — a payload that reconstructs the blocked path at
   runtime defeats the static substring scan:
+
   ```sh
   sudo bash -c 'F=~/.fzf-; F=${F}history; cat "$F"'   # NOT blocked
   sudo bash -c 'cat $(echo L2hvbWUv...cngK | base64 -d)'  # NOT blocked
   ```
+
   Analyzing shell semantics in user space is infeasible.
-- **Path-normalization aliases** — while `./`, `../`, and symlinks are
+
+* **Path-normalization aliases** — while `./`, `../`, and symlinks are
   resolved for the path-scan layer, the surgical payload scan uses
   substring matching against the **expanded** form, so exotic aliasing
   (`//`, redundant `/./`, Unicode look-alikes) inside a payload string
