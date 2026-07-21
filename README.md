@@ -30,28 +30,44 @@ MCPTap can:
 ```text
 AI client
   │
-  │ OpenAI-compatible /v1/responses request
+  │ OpenAI-compatible request
   ▼
 MCPTap
+  │  rewrites payload: forced model, plan-mode switching,
+  │  provider pinning, per-model instructions, tool injection
   │
-  │ rewritten / routed request
+  │  rewritten / routed request
   ▼
 OpenRouter or Requesty
   │
-  │ model response
+  │  model response
   ▼
 MCPTap
   │
-  ├─ if the model calls an intercepted tool:
-  │      MCPTap calls the configured MCP server locally
-  │      and sends the tool result back to the model
+  ├─ model calls an intercepted MCP tool:
+  │      MCPTap calls the MCP server locally, feeds the tool
+  │      result back to the model, and loops to the upstream again
   │
-  └─ final response
+  ├─ model calls a client tool and the tool-call hook is enabled:
+  │      MCPTap runs the hook script —
+  │        allow: returns the saved model response to the client
+  │        block: feeds the block message back to the model,
+  │               then passes through the next response once
+  │
+  └─ final response (no intercepted or client tool calls pending)
        ▼
      AI client
 ```
 
-The client does not need to know that an intercepted MCP call happened. From the client's perspective, it receives a normal final model response.
+Non-`/v1/responses` requests, and `/v1/responses` requests when neither MCP
+interception nor the tool-call hook is enabled, are rewritten and forwarded
+upstream without the intercept/hook loop — the response is streamed back to
+the client unchanged.
+
+The client never sees intercepted MCP tool calls. From the client's
+perspective, it receives a normal final model response. When the tool-call
+hook blocks a client tool call, the client only sees the model's follow-up
+response after the block message is fed back.
 
 ## Main use cases
 
