@@ -19,6 +19,11 @@
  * openat2 (Linux 5.6+, via exported wrapper symbol).
  *
  * Returns -1 / NULL with errno = EACCES for blocked paths.
+ *
+ * Process allowlist (MCPTAP_FB_PROCESS_ALLOWLIST):
+ *   Colon-separated list of process names (as reported by /proc/self/comm)
+ *   that bypass all blocklist checks. Default: "git:ssh". Set to empty
+ *   string to disable the allowlist entirely.
  */
 
 #define _GNU_SOURCE
@@ -111,6 +116,73 @@ static int _loading_blocklist = 0;
  * calls to realpath() from inside is_path_blocked() do not recurse back
  * through our own realpath() interceptor. */
 static int _checking = 0;
+
+/* ----------------------------------------------------------------------- */
+/* Process allowlist                                                       */
+/*                                                                         */
+/* Processes listed in MCPTAP_FB_PROCESS_ALLOWLIST (colon-separated)       */
+/* bypass all blocklist checks. This allows trusted system tools like      */
+/* git and ssh to access blocked paths (e.g. ~/.ssh/id_rsa for git push)  */
+/* while still blocking direct reads by the model (cat, head, etc.).      */
+/*                                                                         */
+/* The process name is read from /proc/self/comm (Linux) which gives the   */
+/* kernel's view of the current process name (truncated to 15 chars).     */
+/* Default allowlist: "git:ssh". Set MCPTAP_FB_PROCESS_ALLOWLIST="" to    */
+/* disable.                                                               */
+/* ----------------------------------------------------------------------- */
+
+static char _current_comm[16] = {0};
+static int _comm_initialized = 0;
+
+static const char *get_current_comm(void) {
+    if (_comm_initialized)
+        return _current_comm;
+
+    _comm_initialized = 1;
+
+    int fd = -1;
+    /* Use raw syscall to avoid recursion through our own open() interceptor. */
+    _checking = 1;
+    fd = (int)syscall(SYS_openat, AT_FDCWD, "/proc/self/comm", O_RDONLY, 0);
+    _checking = 0;
+    if (fd >= 0) {
+        ssize_t n = read(fd, _current_comm, sizeof(_current_comm) - 1);
+        close(fd);
+        if (n > 0) {
+            /* Strip trailing newline. */
+            if (_current_comm[n - 1] == '\n')
+                n--;
+            _current_comm[n] = '\0';
+        }
+    }
+    return _current_comm;
+}
+
+static int is_process_allowed(void) {
+    const char *allowlist = getenv("MCPTAP_FB_PROCESS_ALLOWLIST");
+    /* Default allowlist: git and ssh. */
+    if (!allowlist)
+        allowlist = "git:ssh";
+    /* Empty string disables the allowlist entirely. */
+    if (!*allowlist)
+        return 0;
+
+    const char *comm = get_current_comm();
+    if (!comm || !*comm)
+        return 0;
+
+    const char *p = allowlist;
+    while (*p) {
+        const char *colon = strchr(p, ':');
+        size_t len = colon ? (size_t)(colon - p) : strlen(p);
+        if (len > 0 && strlen(comm) == len && strncmp(comm, p, len) == 0)
+            return 1;
+        if (!colon)
+            break;
+        p = colon + 1;
+    }
+    return 0;
+}
 
 /* Build the path to the per-session control file.
  * Uses MCPTAP_BLOCKED_FILES_FILE if set (for testing / override).
@@ -240,6 +312,10 @@ static int is_path_blocked(const char *path) {
     /* Skip checks while loading the blocklist or already inside a check to
      * prevent recursion. */
     if (_loading_blocklist || _checking)
+        return 0;
+
+    /* Allowlisted processes bypass all blocklist checks. */
+    if (is_process_allowed())
         return 0;
 
     if (!blocked_initialized)
@@ -517,6 +593,10 @@ static int is_escalator_interpreter_payload_blocked(char *const argv[]) {
  * resolved. Non-path arguments simply do not match and are skipped. */
 static int is_argv_blocked(char *const argv[]) {
     if (!argv)
+        return 0;
+
+    /* Allowlisted processes bypass all blocklist checks. */
+    if (is_process_allowed())
         return 0;
 
     /* Direct path scan: blocks `sudo cat <blocked>`, `sudo cp <blocked> dst`,

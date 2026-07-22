@@ -873,6 +873,7 @@ close):
 | `MCPTAP_FB_ESCALATORS` | built-in list (`sudo`, `su`, `doas`, `pkexec`, `runuser`, `gksu`, `gksudo`, `sudoedit`, ...) | Colon-separated list of `argv[0]` basenames treated as privilege-escalators. When set, it **overrides** the defaults (an empty value falls back to defaults). |
 | `MCPTAP_FB_INTERPRETERS` | built-in list (`bash`, `sh`, `dash`, `python3`, `perl`, `xargs`, `dd`, `env`, `tee`, ...) | Colon-separated list of basenames treated as interpreters. When set, it **overrides** the defaults (an empty value falls back to defaults). |
 | `MCPTAP_FB_DISABLE_ESCALATOR_CHECK` | unset | When set to `1`, the surgical escalator+interpreter layer is disabled entirely (only the path-scan layer remains active). |
+| `MCPTAP_FB_PROCESS_ALLOWLIST` | `git:ssh` | Colon-separated list of process names (from `/proc/self/comm`) that bypass all blocklist checks. Allows trusted tools like `git` and `ssh` to access blocked paths (e.g. SSH keys for `git push`) while still blocking direct reads by the model. Set to empty string to disable the allowlist entirely. |
 
 For complete sandboxing of setuid escape vectors, combine the library
 with a system-level mechanism (Landlock on kernel ≥ 5.13, an AppArmor

@@ -51,7 +51,6 @@ import sys
 # Files that should never be accessible by the model's tool calls.
 SENSITIVE_FILES = [
     "~/.git-credentials",
-    "~/.gitconfig",
     "~/.ssh/id_rsa",
     "~/.ssh/id_ed25519",
 ]
