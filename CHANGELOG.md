@@ -1,6 +1,42 @@
 <!-- markdownlint-disable MD024 -->
 # Changelog
 
+## [2.2.0]
+
+### Added
+
+- Process allowlist (MCPTAP_FB_PROCESS_ALLOWLIST) — the LD_PRELOAD
+  file-block library now supports a colon-separated list of process names
+  that bypass all blocklist checks. The process name is read from
+  /proc/self/comm (Linux). Default allowlist: git:ssh. This enables
+  git push / git commit to function when SSH keys or
+  ~/.git-credentials are on the blocklist — git and ssh can read
+  them, but direct reads by the model (cat, head, less, …) remain
+  blocked. Set MCPTAP_FB_PROCESS_ALLOWLIST="" to disable the allowlist
+  entirely.
+
+- 5 new process-allowlist tests — TestProcessAllowlist covering:
+  allowlisted process reads a blocked file, non-allowlisted process is
+  blocked, default allowlist includes git, empty allowlist disables
+  bypass, and multiple colon-separated entries are honored.
+
+- Dependabot configuration — added .github/dependabot.yml for
+  automated weekly dependency update PRs for both pip (Python  dependencies) and github-actions (workflow dependencies).
+
+### Changed
+
+- Removed ~/.gitconfig from SENSITIVE_FILES — the example
+  use_tool_hook.py no longer blocks ~/.gitconfig (it contains no
+  secrets — only user.name, user.email, aliases). SSH keys and
+  ~/.git-credentials remain blocked.
+
+- README updated — added MCPTAP_FB_PROCESS_ALLOWLIST to the
+  environment variable configuration table.
+
+### Full Changelog
+
+[https://github.com/PCODE-pl/MCPTap/compare/v2.1.0...v2.2.0](https://github.com/PCODE-pl/MCPTap/compare/v2.1.0...v2.2.0)
+
 ## [2.1.0]
 
 ### Added
