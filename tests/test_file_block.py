@@ -521,6 +521,139 @@ def _kernel_version_tuple(release):
     return (int(m.group(1)), int(m.group(2))) if m else (0, 0)
 
 
+# ---------------------------------------------------------------------------
+# Process allowlist tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not lib_exists(), reason="libmcptap_fileblock.so not built")
+class TestProcessAllowlist:
+    """Tests for MCPTAP_FB_PROCESS_ALLOWLIST bypass mechanism."""
+
+    def test_allowlisted_process_can_read_blocked(self, tmp_path):
+        """A process on the allowlist can read a blocked file."""
+        import subprocess
+
+        blocked = tmp_path / "secret.txt"
+        blocked.write_text("secret content")
+
+        blocklist = tmp_path / "blocklist.txt"
+        blocklist.write_text(str(blocked) + "\n")
+
+        env = _make_fb_env(blocklist, extra={"MCPTAP_FB_PROCESS_ALLOWLIST": "cat"})
+        result = subprocess.run(
+            ["cat", str(blocked)],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        assert result.returncode == 0
+        assert "secret content" in result.stdout
+
+    def test_non_allowlisted_process_blocked(self, tmp_path):
+        """A process NOT on the allowlist is still blocked."""
+        import subprocess
+
+        blocked = tmp_path / "secret.txt"
+        blocked.write_text("secret content")
+
+        blocklist = tmp_path / "blocklist.txt"
+        blocklist.write_text(str(blocked) + "\n")
+
+        env = _make_fb_env(blocklist, extra={"MCPTAP_FB_PROCESS_ALLOWLIST": "git"})
+        result = subprocess.run(
+            ["cat", str(blocked)],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        assert result.returncode != 0
+        assert "Permission denied" in result.stderr
+
+    def test_default_allowlist_includes_git(self, tmp_path):
+        """With no MCPTAP_FB_PROCESS_ALLOWLIST, git bypasses the blocklist."""
+        import subprocess
+
+        blocked = tmp_path / "secret.txt"
+        blocked.write_text("secret content")
+
+        blocklist = tmp_path / "blocklist.txt"
+        blocklist.write_text(str(blocked) + "\n")
+
+        env = _make_fb_env(blocklist)
+        # git is on the default allowlist, so it can read the blocked file.
+        # Use `git hash-object` which reads a file and prints its SHA1.
+        result = subprocess.run(
+            ["git", "hash-object", str(blocked)],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        assert result.returncode == 0
+        # git hash-object prints a 40-char SHA1 hash
+        assert len(result.stdout.strip()) == 40
+
+    def test_empty_allowlist_disables_bypass(self, tmp_path):
+        """Setting MCPTAP_FB_PROCESS_ALLOWLIST to empty disables the allowlist."""
+        import subprocess
+
+        blocked = tmp_path / "secret.txt"
+        blocked.write_text("secret content")
+
+        blocklist = tmp_path / "blocklist.txt"
+        blocklist.write_text(str(blocked) + "\n")
+
+        env = _make_fb_env(blocklist, extra={"MCPTAP_FB_PROCESS_ALLOWLIST": ""})
+        result = subprocess.run(
+            ["cat", str(blocked)],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        assert result.returncode != 0
+        assert "Permission denied" in result.stderr
+
+    def test_custom_allowlist_multiple_entries(self, tmp_path):
+        """Multiple colon-separated entries in the allowlist are all honored."""
+        import subprocess
+
+        blocked = tmp_path / "secret.txt"
+        blocked.write_text("secret content")
+
+        blocklist = tmp_path / "blocklist.txt"
+        blocklist.write_text(str(blocked) + "\n")
+
+        env = _make_fb_env(blocklist, extra={"MCPTAP_FB_PROCESS_ALLOWLIST": "cat:head"})
+        # cat is allowlisted
+        result_cat = subprocess.run(
+            ["cat", str(blocked)],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        assert result_cat.returncode == 0
+        assert "secret content" in result_cat.stdout
+
+        # head is allowlisted
+        result_head = subprocess.run(
+            ["head", str(blocked)],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        assert result_head.returncode == 0
+        assert "secret content" in result_head.stdout
+
+        # sed is NOT allowlisted
+        result_sed = subprocess.run(
+            ["sed", "p", str(blocked)],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        assert result_sed.returncode != 0
+
+
 @pytest.mark.skipif(
     _kernel_version_tuple(platform.uname().release) < (5, 6),
     reason="openat2 requires Linux 5.6+",
