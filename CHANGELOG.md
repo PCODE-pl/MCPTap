@@ -1,4 +1,49 @@
+<!-- markdownlint-disable MD024 -->
 # Changelog
+
+## [2.1.0]
+
+### Added
+
+- updated_tool_calls hook response support — the tool-call hook can now
+  return updated_tool_calls in an allow response to rewrite tool call
+  arguments (e.g. wrap shell commands with RTK) before the response is returned
+  to the client. Each entry must contain a call_id and may override name
+  and/or arguments (provided as a dict or JSON string). The proxy applies the
+  updates to matching function_call items in the response body and
+  re-serializes the response (both non-stream JSON and streaming SSE). Works in
+  both synthetic-tool and direct-hook modes.
+
+- RTK integration in example use_tool_hook.py — the example hook script
+  now auto-detects the [RTK](https://github.com/rtk-ai/rtk) binary on PATH
+  (minimum version 0.23.0+) and rewrites shell commands in tool calls
+  (exec_command, shell, Bash) through rtk rewrite, reducing token
+  consumption by 60–90%. The check runs on each invocation and gracefully
+  skips rewriting if RTK is absent or too old — no configuration change needed.
+
+- 18 new tool-call rewrite tests — TestApplyToolCallUpdates,
+  TestReSerializeResponse, and TestHookWithUpdatedToolCalls covering
+  argument updates (dict/string), name-only updates, multiple calls,
+  non-matching call_id, empty/invalid entries, and end-to-end integration
+  with the proxy in both direct-hook and synthetic-tool modes.
+
+- README documentation — added updated_tool_calls to the hook contract
+  section, a new RTK integration section with a flow diagram, and updated the
+  feature list to mention tool call argument rewriting.
+
+### Fixed
+
+- SSE output item events — _build_sse_from_response now emits
+  response.output_item.added and response.output_item.done events for each
+  output item (including function_call items) in synthetic SSE streams.
+  Previously only response.created and response.completed were emitted,
+  preventing clients from parsing individual output items. Added 2 tests to
+  verify the new events and that output items can be recovered via
+  _response_json_from_sse.
+
+### Full Changelog
+
+[https://github.com/PCODE-pl/MCPTap/compare/v2.0.0...v2.1.0](https://github.com/PCODE-pl/MCPTap/compare/v2.0.0...v2.1.0)
 
 ## [2.0.0]
 
