@@ -1,7 +1,6 @@
 <!-- markdownlint-disable MD024 -->
 # Changelog
 
-
 ## [2.3.0]
 
 ### Added
