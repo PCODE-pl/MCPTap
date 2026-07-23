@@ -1,6 +1,47 @@
 <!-- markdownlint-disable MD024 -->
 # Changelog
 
+
+## [2.3.0]
+
+### Added
+
+- **`mcptap` package** — the monolithic `proxy.py` (2346 lines) was split into
+  focused modules: `app.py`, `upstream.py`, `response_flow.py`, `responses.py`,
+  `rewrite.py`, `mcp_intercept.py`, `session.py`, `tool_hook.py`, `settings.py`,
+  `http_utils.py`, and `file_block.py`. `proxy.py` is now a thin entry-point
+  that imports from the package.
+
+- **changelog-creator skill metadata** — added frontmatter (name, description)
+  to `.agents/skills/changelog-creator/SKILL.md` for skill discovery.
+
+### Changed
+
+- **Public API without private prefixes** — helper functions previously named
+  with `_` prefix (e.g. `_blocklist_file_path`, `_write_blocklist`,
+  `_build_synthetic_tool_response`, `_extract_client_tool_calls`,
+  `_apply_tool_call_updates`, `_re_serialize_response`, etc.) are now exposed
+  as public functions in the `mcptap` package (e.g. `blocklist_file_path`,
+  `write_blocklist`, `build_synthetic_tool_response`, etc.).
+
+- **Tests updated** — `test_file_block.py` and `test_tool_hook.py` now import
+  `mcptap.settings` and reference public function names instead of private
+  `proxy._*` attributes.
+
+- **`setup.sh` updated** — source validation and install now check for and
+  copy the `mcptap/` directory alongside `proxy.py` and `examples/`.
+
+### Fixed
+
+- **`setup.sh` reinstall overwrites `mcptap/` correctly** — `cp -r` into an
+  existing destination previously created a nested `mcptap/mcptap/` instead of
+  replacing files. Now the old directory is removed first and `__pycache__` is
+  cleaned after copy.
+
+### Full Changelog
+
+[https://github.com/PCODE-pl/MCPTap/compare/v2.2.0...v2.3.0](https://github.com/PCODE-pl/MCPTap/compare/v2.2.0...v2.3.0)
+
 ## [2.2.0]
 
 ### Added
