@@ -23,6 +23,7 @@ import pytest  # type: ignore
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import proxy  # noqa: E402
+from mcptap.settings import settings as mcptap_settings
 
 # ---------------------------------------------------------------------------
 # Blocklist file management tests
@@ -31,23 +32,23 @@ import proxy  # noqa: E402
 
 class TestBlocklistManagement:
     def test_blocklist_file_path_is_deterministic(self):
-        with patch.object(proxy, "MCP_TAP_PER_SESSION_DIR", "/tmp/mcptap_test_blocks"):
-            path1 = proxy._blocklist_file_path("session-1")
-            path2 = proxy._blocklist_file_path("session-1")
+        with patch.object(mcptap_settings, "per_session_dir", "/tmp/mcptap_test_blocks"):
+            path1 = proxy.blocklist_file_path("session-1")
+            path2 = proxy.blocklist_file_path("session-1")
             assert path1 == path2
             assert "blocked_files" in path1
             assert path1.endswith("blocked_files")
 
     def test_blocklist_file_path_different_sessions(self):
-        with patch.object(proxy, "MCP_TAP_PER_SESSION_DIR", "/tmp/mcptap_test_blocks"):
-            path1 = proxy._blocklist_file_path("session-1")
-            path2 = proxy._blocklist_file_path("session-2")
+        with patch.object(mcptap_settings, "per_session_dir", "/tmp/mcptap_test_blocks"):
+            path1 = proxy.blocklist_file_path("session-1")
+            path2 = proxy.blocklist_file_path("session-2")
             assert path1 != path2
 
     def test_write_blocklist_creates_file(self):
-        with patch.object(proxy, "MCP_TAP_PER_SESSION_DIR", tempfile.mkdtemp()):
+        with patch.object(mcptap_settings, "per_session_dir", tempfile.mkdtemp()):
             files = ["/path/a.py", "/path/b.py", "~/.git-credentials"]
-            path = proxy._write_blocklist("s1", files)
+            path = proxy.write_blocklist("s1", files)
             assert os.path.exists(path)
             with open(path) as f:
                 lines = f.read().strip().split("\n")
@@ -57,21 +58,21 @@ class TestBlocklistManagement:
             assert "~/.git-credentials" in lines
 
     def test_write_blocklist_empty_list(self):
-        with patch.object(proxy, "MCP_TAP_PER_SESSION_DIR", tempfile.mkdtemp()):
-            path = proxy._write_blocklist("s1", [])
+        with patch.object(mcptap_settings, "per_session_dir", tempfile.mkdtemp()):
+            path = proxy.write_blocklist("s1", [])
             assert os.path.exists(path)
             with open(path) as f:
                 content = f.read()
             assert content == ""
 
     def test_clear_blocklist_removes_file(self):
-        with patch.object(proxy, "MCP_TAP_PER_SESSION_DIR", tempfile.mkdtemp()):
-            proxy._write_blocklist("s1", ["/some/file"])
-            proxy._clear_blocklist("s1")
-            assert not os.path.exists(proxy._blocklist_file_path("s1"))
+        with patch.object(mcptap_settings, "per_session_dir", tempfile.mkdtemp()):
+            proxy.write_blocklist("s1", ["/some/file"])
+            proxy.clear_blocklist("s1")
+            assert not os.path.exists(proxy.blocklist_file_path("s1"))
 
     def test_clear_blocklist_nonexistent_is_noop(self):
-        proxy._clear_blocklist("nonexistent-session-id")
+        proxy.clear_blocklist("nonexistent-session-id")
 
 
 # ---------------------------------------------------------------------------
@@ -81,7 +82,7 @@ class TestBlocklistManagement:
 
 class TestSyntheticToolResponse:
     def test_build_synthetic_tool_response_custom_name(self):
-        resp = proxy._build_synthetic_tool_response("model-1", "get_goal")
+        resp = proxy.build_synthetic_tool_response("model-1", "get_goal")
         assert resp["model"] == "model-1"
         assert resp["status"] == "incompleted"
         assert len(resp["output"]) == 1
@@ -91,13 +92,13 @@ class TestSyntheticToolResponse:
         assert item["name"] == "get_goal"
 
     def test_build_synthetic_tool_response_different_name(self):
-        resp = proxy._build_synthetic_tool_response("model-1", "custom_tool")
+        resp = proxy.build_synthetic_tool_response("model-1", "custom_tool")
         item = resp["output"][0]
         assert item["name"] == "custom_tool"
         assert item["call_id"] == proxy.SYNTHETIC_GET_GOAL_CALL_ID
 
     def test_build_synthetic_get_goal_response_still_works(self):
-        resp = proxy._build_synthetic_get_goal_response("model-1")
+        resp = proxy.build_synthetic_get_goal_response("model-1")
         item = resp["output"][0]
         assert item["name"] == proxy.SYNTHETIC_GET_GOAL_TOOL_NAME
 
@@ -129,15 +130,15 @@ class TestGenericHookMode:
     def test_synthetic_tool_config_default(self):
         """Default MCP_TAP_USE_TOOL_HOOK_SYNTHETIC_TOOL is 'get_goal'."""
         # This is set from env at import time; just verify the constant exists
-        assert hasattr(proxy, "MCP_TAP_USE_TOOL_HOOK_SYNTHETIC_TOOL")
+        assert hasattr(proxy, "settings") and hasattr(mcptap_settings, "use_tool_hook_synthetic_tool")
 
     @pytest.mark.asyncio
     async def test_hook_returns_blocked_files_in_allow(self):
         """Hook can return blocked_files in the allow response."""
         hook_path = make_hook_script_with_blocked_files(["/secret/file.py"])
         try:
-            with patch.object(proxy, "MCP_TAP_USE_TOOL_HOOK", hook_path):
-                with patch.object(proxy, "MCP_TAP_USE_TOOL_HOOK_TIMEOUT", 10.0):
+            with patch.object(mcptap_settings, "use_tool_hook", hook_path):
+                with patch.object(mcptap_settings, "use_tool_hook_timeout", 10.0):
                     tracker = proxy.SessionTracker()
                     gw = proxy.ToolHookGateway(tracker)
                     state = proxy.PendingState(
@@ -171,8 +172,8 @@ class TestGenericHookMode:
         os.chmod(hook_path, 0o755)
 
         try:
-            with patch.object(proxy, "MCP_TAP_USE_TOOL_HOOK", hook_path):
-                with patch.object(proxy, "MCP_TAP_USE_TOOL_HOOK_TIMEOUT", 10.0):
+            with patch.object(mcptap_settings, "use_tool_hook", hook_path):
+                with patch.object(mcptap_settings, "use_tool_hook_timeout", 10.0):
                     tracker = proxy.SessionTracker()
                     gw = proxy.ToolHookGateway(tracker)
                     state = proxy.PendingState(

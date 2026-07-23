@@ -23,6 +23,7 @@ import pytest  # type: ignore
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import proxy  # noqa: E402
+from mcptap.settings import settings as mcptap_settings
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -123,19 +124,19 @@ class TestUuidV7Timestamp:
         uuid_int = (ts_ms << 80) | (0x7 << 76) | (0x123 << 64) | (0x2 << 62) | 0x456789ABCDEF
         u = uuid.UUID(int=uuid_int)
         assert u.version == 7
-        result = proxy._uuid_v7_timestamp(str(u))
+        result = proxy.uuid_v7_timestamp(str(u))
         assert result is not None
         assert abs(result - ts_ms / 1000.0) < 0.001
 
     def test_invalid_uuid(self):
-        assert proxy._uuid_v7_timestamp("not-a-uuid") is None
+        assert proxy.uuid_v7_timestamp("not-a-uuid") is None
 
     def test_uuid_v4_not_v7(self):
         u = uuid.uuid4()
-        assert proxy._uuid_v7_timestamp(str(u)) is None
+        assert proxy.uuid_v7_timestamp(str(u)) is None
 
     def test_empty_string(self):
-        assert proxy._uuid_v7_timestamp("") is None
+        assert proxy.uuid_v7_timestamp("") is None
 
 
 # ---------------------------------------------------------------------------
@@ -338,8 +339,8 @@ class TestToolHookGateway:
     async def test_run_hook_allow(self):
         hook_path = make_hook_script("allow")
         try:
-            with patch.object(proxy, "MCP_TAP_USE_TOOL_HOOK", hook_path):
-                with patch.object(proxy, "MCP_TAP_USE_TOOL_HOOK_TIMEOUT", 10.0):
+            with patch.object(mcptap_settings, "use_tool_hook", hook_path):
+                with patch.object(mcptap_settings, "use_tool_hook_timeout", 10.0):
                     tracker = proxy.SessionTracker()
                     gw = proxy.ToolHookGateway(tracker)
                     state = proxy.PendingState(
@@ -363,8 +364,8 @@ class TestToolHookGateway:
     async def test_run_hook_block(self):
         hook_path = make_hook_script("block", "Use consult_council")
         try:
-            with patch.object(proxy, "MCP_TAP_USE_TOOL_HOOK", hook_path):
-                with patch.object(proxy, "MCP_TAP_USE_TOOL_HOOK_TIMEOUT", 10.0):
+            with patch.object(mcptap_settings, "use_tool_hook", hook_path):
+                with patch.object(mcptap_settings, "use_tool_hook_timeout", 10.0):
                     tracker = proxy.SessionTracker()
                     gw = proxy.ToolHookGateway(tracker)
                     state = proxy.PendingState(
@@ -389,8 +390,8 @@ class TestToolHookGateway:
     async def test_run_hook_nonzero_exit(self):
         hook_path = make_error_hook_script(exit_code=1)
         try:
-            with patch.object(proxy, "MCP_TAP_USE_TOOL_HOOK", hook_path):
-                with patch.object(proxy, "MCP_TAP_USE_TOOL_HOOK_TIMEOUT", 10.0):
+            with patch.object(mcptap_settings, "use_tool_hook", hook_path):
+                with patch.object(mcptap_settings, "use_tool_hook_timeout", 10.0):
                     tracker = proxy.SessionTracker()
                     gw = proxy.ToolHookGateway(tracker)
                     state = proxy.PendingState(
@@ -414,8 +415,8 @@ class TestToolHookGateway:
     async def test_run_hook_invalid_json(self):
         hook_path = make_bad_json_hook_script()
         try:
-            with patch.object(proxy, "MCP_TAP_USE_TOOL_HOOK", hook_path):
-                with patch.object(proxy, "MCP_TAP_USE_TOOL_HOOK_TIMEOUT", 10.0):
+            with patch.object(mcptap_settings, "use_tool_hook", hook_path):
+                with patch.object(mcptap_settings, "use_tool_hook_timeout", 10.0):
                     tracker = proxy.SessionTracker()
                     gw = proxy.ToolHookGateway(tracker)
                     state = proxy.PendingState(
@@ -443,10 +444,10 @@ class TestToolHookGateway:
 
 class TestExtractionHelpers:
     def test_extract_usage_total_tokens(self):
-        assert proxy._extract_usage_total_tokens({"usage": {"total_tokens": 500}}) == 500
-        assert proxy._extract_usage_total_tokens({"usage": {}}) == 0
-        assert proxy._extract_usage_total_tokens({}) == 0
-        assert proxy._extract_usage_total_tokens(None) == 0
+        assert proxy.extract_usage_total_tokens({"usage": {"total_tokens": 500}}) == 500
+        assert proxy.extract_usage_total_tokens({"usage": {}}) == 0
+        assert proxy.extract_usage_total_tokens({}) == 0
+        assert proxy.extract_usage_total_tokens(None) == 0
 
     def test_extract_client_tool_calls(self):
         body = {
@@ -455,7 +456,7 @@ class TestExtractionHelpers:
                 make_function_call_item("call2", "consult_council", {"query": "test"}),
             ]
         }
-        calls = proxy._extract_client_tool_calls(body, {"consult_council"})
+        calls = proxy.extract_client_tool_calls(body, {"consult_council"})
         assert len(calls) == 1
         assert calls[0]["call_id"] == "call1"
         assert calls[0]["name"] == "shell"
@@ -463,17 +464,17 @@ class TestExtractionHelpers:
 
     def test_extract_client_tool_calls_empty(self):
         body = {"output": []}
-        assert proxy._extract_client_tool_calls(body, set()) == []
+        assert proxy.extract_client_tool_calls(body, set()) == []
 
     def test_has_intercepted_calls(self):
         body = {"output": [make_function_call_item("c1", "consult_council")]}
-        assert proxy._has_intercepted_calls(body, {"consult_council"}) is True
-        assert proxy._has_intercepted_calls(body, set()) is False
+        assert proxy.has_intercepted_calls(body, {"consult_council"}) is True
+        assert proxy.has_intercepted_calls(body, set()) is False
 
     def test_has_client_tool_calls(self):
         body = {"output": [make_function_call_item("c1", "shell")]}
-        assert proxy._has_client_tool_calls(body, {"consult_council"}) is True
-        assert proxy._has_client_tool_calls(body, {"shell"}) is False
+        assert proxy.has_client_tool_calls(body, {"consult_council"}) is True
+        assert proxy.has_client_tool_calls(body, {"shell"}) is False
 
     def test_strip_synthetic_get_goal(self):
         items = [
@@ -481,7 +482,7 @@ class TestExtractionHelpers:
             {"type": "function_call_output", "call_id": proxy.SYNTHETIC_GET_GOAL_CALL_ID, "output": "{}"},
             {"type": "function_call", "call_id": "real_call", "name": "shell"},
         ]
-        result = proxy._strip_synthetic_get_goal(items)
+        result = proxy.strip_synthetic_get_goal(items)
         assert len(result) == 1
         assert result[0]["call_id"] == "real_call"
 
@@ -495,7 +496,7 @@ class TestExtractionHelpers:
                 },
             ]
         }
-        result = proxy._extract_get_goal_result(payload)
+        result = proxy.extract_get_goal_result(payload)
         assert result["status"] == "active"
         assert result["tokensUsed"] == 500
 
@@ -509,12 +510,12 @@ class TestExtractionHelpers:
                 },
             ]
         }
-        result = proxy._extract_get_goal_result(payload)
+        result = proxy.extract_get_goal_result(payload)
         assert result["status"] == "active"
 
     def test_extract_get_goal_result_not_found(self):
         payload = {"input": []}
-        assert proxy._extract_get_goal_result(payload) == {}
+        assert proxy.extract_get_goal_result(payload) == {}
 
 
 # ---------------------------------------------------------------------------
@@ -524,7 +525,7 @@ class TestExtractionHelpers:
 
 class TestSyntheticResponse:
     def test_build_synthetic_get_goal_response(self):
-        resp = proxy._build_synthetic_get_goal_response("test-model")
+        resp = proxy.build_synthetic_get_goal_response("test-model")
         assert resp["model"] == "test-model"
         assert resp["status"] == "incompleted"
         assert len(resp["output"]) == 1
@@ -534,19 +535,19 @@ class TestSyntheticResponse:
         assert item["name"] == proxy.SYNTHETIC_GET_GOAL_TOOL_NAME
 
     def test_build_hook_error_response(self):
-        resp = proxy._build_hook_error_response("test error", "model-1")
+        resp = proxy.build_hook_error_response("test error", "model-1")
         assert resp["status"] == "failed"
         assert resp["error"]["type"] == "use_tool_hook_error"
         assert resp["error"]["message"] == "test error"
 
     def test_build_sse_from_response(self):
         resp = make_response([])
-        sse_bytes = proxy._build_sse_from_response(resp)
+        sse_bytes = proxy.build_sse_from_response(resp)
         assert b"response.created" in sse_bytes
         assert b"response.completed" in sse_bytes
         assert b"[DONE]" in sse_bytes
         # Verify it can be parsed back
-        parsed = proxy._response_json_from_sse(sse_bytes)
+        parsed = proxy.response_json_from_sse(sse_bytes)
         assert parsed is not None
         assert parsed["id"] == resp["id"]
 
@@ -554,18 +555,18 @@ class TestSyntheticResponse:
         """SSE stream must include output_item.added/done for each output item."""
         item = make_function_call_item("fc_1", "shell", {"cmd": "ls"})
         resp = make_response([item])
-        sse_bytes = proxy._build_sse_from_response(resp)
+        sse_bytes = proxy.build_sse_from_response(resp)
         assert b"response.output_item.added" in sse_bytes
         assert b"response.output_item.done" in sse_bytes
         # Verify output items can be recovered via _response_json_from_sse
-        parsed = proxy._response_json_from_sse(sse_bytes)
+        parsed = proxy.response_json_from_sse(sse_bytes)
         assert parsed is not None
         assert parsed["output"][0]["call_id"] == "fc_1"
 
     def test_build_sse_from_response_empty_output_no_item_events(self):
         """Empty output list must not emit any output_item events."""
         resp = make_response([])
-        sse_bytes = proxy._build_sse_from_response(resp)
+        sse_bytes = proxy.build_sse_from_response(resp)
         assert b"response.output_item.added" not in sse_bytes
         assert b"response.output_item.done" not in sse_bytes
 
@@ -583,8 +584,8 @@ class TestEndToEndFlow:
         """One client tool call -> synthetic get_goal -> hook allow -> saved response returned."""
         hook_path = make_hook_script("allow")
         try:
-            with patch.object(proxy, "MCP_TAP_USE_TOOL_HOOK", hook_path):
-                with patch.object(proxy, "MCP_TAP_USE_TOOL_HOOK_TIMEOUT", 10.0):
+            with patch.object(mcptap_settings, "use_tool_hook", hook_path):
+                with patch.object(mcptap_settings, "use_tool_hook_timeout", 10.0):
                     tracker = proxy.SessionTracker()
                     gw = proxy.ToolHookGateway(tracker)
 
@@ -634,8 +635,8 @@ class TestEndToEndFlow:
         """Multiple parallel client tool calls -> one get_goal -> one hook run."""
         hook_path = make_hook_script("allow")
         try:
-            with patch.object(proxy, "MCP_TAP_USE_TOOL_HOOK", hook_path):
-                with patch.object(proxy, "MCP_TAP_USE_TOOL_HOOK_TIMEOUT", 10.0):
+            with patch.object(mcptap_settings, "use_tool_hook", hook_path):
+                with patch.object(mcptap_settings, "use_tool_hook_timeout", 10.0):
                     tracker = proxy.SessionTracker()
                     gw = proxy.ToolHookGateway(tracker)
 
@@ -648,7 +649,7 @@ class TestEndToEndFlow:
                         total_tokens=800,
                     )
 
-                    client_calls = proxy._extract_client_tool_calls(saved_resp, set())
+                    client_calls = proxy.extract_client_tool_calls(saved_resp, set())
                     assert len(client_calls) == 3
 
                     state = proxy.PendingState(
@@ -682,8 +683,8 @@ class TestEndToEndFlow:
         """After block, the next model response passes through without hook."""
         hook_path = make_hook_script("block", "Use consult_council")
         try:
-            with patch.object(proxy, "MCP_TAP_USE_TOOL_HOOK", hook_path):
-                with patch.object(proxy, "MCP_TAP_USE_TOOL_HOOK_TIMEOUT", 10.0):
+            with patch.object(mcptap_settings, "use_tool_hook", hook_path):
+                with patch.object(mcptap_settings, "use_tool_hook_timeout", 10.0):
                     tracker = proxy.SessionTracker()
                     gw = proxy.ToolHookGateway(tracker)
 
@@ -728,10 +729,10 @@ class TestEndToEndFlow:
         )
 
         # consult_council is in intercept_names, so it's not a client call
-        assert proxy._has_client_tool_calls(body, intercept_names) is False
-        assert proxy._has_intercepted_calls(body, intercept_names) is True
+        assert proxy.has_client_tool_calls(body, intercept_names) is False
+        assert proxy.has_intercepted_calls(body, intercept_names) is True
 
-        client_calls = proxy._extract_client_tool_calls(body, intercept_names)
+        client_calls = proxy.extract_client_tool_calls(body, intercept_names)
         assert len(client_calls) == 0
 
     @pytest.mark.asyncio
@@ -745,19 +746,16 @@ class TestEndToEndFlow:
             ]
         )
 
-        assert proxy._has_intercepted_calls(body, intercept_names) is True
-        assert proxy._has_client_tool_calls(body, intercept_names) is True
+        assert proxy.has_intercepted_calls(body, intercept_names) is True
+        assert proxy.has_client_tool_calls(body, intercept_names) is True
 
         # Intercepted calls are extracted for local execution
-        intercept_calls = proxy._extract_intercepted_calls(
-            body,
-            type("MockIntercept", (), {"tool_names": lambda self: intercept_names})(),
-        )
+        intercept_calls = proxy.extract_intercepted_calls(body, intercept_names)
         assert len(intercept_calls) == 1
         assert intercept_calls[0][2] == "consult_council"
 
         # Client calls extracted for hook
-        client_calls = proxy._extract_client_tool_calls(body, intercept_names)
+        client_calls = proxy.extract_client_tool_calls(body, intercept_names)
         assert len(client_calls) == 1
         assert client_calls[0]["name"] == "shell"
 
@@ -770,9 +768,9 @@ class TestEndToEndFlow:
         resp2 = make_response([], total_tokens=200)
         resp3 = make_response([], total_tokens=300)
 
-        await tracker.add_usage("s1", proxy._extract_usage_total_tokens(resp1))
-        await tracker.add_usage("s1", proxy._extract_usage_total_tokens(resp2))
-        await tracker.add_usage("s1", proxy._extract_usage_total_tokens(resp3))
+        await tracker.add_usage("s1", proxy.extract_usage_total_tokens(resp1))
+        await tracker.add_usage("s1", proxy.extract_usage_total_tokens(resp2))
+        await tracker.add_usage("s1", proxy.extract_usage_total_tokens(resp3))
 
         assert await tracker.get_usage("s1") == 600
 
@@ -803,14 +801,14 @@ class TestEndToEndFlow:
 
         # SSE path
         sse_bytes = make_sse_bytes(resp)
-        sse_parsed = proxy._response_json_from_sse(sse_bytes)
+        sse_parsed = proxy.response_json_from_sse(sse_bytes)
 
         assert json_parsed["output"] == sse_parsed["output"]
         assert json_parsed["usage"] == sse_parsed["usage"]
 
         # Both have the same client tool calls
-        json_calls = proxy._extract_client_tool_calls(json_parsed, set())
-        sse_calls = proxy._extract_client_tool_calls(sse_parsed, set())
+        json_calls = proxy.extract_client_tool_calls(json_parsed, set())
+        sse_calls = proxy.extract_client_tool_calls(sse_parsed, set())
         assert len(json_calls) == 1
         assert len(sse_calls) == 1
         assert json_calls[0]["call_id"] == sse_calls[0]["call_id"]
@@ -821,8 +819,8 @@ class TestEndToEndFlow:
         """Non-zero exit code from hook blocks tool calls with error."""
         hook_path = make_error_hook_script(exit_code=1)
         try:
-            with patch.object(proxy, "MCP_TAP_USE_TOOL_HOOK", hook_path):
-                with patch.object(proxy, "MCP_TAP_USE_TOOL_HOOK_TIMEOUT", 10.0):
+            with patch.object(mcptap_settings, "use_tool_hook", hook_path):
+                with patch.object(mcptap_settings, "use_tool_hook_timeout", 10.0):
                     tracker = proxy.SessionTracker()
                     gw = proxy.ToolHookGateway(tracker)
                     state = proxy.PendingState(
@@ -845,7 +843,7 @@ class TestEndToEndFlow:
     @pytest.mark.asyncio
     async def test_no_hook_preserves_existing_behavior(self):
         """When MCP_TAP_USE_TOOL_HOOK is empty, hook gateway is disabled."""
-        with patch.object(proxy, "MCP_TAP_USE_TOOL_HOOK", ""):
+        with patch.object(mcptap_settings, "use_tool_hook", ""):
             tracker = proxy.SessionTracker()
             gw = proxy.ToolHookGateway(tracker)
             assert gw.enabled is False
@@ -857,7 +855,7 @@ class TestEndToEndFlow:
                 ]
             )
             intercept_names = set()
-            has_client = proxy._has_client_tool_calls(body, intercept_names)
+            has_client = proxy.has_client_tool_calls(body, intercept_names)
             assert has_client is True
 
             # Gateway disabled, so no pending state
@@ -914,16 +912,16 @@ class TestApplyToolCallUpdates:
 
     def test_no_updates_returns_false(self):
         body = {"output": [make_function_call_item("c1", "shell", {"cmd": "ls"})]}
-        assert proxy._apply_tool_call_updates(body, []) is False
+        assert proxy.apply_tool_call_updates(body, []) is False
 
     def test_empty_updates_returns_false(self):
         body = {"output": [make_function_call_item("c1", "shell", {"cmd": "ls"})]}
-        assert proxy._apply_tool_call_updates(body, []) is False
+        assert proxy.apply_tool_call_updates(body, []) is False
 
     def test_update_arguments_dict(self):
         body = {"output": [make_function_call_item("c1", "shell", {"cmd": "git status"})]}
         updates = [{"call_id": "c1", "name": "shell", "arguments": {"cmd": "rtk git status"}}]
-        modified = proxy._apply_tool_call_updates(body, updates)
+        modified = proxy.apply_tool_call_updates(body, updates)
         assert modified is True
         item = body["output"][0]
         assert json.loads(item["arguments"]) == {"cmd": "rtk git status"}
@@ -931,7 +929,7 @@ class TestApplyToolCallUpdates:
     def test_update_arguments_string(self):
         body = {"output": [make_function_call_item("c1", "shell", {"cmd": "ls"})]}
         updates = [{"call_id": "c1", "arguments": '{"cmd": "rtk ls"}'}]
-        modified = proxy._apply_tool_call_updates(body, updates)
+        modified = proxy.apply_tool_call_updates(body, updates)
         assert modified is True
         item = body["output"][0]
         assert item["arguments"] == '{"cmd": "rtk ls"}'
@@ -939,7 +937,7 @@ class TestApplyToolCallUpdates:
     def test_update_name_only(self):
         body = {"output": [make_function_call_item("c1", "shell", {"cmd": "ls"})]}
         updates = [{"call_id": "c1", "name": "exec_command"}]
-        modified = proxy._apply_tool_call_updates(body, updates)
+        modified = proxy.apply_tool_call_updates(body, updates)
         assert modified is True
         assert body["output"][0]["name"] == "exec_command"
         # arguments should be unchanged
@@ -948,7 +946,7 @@ class TestApplyToolCallUpdates:
     def test_update_no_matching_call_id(self):
         body = {"output": [make_function_call_item("c1", "shell", {"cmd": "ls"})]}
         updates = [{"call_id": "nonexistent", "arguments": {"cmd": "rtk ls"}}]
-        modified = proxy._apply_tool_call_updates(body, updates)
+        modified = proxy.apply_tool_call_updates(body, updates)
         assert modified is False
         # body unchanged
         assert json.loads(body["output"][0]["arguments"]) == {"cmd": "ls"}
@@ -965,7 +963,7 @@ class TestApplyToolCallUpdates:
             {"call_id": "c1", "arguments": {"cmd": "rtk git status"}},
             {"call_id": "c3", "arguments": {"cmd": "rtk git log"}},
         ]
-        modified = proxy._apply_tool_call_updates(body, updates)
+        modified = proxy.apply_tool_call_updates(body, updates)
         assert modified is True
         assert json.loads(body["output"][0]["arguments"]) == {"cmd": "rtk git status"}
         assert json.loads(body["output"][1]["arguments"]) == {"cmd": "ls -la"}
@@ -974,7 +972,7 @@ class TestApplyToolCallUpdates:
     def test_update_with_empty_call_id_ignored(self):
         body = {"output": [make_function_call_item("c1", "shell", {"cmd": "ls"})]}
         updates = [{"call_id": "", "arguments": {"cmd": "rtk ls"}}]
-        modified = proxy._apply_tool_call_updates(body, updates)
+        modified = proxy.apply_tool_call_updates(body, updates)
         assert modified is False
 
     def test_update_non_function_call_items_ignored(self):
@@ -985,19 +983,19 @@ class TestApplyToolCallUpdates:
             ]
         }
         updates = [{"call_id": "c1", "arguments": {"cmd": "rtk ls"}}]
-        modified = proxy._apply_tool_call_updates(body, updates)
+        modified = proxy.apply_tool_call_updates(body, updates)
         assert modified is True
         assert json.loads(body["output"][1]["arguments"]) == {"cmd": "rtk ls"}
 
     def test_update_no_output_list(self):
         body = {}
         updates = [{"call_id": "c1", "arguments": {"cmd": "rtk ls"}}]
-        assert proxy._apply_tool_call_updates(body, updates) is False
+        assert proxy.apply_tool_call_updates(body, updates) is False
 
     def test_update_empty_name_keeps_existing(self):
         body = {"output": [make_function_call_item("c1", "shell", {"cmd": "ls"})]}
         updates = [{"call_id": "c1", "name": "", "arguments": {"cmd": "rtk ls"}}]
-        modified = proxy._apply_tool_call_updates(body, updates)
+        modified = proxy.apply_tool_call_updates(body, updates)
         assert modified is True
         # name should remain "shell" (empty name is falsy, not applied)
         assert body["output"][0]["name"] == "shell"
@@ -1009,25 +1007,25 @@ class TestReSerializeResponse:
 
     def test_json_mode(self):
         body = make_response([make_function_call_item("c1", "shell", {"cmd": "ls"})])
-        raw = proxy._re_serialize_response(body, client_wanted_stream=False)
+        raw = proxy.re_serialize_response(body, client_wanted_stream=False)
         assert isinstance(raw, bytes)
         parsed = json.loads(raw)
         assert parsed["output"][0]["call_id"] == "c1"
 
     def test_sse_mode(self):
         body = make_response([make_function_call_item("c1", "shell", {"cmd": "ls"})])
-        raw = proxy._re_serialize_response(body, client_wanted_stream=True)
+        raw = proxy.re_serialize_response(body, client_wanted_stream=True)
         assert isinstance(raw, bytes)
         assert b"response.created" in raw
         assert b"response.completed" in raw
         # Verify it can be parsed back
-        parsed = proxy._response_json_from_sse(raw)
+        parsed = proxy.response_json_from_sse(raw)
         assert parsed is not None
         assert parsed["output"][0]["call_id"] == "c1"
 
     def test_json_mode_roundtrip_preserves_arguments(self):
         body = make_response([make_function_call_item("c1", "exec_command", {"cmd": "rtk git status"})])
-        raw = proxy._re_serialize_response(body, client_wanted_stream=False)
+        raw = proxy.re_serialize_response(body, client_wanted_stream=False)
         parsed = json.loads(raw)
         assert json.loads(parsed["output"][0]["arguments"]) == {"cmd": "rtk git status"}
 
@@ -1058,8 +1056,8 @@ class TestHookWithUpdatedToolCalls:
         os.chmod(hook_path, 0o755)
 
         try:
-            with patch.object(proxy, "MCP_TAP_USE_TOOL_HOOK", hook_path):
-                with patch.object(proxy, "MCP_TAP_USE_TOOL_HOOK_TIMEOUT", 10.0):
+            with patch.object(mcptap_settings, "use_tool_hook", hook_path):
+                with patch.object(mcptap_settings, "use_tool_hook_timeout", 10.0):
                     tracker = proxy.SessionTracker()
                     gw = proxy.ToolHookGateway(tracker)
                     state = proxy.PendingState(
@@ -1110,8 +1108,8 @@ class TestHookWithUpdatedToolCalls:
         os.chmod(hook_path, 0o755)
 
         try:
-            with patch.object(proxy, "MCP_TAP_USE_TOOL_HOOK", hook_path):
-                with patch.object(proxy, "MCP_TAP_USE_TOOL_HOOK_TIMEOUT", 10.0):
+            with patch.object(mcptap_settings, "use_tool_hook", hook_path):
+                with patch.object(mcptap_settings, "use_tool_hook_timeout", 10.0):
                     saved_resp = make_response(
                         [make_function_call_item("c1", "exec_command", {"cmd": "git status"})],
                         total_tokens=500,
@@ -1140,9 +1138,9 @@ class TestHookWithUpdatedToolCalls:
                     updated = decision.get("updated_tool_calls", [])
                     response_raw = state.saved_raw
                     if updated:
-                        modified = proxy._apply_tool_call_updates(state.saved_body_json, updated)
+                        modified = proxy.apply_tool_call_updates(state.saved_body_json, updated)
                         if modified:
-                            response_raw = proxy._re_serialize_response(state.saved_body_json, False)
+                            response_raw = proxy.re_serialize_response(state.saved_body_json, False)
 
                     # Verify the response was modified
                     parsed = json.loads(response_raw)
@@ -1155,8 +1153,8 @@ class TestHookWithUpdatedToolCalls:
         """When hook allows without updated_tool_calls, saved_raw is used unchanged."""
         hook_path = make_hook_script("allow")
         try:
-            with patch.object(proxy, "MCP_TAP_USE_TOOL_HOOK", hook_path):
-                with patch.object(proxy, "MCP_TAP_USE_TOOL_HOOK_TIMEOUT", 10.0):
+            with patch.object(mcptap_settings, "use_tool_hook", hook_path):
+                with patch.object(mcptap_settings, "use_tool_hook_timeout", 10.0):
                     saved_resp = make_response(
                         [make_function_call_item("c1", "exec_command", {"cmd": "git status"})],
                         total_tokens=500,
@@ -1185,9 +1183,9 @@ class TestHookWithUpdatedToolCalls:
                     updated = decision.get("updated_tool_calls", [])
                     response_raw = state.saved_raw
                     if updated:
-                        modified = proxy._apply_tool_call_updates(state.saved_body_json, updated)
+                        modified = proxy.apply_tool_call_updates(state.saved_body_json, updated)
                         if modified:
-                            response_raw = proxy._re_serialize_response(state.saved_body_json, False)
+                            response_raw = proxy.re_serialize_response(state.saved_body_json, False)
                     # Response unchanged
                     assert response_raw == saved_raw
                     parsed = json.loads(response_raw)
