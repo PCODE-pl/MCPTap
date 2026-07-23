@@ -1,3 +1,7 @@
+---
+name: changelog-creator
+description: Generate a new version entry for CHANGELOG.md based on the diff between the latest git tag and master in the MCPTap repository. Use this skill when the user asks to prepare, draft, or generate a new changelog entry for an upcoming release. The skill is read-only: it produces the entry as text output only.
+---
 # changelog-creator
 
 ## Description
