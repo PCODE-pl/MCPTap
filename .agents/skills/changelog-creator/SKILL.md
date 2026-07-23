@@ -112,6 +112,7 @@ Do not write to any file. The user will review and insert it manually.
 
 User says:
 
+<!-- markdownlint-disable-next-line MD034 -->
 > based on https://github.com/PCODE-pl/MCPTap/compare/v2.2.0...master
 > prepare a new entry for /home/przemek/PCODE-pl/mcp-tap/CHANGELOG.md
 > version 2.3.0

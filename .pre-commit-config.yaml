@@ -6,6 +6,21 @@
 repos:
   - repo: local
     hooks:
+      - id: markdownlint
+        name: Markdown lint check
+        description: >-
+          Runs ``markdownlint`` on committed Markdown files.
+        entry: ../mcp-tap-extras/hooks/wrap_hook.sh
+          --hook-id markdownlint
+          --stages pre-commit
+          --real-entry ../mcp-tap-extras/hooks/markdownlint.sh
+          --
+        language: system
+        fail_fast: true
+        #always_run: true
+        pass_filenames: false
+        stages: [pre-commit]
+
       - id: ruff-check
         name: Ruff linter check
         description: >-
