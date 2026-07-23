@@ -236,7 +236,7 @@ EOF
 
 use_local_source_if_available() {
     script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-    if [ -f "$script_dir/proxy.py" ] && [ -d "$script_dir/examples" ]; then
+    if [ -f "$script_dir/proxy.py" ] && [ -d "$script_dir/mcptap" ] && [ -d "$script_dir/examples" ]; then
         SOURCE_DIR="$script_dir"
         return 0
     fi
@@ -267,18 +267,18 @@ download_release_source() {
     download_file "$TARBALL_URL" "$archive"
     tar -xzf "$archive" -C "$src"
 
-    if [ -f "$src/proxy.py" ] && [ -d "$src/examples" ]; then
+    if [ -f "$src/proxy.py" ] && [ -d "$src/mcptap" ] && [ -d "$src/examples" ]; then
         SOURCE_DIR="$src"
         return
     fi
 
     nested=$(find "$src" -maxdepth 2 -type f -name proxy.py -print | head -n 1 | xargs dirname 2>/dev/null || true)
-    if [ -n "$nested" ] && [ -d "$nested/examples" ]; then
+    if [ -n "$nested" ] && [ -d "$nested/mcptap" ] && [ -d "$nested/examples" ]; then
         SOURCE_DIR="$nested"
         return
     fi
 
-    die "Source tarball does not contain proxy.py and examples/"
+    die "Source tarball does not contain proxy.py, mcptap/, and examples/"
 }
 
 install_files() {
@@ -288,6 +288,11 @@ install_files() {
     log "Installing application files into: $INSTALL_DIR"
     cp "$source_dir/proxy.py" "$INSTALL_DIR/proxy.py"
     chmod 0644 "$INSTALL_DIR/proxy.py"
+    rm -rf "$INSTALL_DIR/mcptap"
+    cp -r "$source_dir/mcptap" "$INSTALL_DIR/mcptap"
+    find "$INSTALL_DIR/mcptap" -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+    chmod -R 0644 "$INSTALL_DIR/mcptap"/*.py
+    chmod 0644 "$INSTALL_DIR/mcptap/__init__.py"
 
     cat >"$BIN_DIR/mcptap" <<EOF
 #!/usr/bin/env sh
