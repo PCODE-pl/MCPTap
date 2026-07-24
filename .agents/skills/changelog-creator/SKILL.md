@@ -7,7 +7,7 @@ description: Generate a new version entry for CHANGELOG.md based on the diff bet
 ## Description
 
 Generate a new version entry for `CHANGELOG.md` based on the diff between the
-latest git tag and `master` in the MCPTap repository.
+latest git tag and `master` in the MCPTap repository, in english.
 
 ## When to use
 
