@@ -11,6 +11,7 @@ MCPTap can:
 * Log upstream requests and responses
 * Run a configurable hook before client tool calls to allow or block them
 * Rewrite tool call arguments via the hook (e.g. wrap shell commands with [RTK](https://github.com/rtk-ai/rtk) for token compression)
+* Serve simple UI interface for debugging requests
 * Expose a local health endpoint
 
 ## High-level flow
@@ -271,7 +272,8 @@ consolidation_model = "openai/gpt-5.5"
   * [File access blocking setup](docs/FEATURES.md#file-access-blocking-setup)
   * [File-block limitations and configuration](docs/FEATURES.md#file-block-limitations-and-configuration)
 * [8. Session tracking](docs/FEATURES.md#8-session-tracking)
-* [9. Logging](docs/FEATURES.md#9-logging)
+* [9. UI interface](docs/FEATURES.md#9-ui-interface)
+* [10. Logging](docs/FEATURES.md#10-logging)
 
 ## Service management
 
