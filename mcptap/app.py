@@ -8,6 +8,13 @@ from aiohttp import (  # type: ignore
     web,
 )
 
+from mcptap.config_reloader import (
+    ConfigReloader,
+    reload_env_and_propagate,
+    reload_intercept,
+    reload_per_model_config,
+    reload_tool_hook,
+)
 from mcptap.http_utils import filtered_headers, upstream_path
 from mcptap.mcp_intercept import MCPInterceptor, load_intercept_config
 from mcptap.response_flow import handle_responses_with_intercept
@@ -163,6 +170,24 @@ async def _stop_mcp_intercept(app: web.Application) -> None:
         await intercept.stop()
 
 
+async def _start_config_reloader(app: web.Application) -> None:
+    reloader: ConfigReloader = app["config_reloader"]
+    reloader.attach(
+        app=app,
+        on_env_reload=lambda: reload_env_and_propagate(app),
+        on_intercept_reload=lambda: reload_intercept(app),
+        on_per_model_reload=lambda: reload_per_model_config(app),
+        on_tool_hook_reload=lambda: reload_tool_hook(app),
+    )
+    reloader.start()
+
+
+async def _stop_config_reloader(app: web.Application) -> None:
+    reloader: ConfigReloader = app.get("config_reloader")
+    if reloader is not None:
+        await reloader.stop()
+
+
 def build_app() -> web.Application:
     app = web.Application(client_max_size=100 * 1024 * 1024)
     try:
@@ -189,8 +214,11 @@ def build_app() -> web.Application:
     app["per_model_config"] = per_model_config
     app["session_tracker"] = session_tracker
     app["hook_gateway"] = hook_gateway
+    app["config_reloader"] = ConfigReloader()
     app.on_startup.append(_create_client_session_startup)
     app.on_startup.append(_start_mcp_intercept)
+    app.on_startup.append(_start_config_reloader)
+    app.on_cleanup.append(_stop_config_reloader)
     app.on_cleanup.append(_stop_mcp_intercept)
     app.on_cleanup.append(_close_client_session)
     app.router.add_get("/health", health)
