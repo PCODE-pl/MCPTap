@@ -1,6 +1,73 @@
 <!-- markdownlint-disable MD024 -->
 # Changelog
 
+## [2.4.0]
+
+### Added
+
+- **Hot-reload for configuration files** — the proxy now polls mtime of
+  configuration files (`proxy.env`, `openrouter.env`, `requesty.env`,
+  `mcp-intercept.yaml`, `per-model.yaml`, `use_tool_hook.py`) every 2 seconds
+  and triggers a selective reload cascade when any of them changes:
+
+  - **env files** (`proxy.env`, `openrouter.env`, `requesty.env`) → full
+    `Settings` reload + propagation to all dependent components (interceptor,
+    per-model config, tool hook);
+  - **`mcp-intercept.yaml`** → stop old MCP subprocess + start a new
+    `MCPInterceptor` instance;
+  - **`per-model.yaml`** → reload the per-model config dict;
+  - **`use_tool_hook.py`** → reload the tool-hook enabled flag and `Settings`
+    (path may change).
+
+  The reloader runs as a background asyncio task inside the aiohttp event
+  loop, wired into `on_startup`/`on_cleanup` lifecycle in `app.py`.
+
+- **`_SettingsProxy` with `reload_settings()`** — `settings.py` was refactored
+  so the module-level `settings` object is a transparent proxy that delegates
+  `__getattr__`/`__setattr__` to the current `Settings` instance. Calling
+  `reload_settings()` rebuilds the instance from env files and swaps the
+  proxy target, so all callers automatically see reloaded values without
+  re-importing.
+
+- **Stale provider env key cleanup** — before loading a new provider env
+  file, known provider keys (`MCP_TAP_API_KEY`, `MCP_TAP_MODEL`,
+  `MCP_TAP_PLAN_MODE_MODEL`, `MCP_TAP_OPENROUTER_PROVIDER`,
+  `MCP_TAP_OPENROUTER_DISABLE_PROVIDER_FALLBACKS`) are removed from
+  `os.environ` to prevent stale values leaking across provider switches.
+
+- **25 new config-reload tests** — `tests/test_config_reloader.py` (616 lines)
+  covering `_SettingsProxy` delegation/swap semantics, stale env key cleanup,
+  mtime detection, selective reload cascade routing, callback failures,
+  lifecycle wiring, and application-level reload callbacks
+  (`reload_per_model_config`, `reload_tool_hook`, `reload_intercept`,
+  `reload_env_and_propagate`).
+
+- **`markdownlint` pre-commit hook** — added a `markdownlint` hook to
+  `.pre-commit-config.yaml`, wrapped by the shared `wrap_hook.sh` wrapper.
+  The hook runs `markdownlint-cli2` on committed Markdown files at the
+  `pre-commit` stage (`fail_fast: true`, `pass_filenames: false`).
+
+- **`.markdownlint-cli2.jsonc`** — markdownlint CLI configuration that
+  disables the `MD013` (line length) rule and enables auto-fix mode.
+
+### Changed
+
+- **`settings.py` refactored for hot-reload** — the monolithic
+  `Settings.from_env()` classmethod was split into `_load_env_files()` (env
+  loading + provider selection + stale key cleanup) and
+  `_build_settings_from_env()` (reads `os.environ` into the dataclass).
+  `from_env()` now delegates to both, preserving the original entry point.
+  The `Settings` dataclass docstring and module docstring were updated to
+  document the hot-reload mechanism.
+
+- **Markdownlint directive in changelog-creator skill** — added a
+  `<!-- markdownlint-disable-next-line MD034 -->` comment to the example
+  invocation blockquote in `.agents/skills/changelog-creator/SKILL.md`.
+
+### Full Changelog
+
+[https://github.com/PCODE-pl/MCPTap/compare/v2.3.0...v2.4.0](https://github.com/PCODE-pl/MCPTap/compare/v2.3.0...v2.4.0)
+
 ## [2.3.0]
 
 ### Added
