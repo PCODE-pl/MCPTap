@@ -1,6 +1,63 @@
 <!-- markdownlint-disable MD024 -->
 # Changelog
 
+## [2.5.0]
+
+### Highlights
+
+- Web-based request log viewer (Vue 3 + Naive UI, dark theme)
+- SQLite-backed log store
+
+### Added
+
+- **Web-based request log viewer** — MCPTap now ships an embedded log viewer
+  at `/ui/logs` (Vue 3 + Naive UI, dark theme).  The viewer displays a
+  virtual-scroll table of all proxied requests with columns for date, model,
+  provider, input/output tokens, and cost.  A time-range selector (15m – 1w)
+  filters the view; cursor-based pagination with infinite scroll loads older
+  entries automatically.  Clicking any row opens a side drawer with full
+  request metadata (session ID, HTTP status, stream flag, token breakdown,
+  cost, path, duration) and pretty-printed JSON request/response bodies.
+- **SQLite-backed log store** — proxied request metadata is persisted in a
+  local SQLite database (WAL mode) with forward-only schema migrations.
+  Configurable via `MCP_TAP_LOG_DB` (default: `~/.local/share/mcptap/logs.db`).
+  Records store timestamp, session ID, model, provider, input/output/total
+  tokens, cost, HTTP status, full request/response bodies, request path,
+  stream flag, and round-trip duration.
+- **Log API endpoints** — two REST endpoints exposed by the proxy:
+  `GET /api/logs` (paginated, time-range filtered, cursor-based) and
+  `GET /api/logs/{log_id}` (full detail including request/response bodies).
+- **Usage extraction** — `extract_usage_details()` parses `input_tokens`,
+  `output_tokens`, `total_tokens`, and `cost` from upstream Responses API
+  responses for storage in the log database.
+- **Log-store tests** — 15 new tests in `tests/test_log_store.py` covering
+  migrations, recording, paginated queries, detail lookup, and the
+  `record_from_response` convenience wrapper.
+- **`docs/FEATURES.md`** — new section 9 (UI interface) documenting the log
+  viewer access URL, table columns, time-range presets, request detail
+  drawer, backing API, and SQLite storage schema.
+- **`docs/TROUBLESHOOTING.md`** — extracted from the README into a standalone
+  troubleshooting guide.
+- **`docs/DEVELOPMENT.md`** — new development documentation.
+
+### Changed
+
+- **README.md restructured** — rewritten and reorganized for clearer
+  installation, configuration, routing, model-instruction, and tool-call-hook
+  guidance; redundant sections removed and RTK link corrected.
+
+### Fixed
+
+- **Request details drawer width** — increased from 700px to 1200px for
+  better visibility of detailed request data.
+- **Log-store test execution** — `tests/test_log_store.py` re-enabled in the
+  test runner (previously skipped); `pytest` import type-ignore added to
+  `tests/test_config_reloader.py` to silence missing-stub noise.
+
+### Full Changelog
+
+[https://github.com/PCODE-pl/MCPTap/compare/v2.4.0...v2.5.0](https://github.com/PCODE-pl/MCPTap/compare/v2.4.0...v2.5.0)
+
 ## [2.4.0]
 
 ### Highlights
