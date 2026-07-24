@@ -12,19 +12,19 @@ In practice, MCPTap is useful when you want more control over how an agent talks
 
 MCPTap can:
 
-* force all requests to use a configured model,
-* use a different model for plan mode,
-* route traffic to OpenRouter or Requesty,
-* pin or restrict OpenRouter provider routing,
-* intercept selected MCP tool calls,
-* execute real MCP tools locally through stdio,
-* feed MCP tool results back into the model,
-* return only the final assistant response to the client,
-* log upstream requests and responses,
-* support normal JSON responses and streaming SSE responses,
-* expose a local health endpoint,
-* run a configurable hook before client tool calls to allow or block them,
-* rewrite tool call arguments via the hook (e.g. wrap shell commands with RTK for token compression).
+* force all requests to use a configured model
+* use a different model for plan mode
+* route traffic to OpenRouter or Requesty
+* pin or restrict OpenRouter provider routing
+* intercept selected MCP tool calls
+* execute real MCP tools locally through stdio
+* feed MCP tool results back into the model
+* return only the final assistant response to the client
+* log upstream requests and responses
+* support normal JSON responses and streaming SSE responses
+* run a configurable hook before client tool calls to allow or block them
+* rewrite tool call arguments via the hook (e.g. wrap shell commands with [RTK](https://github.com/rtk-ai/rtk) for token compression)
+* expose a local health endpoint
 
 ## High-level flow
 
