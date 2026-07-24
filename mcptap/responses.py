@@ -44,6 +44,29 @@ def extract_usage_total_tokens(body_json: Optional[Dict[str, Any]]) -> int:
     return 0
 
 
+def extract_usage_details(body_json: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """Extract usage details (input/output tokens, cost) from a response body."""
+    result: Dict[str, Any] = {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "total_tokens": 0,
+        "cost": 0.0,
+    }
+    if not body_json:
+        return result
+    usage = body_json.get("usage")
+    if not isinstance(usage, dict):
+        return result
+    for key in ("input_tokens", "output_tokens", "total_tokens"):
+        val = usage.get(key)
+        if isinstance(val, (int, float)):
+            result[key] = int(val)
+    cost = usage.get("cost")
+    if isinstance(cost, (int, float)):
+        result["cost"] = float(cost)
+    return result
+
+
 def extract_client_tool_calls(
     body_json: Dict[str, Any],
     intercept_names: Set[str],

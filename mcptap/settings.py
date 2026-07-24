@@ -105,6 +105,9 @@ class Settings:
     # Per-session blocklist directory
     per_session_dir: str
 
+    # Request log database
+    log_db_path: str
+
 
 class _SettingsProxy:
     """Transparent proxy that delegates attribute access to the current Settings.
@@ -232,6 +235,7 @@ def _build_settings() -> Settings:
         use_tool_hook_synthetic_tool=use_tool_hook_synthetic_tool,
         use_tool_hook_pending_ttl=float(os.environ.get("MCP_TAP_USE_TOOL_HOOK_PENDING_TTL", "600")),
         per_session_dir=(os.environ.get("MCP_TAP_PER_SESSION_DIR") or "/tmp/mcptap/per_session").strip(),
+        log_db_path=(os.environ.get("MCP_TAP_LOG_DB") or os.path.expanduser("~/.local/share/mcptap/logs.db")).strip(),
     )
 
 
