@@ -3,6 +3,10 @@
 
 ## [2.4.0]
 
+### Highlights
+
+- Hot-reload for configuration files
+
 ### Added
 
 - **Hot-reload for configuration files** — the proxy now polls mtime of
