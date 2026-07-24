@@ -117,6 +117,25 @@ LD_PRELOAD=~/.local/lib/libmcptap_fileblock.so codex
 
 See the [Tool-call hook](docs/FEATURES.md#7-tool-call-hook) section for details on how `blocked_files` from the hook are enforced by this library.
 
+## Requirements
+
+MCPTap requires:
+
+* Python 3.10 or newer,
+* `curl` or `wget` for installation,
+* an OpenRouter or Requesty API key,
+* optionally, an MCP server if you want MCP tool interception.
+* optionally C compiler, make, and C library headers if you want file access blocking.
+
+Runtime Python dependencies:
+
+```text
+aiohttp
+python-dotenv
+mcp
+pyyaml
+```
+
 ## Configuration files
 
 After installation, edit the files in:
