@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MCPTap Logs</title>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <script src="https://unpkg.com/naive-ui/dist/index.prod.js"></script>
+  <style>
+    html, body { margin: 0; padding: 0; height: 100%; }
+    #app { height: 100vh; display: flex; flex-direction: column; }
+    .toolbar { padding: 8px 12px; display: flex; align-items: center; gap: 12px; }
+    .table-container { flex: 1; overflow: hidden; }
+    .footer-bar { padding: 4px 12px; text-align: center; font-size: 12px; opacity: 0.6; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <n-config-provider :theme="darkTheme">
+    <n-layout style="height: 100vh">
+      <n-layout-header bordered style="padding: 8px 12px; display: flex; align-items: center; gap: 12px">
+        <strong>MCPTap Logs</strong>
+        <n-select
+          v-model:value="selectedRange"
+          :options="rangeOptions"
+          size="small"
+          style="width: 200px"
+          @update:value="onRangeChange"
+        />
+        <n-spin v-if="loading" :size="16" />
+        <span style="margin-left: auto; font-size: 12px; opacity: 0.6">
+          {{ rows.length }} row{{ rows.length !== 1 ? 's' : '' }} loaded
+        </span>
+      </n-layout-header>
+
+      <n-layout-content class="table-container">
+        <n-data-table
+          :columns="columns"
+          :data="rows"
+          :row-key="row => row.id"
+          :max-height="tableMaxHeight"
+          virtual-scroll
+          :bordered="false"
+          size="small"
+          :row-props="rowProps"
+        />
+      </n-layout-content>
+
+      <n-layout-footer bordered style="padding: 4px 12px; text-align: center; font-size: 12px; opacity: 0.6">
+        <span v-if="loading">Loading…</span>
+        <span v-else-if="!hasMore">No more entries</span>
+        <span v-else>Scroll to load more</span>
+      </n-layout-footer>
+
+      <n-drawer v-model:show="drawerVisible" :width="700" placement="left">
+        <n-drawer-content title="Request Details" closable>
+          <n-spin :show="detailLoading">
+            <div v-if="detail" style="display: flex; flex-direction: column; gap: 12px">
+              <n-descriptions :column="2" label-placement="left" bordered size="small">
+                <n-descriptions-item label="Timestamp">{{ formatTimestamp(detail.timestamp) }}</n-descriptions-item>
+                <n-descriptions-item label="Model">{{ detail.model || '—' }}</n-descriptions-item>
+                <n-descriptions-item label="Provider">{{ detail.provider || '—' }}</n-descriptions-item>
+                <n-descriptions-item label="Session">{{ detail.session_id || '—' }}</n-descriptions-item>
+                <n-descriptions-item label="Status">{{ detail.status_code }}</n-descriptions-item>
+                <n-descriptions-item label="Stream">{{ detail.stream ? 'yes' : 'no' }}</n-descriptions-item>
+                <n-descriptions-item label="Input Tokens">{{ detail.input_tokens }}</n-descriptions-item>
+                <n-descriptions-item label="Output Tokens">{{ detail.output_tokens }}</n-descriptions-item>
+                <n-descriptions-item label="Total Tokens">{{ detail.total_tokens }}</n-descriptions-item>
+                <n-descriptions-item label="Cost">{{ formatCost(detail.cost) }}</n-descriptions-item>
+                <n-descriptions-item label="Path">{{ detail.request_path || '—' }}</n-descriptions-item>
+                <n-descriptions-item label="Duration">{{ detail.duration_ms ? detail.duration_ms + ' ms' : '—' }}</n-descriptions-item>
+              </n-descriptions>
+
+              <div v-if="detail.request_body">
+                <p style="font-weight: 600; margin: 0 0 4px 0">Request Body</p>
+                <n-code
+                  :code="formatJson(detail.request_body)"
+                  language="json"
+                  word-wrap
+                />
+              </div>
+
+              <div v-if="detail.response_body">
+                <p style="font-weight: 600; margin: 0 0 4px 0">Response Body</p>
+                <n-code
+                  :code="formatJson(detail.response_body)"
+                  language="json"
+                  word-wrap
+                />
+              </div>
+            </div>
+          </n-spin>
+        </n-drawer-content>
+      </n-drawer>
+    </n-layout>
+  </n-config-provider>
+</div>
+
+<script>
+const { createApp, ref, reactive, computed, onMounted, nextTick, watch, h } = Vue;
+
+const app = createApp({
+  setup() {
+    const { darkTheme, NDataTable, NConfigProvider, NLayout, NLayoutHeader, NLayoutContent,
+            NLayoutFooter, NDrawer, NDrawerContent, NSelect, NSpin, NCode, NDescriptions,
+            NDescriptionsItem } = naive;
+
+    const rows = ref([]);
+    const loading = ref(false);
+    const hasMore = ref(true);
+    const selectedRange = ref('1h');
+    const tableMaxHeight = ref(600);
+
+    const drawerVisible = ref(false);
+    const detail = ref(null);
+    const detailLoading = ref(false);
+
+    const rangeOptions = [
+      { label: "Past 15 minutes", value: "15m" },
+      { label: "Past 30 Minutes", value: "30m" },
+      { label: "Past 1 hour",     value: "1h"  },
+      { label: "Past 3 hours",    value: "3h"  },
+      { label: "Past 24 hours",   value: "24h" },
+      { label: "Past 48 hours",   value: "48h" },
+      { label: "Past 1 week",     value: "1w"  },
+    ];
+
+    const columns = [
+      { title: "Date", key: "timestamp", width: 180, render(row) {
+        return formatTimestamp(row.timestamp);
+      }},
+      { title: "Model", key: "model", width: 250 },
+      { title: "Provider", key: "provider", width: 150 },
+      { title: "Input", key: "input_tokens", width: 100, align: "right" },
+      { title: "Output", key: "output_tokens", width: 100, align: "right" },
+      { title: "Cost", key: "cost", width: 100, align: "right", render(row) {
+        return formatCost(row.cost);
+      }},
+    ];
+
+    function formatTimestamp(ts) {
+      if (!ts) return '—';
+      const d = new Date(ts * 1000);
+      return d.toLocaleString();
+    }
+
+    function formatCost(cost) {
+      if (cost === undefined || cost === null || cost === 0) return '—';
+      return '$' + Number(cost).toFixed(6);
+    }
+
+    function formatJson(value) {
+      if (value === null || value === undefined) return '';
+      if (typeof value === 'string') return value;
+      try {
+        return JSON.stringify(value, null, 2);
+      } catch(e) {
+        return String(value);
+      }
+    }
+
+    async function loadMore() {
+      if (loading.value || !hasMore.value) return;
+      loading.value = true;
+      try {
+        let url = '/api/logs?range=' + selectedRange.value + '&limit=50';
+        if (rows.value.length > 0) {
+          const lastRow = rows.value[rows.value.length - 1];
+          url += '&before=' + lastRow.timestamp;
+        }
+        const resp = await fetch(url);
+        const json = await resp.json();
+        if (json.rows && json.rows.length > 0) {
+          rows.value.push(...json.rows);
+        }
+        hasMore.value = json.has_more || false;
+      } catch(e) {
+        console.error('Failed to load logs:', e);
+      } finally {
+        loading.value = false;
+      }
+    }
+
+    async function onRangeChange() {
+      rows.value = [];
+      hasMore.value = true;
+      await loadMore();
+    }
+
+    async function showDetail(row) {
+      drawerVisible.value = true;
+      detailLoading.value = true;
+      detail.value = null;
+      try {
+        const resp = await fetch('/api/logs/' + row.id);
+        detail.value = await resp.json();
+      } catch(e) {
+        console.error('Failed to load detail:', e);
+      } finally {
+        detailLoading.value = false;
+      }
+    }
+
+    const rowProps = (row) => ({
+      style: 'cursor: pointer',
+      onClick: () => showDetail(row),
+    });
+
+    function handleScroll() {
+      const table = document.querySelector('.n-data-table-base-table');
+      if (!table) return;
+      const container = table.closest('.n-scrollbar-container');
+      if (!container) return;
+      const scrollContent = container.querySelector('.n-scrollbar-content');
+      if (!scrollContent) return;
+      const scrollTop = container.scrollTop;
+      const scrollHeight = scrollContent.scrollHeight;
+      const clientHeight = container.clientHeight;
+      if (scrollTop + clientHeight >= scrollHeight - 100 && !loading.value && hasMore.value) {
+        loadMore();
+      }
+    }
+
+    function setupScrollListener() {
+      nextTick(() => {
+        const table = document.querySelector('.n-data-table-base-table');
+        if (!table) return;
+        const container = table.closest('.n-scrollbar-container');
+        if (container) {
+          container.removeEventListener('scroll', handleScroll);
+          container.addEventListener('scroll', handleScroll);
+        }
+      });
+    }
+
+    function calcTableHeight() {
+      tableMaxHeight.value = window.innerHeight - 120;
+    }
+
+    onMounted(async () => {
+      calcTableHeight();
+      window.addEventListener('resize', calcTableHeight);
+      await loadMore();
+      setupScrollListener();
+    });
+
+    watch(rows, () => {
+      setupScrollListener();
+    });
+
+    return {
+      darkTheme,
+      rows, loading, hasMore, selectedRange, rangeOptions,
+      columns, tableMaxHeight,
+      drawerVisible, detail, detailLoading,
+      onRangeChange, showDetail, rowProps,
+      formatTimestamp, formatCost, formatJson,
+      NDataTable, NConfigProvider, NLayout, NLayoutHeader, NLayoutContent,
+      NLayoutFooter, NDrawer, NDrawerContent, NSelect, NSpin, NCode,
+      NDescriptions, NDescriptionsItem,
+    };
+  },
+});
+
+app.use(naive);
+app.mount('#app');
+</script>
+</body>
+</html>

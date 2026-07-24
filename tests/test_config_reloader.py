@@ -68,6 +68,7 @@ def _make_settings(**overrides) -> Settings:
         use_tool_hook_synthetic_tool="get_goal",
         use_tool_hook_pending_ttl=600.0,
         per_session_dir="/tmp/x",
+        log_db_path="/tmp/x.db",
     )
     defaults.update(overrides)
     return Settings(**defaults)

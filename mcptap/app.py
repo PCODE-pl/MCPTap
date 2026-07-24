@@ -1,6 +1,7 @@
 """Aiohttp application setup, request handlers, and lifecycle management."""
 
 import json
+import time
 from typing import Any, Dict, Optional
 
 from aiohttp import (  # type: ignore
@@ -16,6 +17,7 @@ from mcptap.config_reloader import (
     reload_tool_hook,
 )
 from mcptap.http_utils import filtered_headers, upstream_path
+from mcptap.log_store import LogStore, record_from_response
 from mcptap.mcp_intercept import MCPInterceptor, load_intercept_config
 from mcptap.response_flow import handle_responses_with_intercept
 from mcptap.rewrite import load_per_model_config, rewrite_json_payload
@@ -124,13 +126,30 @@ async def proxy(request: web.Request) -> web.StreamResponse:
 
     is_responses_call = request.method == "POST" and path.rstrip("/").endswith("/responses")
     if not is_responses_call or not (intercept.enabled or hook_gateway.enabled):
-        return await forward_rewritten(
+        log_store: Optional[LogStore] = request.app.get("log_store")
+        start_time = time.time()
+        resp = await forward_rewritten(
             request,
             session,
             target_url,
             request_headers,
             payload,
         )
+        if log_store and log_store.enabled and hasattr(resp, "status"):
+            record_from_response(
+                log_store,
+                request_body=payload,
+                response_raw=b"",
+                response_body_json=None,
+                session_id=request.headers.get("session-id", "").strip() or "default",
+                model=forced_model,
+                provider=settings.openrouter_provider or settings.upstream_provider,
+                status_code=resp.status,
+                request_path=path,
+                stream=client_wanted_stream,
+                start_time=start_time,
+            )
+        return resp
 
     return await handle_responses_with_intercept(
         request,
@@ -142,6 +161,7 @@ async def proxy(request: web.Request) -> web.StreamResponse:
         client_wanted_stream,
         hook_gateway,
         session_tracker,
+        log_store=request.app.get("log_store"),
     )
 
 
@@ -188,6 +208,12 @@ async def _stop_config_reloader(app: web.Application) -> None:
         await reloader.stop()
 
 
+async def _close_log_store(app: web.Application) -> None:
+    log_store: Optional[LogStore] = app.get("log_store")
+    if log_store is not None:
+        log_store.close()
+
+
 def build_app() -> web.Application:
     app = web.Application(client_max_size=100 * 1024 * 1024)
     try:
@@ -204,6 +230,12 @@ def build_app() -> web.Application:
 
     session_tracker = SessionTracker()
     hook_gateway = ToolHookGateway(session_tracker)
+    log_store = LogStore(settings.log_db_path)
+    try:
+        log_store.migrate()
+    except Exception as exc:
+        LOGGER.exception("Failed to migrate log database; disabling log store: %s", exc)
+        log_store = LogStore(settings.log_db_path, enabled=False)
 
     if not per_model_config:
         LOGGER.info("Per-model config disabled (MCP_TAP_PER_MODEL_YAML is empty)")
@@ -214,6 +246,7 @@ def build_app() -> web.Application:
     app["per_model_config"] = per_model_config
     app["session_tracker"] = session_tracker
     app["hook_gateway"] = hook_gateway
+    app["log_store"] = log_store
     app["config_reloader"] = ConfigReloader()
     app.on_startup.append(_create_client_session_startup)
     app.on_startup.append(_start_mcp_intercept)
@@ -221,7 +254,13 @@ def build_app() -> web.Application:
     app.on_cleanup.append(_stop_config_reloader)
     app.on_cleanup.append(_stop_mcp_intercept)
     app.on_cleanup.append(_close_client_session)
+    app.on_cleanup.append(_close_log_store)
+    from mcptap.log_api import handle_log_detail, handle_logs_list, serve_logs_page
+
     app.router.add_get("/health", health)
+    app.router.add_get("/api/logs", handle_logs_list)
+    app.router.add_get("/api/logs/{log_id}", handle_log_detail)
+    app.router.add_get("/ui/logs", serve_logs_page)
     app.router.add_route("*", "/{tail:.*}", proxy)
     return app
 
