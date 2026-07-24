@@ -620,6 +620,8 @@ A time-range selector lets you filter the view:
 Rows are loaded newest-first with cursor-based pagination. Scrolling to the
 bottom of the table automatically fetches the next page.
 
+![Log table view](ui-table.png)
+
 ### Request detail drawer
 
 Clicking any row opens a side drawer with the full request metadata:
@@ -631,6 +633,8 @@ Clicking any row opens a side drawer with the full request metadata:
 * request path and duration in milliseconds
 * full request body (pretty-printed JSON)
 * full response body (pretty-printed JSON)
+
+![Request detail drawer](ui-drawer.png)
 
 ### Backing API
 
