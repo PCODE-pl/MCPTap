@@ -60,16 +60,6 @@ MCPTap
      AI client
 ```
 
-Non-`/v1/responses` requests, and `/v1/responses` requests when neither MCP
-interception nor the tool-call hook is enabled, are rewritten and forwarded
-upstream without the intercept/hook loop — the response is streamed back to
-the client unchanged.
-
-The client never sees intercepted MCP tool calls. From the client's
-perspective, it receives a normal final model response. When the tool-call
-hook blocks a client tool call, the client only sees the model's follow-up
-response after the block message is fed back.
-
 ## Main use cases
 
 MCPTap is designed for workflows like:
