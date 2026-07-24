@@ -572,7 +572,118 @@ request time is used.
 Token usage is accumulated from ``usage.total_tokens`` in upstream responses.
 The counter resets when MCPTap restarts.
 
-## 9. Logging
+## 9. UI interface
+
+MCPTap includes a built-in web-based log viewer that lets you inspect every
+proxied request in real time.
+
+### Access
+
+The UI is served directly by the proxy on the same host and port as the
+API traffic:
+
+```text
+http://<MCP_TAP_LISTEN_HOST>:<MCP_TAP_LISTEN_PORT>/ui/logs
+```
+
+No separate process or additional dependency is required — the page is
+embedded in the proxy as a single-file Vue 3 + Naive UI application.
+
+### What the UI shows
+
+The log viewer displays a dark-themed, virtual-scroll table with one row per
+proxied request:
+
+| Column        | Source field        |
+| ------------- | ------------------- |
+| Date          | `timestamp`         |
+| Model         | `model`             |
+| Provider      | `provider`          |
+| Input tokens  | `input_tokens`      |
+| Output tokens | `output_tokens`     |
+| Cost          | `cost`              |
+
+A time-range selector lets you filter the view:
+
+| Preset            | Value   |
+| ----------------- | ------- |
+| Past 15 minutes   | `15m`   |
+| Past 30 Minutes   | `30m`   |
+| Past 1 hour       | `1h`    |
+| Past 3 hours      | `3h`    |
+| Past 24 hours     | `24h`   |
+| Past 48 hours     | `48h`   |
+| Past 1 week       | `1w`    |
+
+Rows are loaded newest-first with cursor-based pagination. Scrolling to the
+bottom of the table automatically fetches the next page.
+
+### Request detail drawer
+
+Clicking any row opens a side drawer with the full request metadata:
+
+* timestamp, model, provider, session ID, HTTP status code
+* whether the response was streamed
+* input / output / total token breakdown
+* cost
+* request path and duration in milliseconds
+* full request body (pretty-printed JSON)
+* full response body (pretty-printed JSON)
+
+### Backing API
+
+The UI consumes two REST endpoints exposed by the proxy:
+
+```text
+GET /api/logs?range=1h&limit=50&before=<unix-timestamp>
+```
+
+Returns a paginated list of log entries (newest first).  `before` is an
+optional cursor — pass the timestamp of the last row in the current page to
+fetch the next page.  `limit` defaults to 50 and is capped at 200.
+
+```text
+GET /api/logs/{log_id}
+```
+
+Returns the full detail of a single log entry including request and response
+bodies.
+
+### Storage
+
+All log data is persisted in a local SQLite database (WAL mode):
+
+```env
+MCP_TAP_LOG_DB=/home/user/.local/share/mcptap/logs.db
+```
+
+If the variable is unset, the default path is used:
+
+```text
+~/.local/share/mcptap/logs.db
+```
+
+The database schema is created automatically on startup via forward-only
+migrations.  Each record stores:
+
+| Field            | Description                              |
+| ---------------- | ---------------------------------------- |
+| `timestamp`      | Unix timestamp of the request            |
+| `session_id`     | Session ID from the `session-id` header  |
+| `model`          | Forced model used                        |
+| `provider`       | Upstream provider                        |
+| `input_tokens`   | Prompt tokens from upstream `usage`      |
+| `output_tokens`  | Completion tokens from upstream `usage`  |
+| `total_tokens`   | Total tokens from upstream `usage`       |
+| `cost`           | Cost reported by upstream                |
+| `status_code`    | HTTP status returned to the client       |
+| `request_body`   | Full request payload (JSON)              |
+| `response_body`  | Full response body (JSON or SSE)         |
+| `request_path`   | Upstream API path                        |
+| `stream`         | Whether the response was streamed        |
+| `duration_ms`    | Round-trip duration                      |
+
+## 10. Logging
 
 Runtime logs on Linux:
 
