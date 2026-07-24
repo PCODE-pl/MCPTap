@@ -586,7 +586,7 @@ API traffic:
 http://<MCP_TAP_LISTEN_HOST>:<MCP_TAP_LISTEN_PORT>/ui/logs
 ```
 
-In default installation this url is [http://127.0.0.1:8080/ui/logs](http://127.0.0.1:8080/ui/logs)
+In default installation this url is [http://127.0.0.1:8787/ui/logs](http://127.0.0.1:8787/ui/logs).
 
 No separate process or additional dependency is required — the page is
 embedded in the proxy as a single-file Vue 3 + Naive UI application.
