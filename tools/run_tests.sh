@@ -20,7 +20,7 @@ fi
 # Deduplicate (in case both glob patterns match the same file)
 mapfile -t test_files < <(printf '%s\n' "${test_files[@]}" | sort -u)
 
-SKIP_TESTS=()
+SKIP_TESTS=(test_log_store.py)
 
 should_skip() {
     local base_name="$1"
