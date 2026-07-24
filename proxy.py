@@ -11,6 +11,8 @@ for DEBUG level:
 
 from mcptap.app import build_app, health, main, proxy
 from mcptap.file_block import blocklist_file_path, clear_blocklist, write_blocklist
+from mcptap.log_api import handle_log_detail, handle_logs_list, serve_logs_page
+from mcptap.log_store import TIME_RANGE_MAP, TIME_RANGES, LogStore, record_from_response
 from mcptap.mcp_intercept import (
     InterceptedTool,
     MCPInterceptor,
@@ -26,6 +28,7 @@ from mcptap.responses import (
     extract_client_tool_calls,
     extract_get_goal_result,
     extract_intercepted_calls,
+    extract_usage_details,
     extract_usage_total_tokens,
     has_client_tool_calls,
     has_intercepted_calls,
@@ -94,6 +97,14 @@ __all__ = [
     "forward_rewritten",
     "passthrough",
     "post_upstream_buffered",
+    "LogStore",
+    "TIME_RANGE_MAP",
+    "TIME_RANGES",
+    "record_from_response",
+    "extract_usage_details",
+    "handle_log_detail",
+    "handle_logs_list",
+    "serve_logs_page",
 ]
 
 if __name__ == "__main__":

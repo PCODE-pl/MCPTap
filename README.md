@@ -83,25 +83,6 @@ MCPTap is designed for workflows like:
 * testing provider fallback behavior,
 * controlling OpenRouter provider selection.
 
-## Requirements
-
-MCPTap requires:
-
-* Python 3.10 or newer,
-* `curl` or `wget` for installation,
-* an OpenRouter or Requesty API key,
-* optionally, an MCP server if you want MCP tool interception.
-* optionally C compiler, make, and C library headers if you want file access blocking.
-
-Runtime Python dependencies:
-
-```text
-aiohttp
-python-dotenv
-mcp
-pyyaml
-```
-
 ## Installation
 
 Install the latest release:
@@ -158,6 +139,25 @@ LD_PRELOAD=~/.local/lib/libmcptap_fileblock.so codex --profile=mcptap
 ```
 
 See the [Tool-call hook](#tool-call-hook) section for details on how `blocked_files` from the hook are enforced by this library.
+
+## Requirements
+
+MCPTap requires:
+
+* Python 3.10 or newer,
+* `curl` or `wget` for installation,
+* an OpenRouter or Requesty API key,
+* optionally, an MCP server if you want MCP tool interception.
+* optionally C compiler, make, and C library headers if you want file access blocking.
+
+Runtime Python dependencies:
+
+```text
+aiohttp
+python-dotenv
+mcp
+pyyaml
+```
 
 ## Configuration files
 
@@ -1075,43 +1075,7 @@ MCP tools are executed locally with the permissions of the MCPTap process. Only 
 
 ## Development
 
-Clone the repository:
-
-```sh
-git clone https://github.com/PCODE-pl/MCPTap.git
-cd MCPTap
-```
-
-Create a virtual environment:
-
-```sh
-python3.10 -m venv .venv
-. .venv/bin/activate
-```
-
-Install dependencies:
-
-```sh
-pip install -r requirements.txt
-```
-
-Run locally:
-
-```sh
-python proxy.py
-```
-
-Format and linting are configured with Ruff.
-
-The current Ruff configuration uses:
-
-```text
-line length: 120
-quote style: double
-indent style: space
-lint rules: E, F, W, Q, I
-ignored rules: E203, E501
-```
+See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for development setup, running locally, and linting configuration.
 
 ## Configuration reference
 

@@ -11,6 +11,7 @@ whether to allow or block.
 import contextlib
 import copy
 import json
+import time
 from typing import Any, Callable, Dict, List, Optional
 
 from aiohttp import (  # type: ignore
@@ -20,6 +21,7 @@ from aiohttp import (  # type: ignore
 )
 
 from mcptap.file_block import write_blocklist
+from mcptap.log_store import LogStore, record_from_response
 from mcptap.mcp_intercept import MCPInterceptor
 from mcptap.responses import (
     apply_tool_call_updates,
@@ -71,6 +73,7 @@ async def handle_responses_with_intercept(
     client_wanted_stream: bool,
     hook_gateway: ToolHookGateway,
     session_tracker: SessionTracker,
+    log_store: Optional[LogStore] = None,
 ) -> web.StreamResponse:
     """Talk to upstream in a loop, resolving intercepted tool calls locally
     until the model returns a final response with no intercepted calls.
@@ -85,6 +88,9 @@ async def handle_responses_with_intercept(
 
     session_info = await session_tracker.track_request(request, forced_model)
     session_id = session_info["session_id"]
+
+    request_start_time = time.time()
+    provider = settings.openrouter_provider or settings.upstream_provider
 
     pending_state = await hook_gateway.get_pending(session_id) if hook_gateway.enabled else None
 
@@ -116,6 +122,9 @@ async def handle_responses_with_intercept(
             session_id,
             pending_state,
             _ensure_input_list,
+            log_store=log_store,
+            request_start_time=request_start_time,
+            provider=provider,
         )
 
     last_status = 200
@@ -164,6 +173,20 @@ async def handle_responses_with_intercept(
         tokens = extract_usage_total_tokens(body_json)
         if tokens > 0:
             await session_tracker.add_usage(session_id, tokens)
+
+        record_from_response(
+            log_store,
+            request_body=working_payload,
+            response_raw=raw,
+            response_body_json=body_json,
+            session_id=session_id,
+            model=forced_model,
+            provider=provider,
+            status_code=status,
+            request_path=path,
+            stream=client_wanted_stream,
+            start_time=request_start_time,
+        )
 
         has_intercepted = has_intercepted_calls(body_json, intercept_names)
         has_client = has_client_tool_calls(body_json, intercept_names)
@@ -269,6 +292,9 @@ async def handle_responses_with_intercept(
                         session_id,
                         state,
                         _ensure_input_list,
+                        log_store=log_store,
+                        request_start_time=request_start_time,
+                        provider=provider,
                     )
 
         break
@@ -299,6 +325,9 @@ async def _handle_direct_hook(
     session_id: str,
     pending_state: PendingState,
     ensure_input_list_fn: Callable,
+    log_store: Optional[LogStore] = None,
+    request_start_time: float = 0.0,
+    provider: str = "",
 ) -> web.StreamResponse:
     """Run the hook immediately without injecting a synthetic tool call.
 
@@ -397,6 +426,20 @@ async def _handle_direct_hook(
         if tokens > 0:
             await session_tracker.add_usage(session_id, tokens)
 
+    record_from_response(
+        log_store,
+        request_body=working_payload,
+        response_raw=raw,
+        response_body_json=body_json,
+        session_id=session_id,
+        model=pending_state.forced_model,
+        provider=provider,
+        status_code=status,
+        request_path=path,
+        stream=client_wanted_stream,
+        start_time=request_start_time,
+    )
+
     return await _emit_buffered_response(
         request,
         status=status,
@@ -418,6 +461,9 @@ async def _handle_hook_decision(
     session_id: str,
     pending_state: PendingState,
     ensure_input_list_fn: Callable,
+    log_store: Optional[LogStore] = None,
+    request_start_time: float = 0.0,
+    provider: str = "",
 ) -> web.StreamResponse:
     """Handle the request that follows a synthetic get_goal call.
 
@@ -521,6 +567,20 @@ async def _handle_hook_decision(
         tokens = extract_usage_total_tokens(body_json)
         if tokens > 0:
             await session_tracker.add_usage(session_id, tokens)
+
+    record_from_response(
+        log_store,
+        request_body=working_payload,
+        response_raw=raw,
+        response_body_json=body_json,
+        session_id=session_id,
+        model=pending_state.forced_model,
+        provider=provider,
+        status_code=status,
+        request_path=path,
+        stream=client_wanted_stream,
+        start_time=request_start_time,
+    )
 
     return await _emit_buffered_response(
         request,
