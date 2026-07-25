@@ -382,7 +382,7 @@ list to a per-session control file at
 starts) reads this file automatically. It identifies the session via the
 ``CODEX_THREAD_ID`` environment variable (set by Codex CLI for all child
 processes) and constructs the control file path as
-``<MCPTAP_BLOCKED_DIR>/<CODEX_THREAD_ID>/blocked_files``. The library
+``<MCPTAP_FB_DIR>/<CODEX_THREAD_ID>/blocked_files``. The library
 intercepts ``open``, ``openat``, ``fopen``, ``access``, ``stat``, ``lstat``,
 ``statx``, ``readlink``, and ``realpath`` calls, returning ``EACCES`` for
 blocked paths. The control file is reloaded every second, so changes take
