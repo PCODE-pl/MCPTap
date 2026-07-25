@@ -465,7 +465,7 @@ MCP_TAP_USE_TOOL_HOOK_SYNTHETIC_TOOL=
 3/ Start Codex CLI with ``LD_PRELOAD`` set once:
 
 ```shell
-LD_PRELOAD=~/.local/lib/libmcptap_fileblock.so codex --profile=mcptap
+LD_PRELOAD=~/.local/lib/libmcptap_fileblock.so codex
 ```
 
 Or add an alias to your shell configuration:
