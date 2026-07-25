@@ -1,6 +1,49 @@
 <!-- markdownlint-disable MD024 -->
 # Changelog
 
+## [2.5.1]
+
+### Highlights
+
+- Web-based request log viewer (Vue 3 + Naive UI, dark theme)
+- SQLite-backed log store
+
+### Changed
+
+- File-block env vars renamed — the LD_PRELOAD file-blocking library
+  environment variables have been renamed from verbose MCPTAP_BLOCKED_*
+  names to shorter MCPTAP_FB_* names for consistency and brevity:
+
+    Old name                     New name
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━  ━━━━━━━━━━━━━━━━
+    MCPTAP_BLOCKED_DIR           MCPTAP_FB_DIR
+  ───────────────────────────  ────────────────
+    MCPTAP_BLOCKED_FILES_FILE    MCPTAP_FB_FILE
+
+  The rename touches file_block/file_block.c, tests/test_file_block.py
+  (19 references updated across TestLDPreloadLibrary, TestOpenat2Blocking,
+  TestDynamicBlocklist, and the _make_fb_env helper), docs/FEATURES.md,
+  and setup.sh. All tests pass under the new names.
+
+### Removed
+
+- --profile=mcptap flag — the obsolete --profile=mcptap flag has been
+  removed from all Codex CLI startup commands in setup.sh, docs/FEATURES.md,
+  and the README example for the file-block library.
+
+### Fixed
+
+- README cleanup — removed duplicated "Requirements" and "Health endpoint"
+  sections from the README; the per-session directory description and
+  LD_PRELOAD env-var table have been consolidated. A new LD_PRELOAD
+  file-block library env-var table (MCPTAP_FB_DIR, MCPTAP_FB_INTERPRETERS,
+  MCPTAP_FB_ESCALATORS, MCPTAP_FB_DISABLE_ESCALATOR_CHECK) replaces
+  scattered references with a single, structured reference.
+
+### Full Changelog
+
+[https://github.com/PCODE-pl/MCPTap/compare/v2.5.0...v2.5.1](https://github.com/PCODE-pl/MCPTap/compare/v2.5.0...v2.5.1)
+
 ## [2.5.0]
 
 ### Highlights
