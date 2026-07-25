@@ -6,11 +6,11 @@
  * (set automatically by Codex CLI for all child processes).  The control
  * file is expected at:
  *
- *   <MCPTAP_BLOCKED_DIR>/<CODEX_THREAD_ID>/blocked_files
+ *   <MCPTAP_FB_DIR>/<CODEX_THREAD_ID>/blocked_files
  *
- * where MCPTAP_BLOCKED_DIR defaults to /tmp/mcptap/per_session.
+ * where MCPTAP_FB_DIR defaults to /tmp/mcptap/per_session.
  *
- * For testing or standalone use, MCPTAP_BLOCKED_FILES_FILE can be set
+ * For testing or standalone use, MCPTAP_FB_FILE can be set
  * directly to override the auto-constructed path.
  *
  * Blocked syscalls: open, openat, openat64, access, faccessat,
@@ -185,12 +185,12 @@ static int is_process_allowed(void) {
 }
 
 /* Build the path to the per-session control file.
- * Uses MCPTAP_BLOCKED_FILES_FILE if set (for testing / override).
- * Otherwise constructs: <MCPTAP_BLOCKED_DIR>/<CODEX_THREAD_ID>/blocked_files
+ * Uses MCPTAP_FB_FILE if set (for testing / override).
+ * Otherwise constructs: <MCPTAP_FB_DIR>/<CODEX_THREAD_ID>/blocked_files
  * Returns 0 on success, -1 if no session ID is available. */
 static int build_control_path(char *buf, size_t buf_size) {
     /* Explicit override (for tests / standalone use) */
-    const char *explicit = getenv("MCPTAP_BLOCKED_FILES_FILE");
+    const char *explicit = getenv("MCPTAP_FB_FILE");
     if (explicit && *explicit) {
         snprintf(buf, buf_size, "%s", explicit);
         return 0;
@@ -200,7 +200,7 @@ static int build_control_path(char *buf, size_t buf_size) {
     if (!session_id || !*session_id)
         return -1;
 
-    const char *base_dir = getenv("MCPTAP_BLOCKED_DIR");
+    const char *base_dir = getenv("MCPTAP_FB_DIR");
     if (!base_dir || !*base_dir)
         base_dir = "/tmp/mcptap/per_session";
 

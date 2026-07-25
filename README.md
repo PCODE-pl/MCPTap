@@ -80,7 +80,7 @@ The installer creates a local Python virtual environment, installs MCPTap files,
 Default paths:
 
 ```text
-~/.local/share/mcptap       application files
+~/.local/share/mcptap       application files and logs database
 ~/.local/bin/mcptap         executable wrapper
 ~/.config/mcptap            configuration files
 ```
@@ -117,25 +117,6 @@ LD_PRELOAD=~/.local/lib/libmcptap_fileblock.so codex
 ```
 
 See the [Tool-call hook](docs/FEATURES.md#7-tool-call-hook) section for details on how `blocked_files` from the hook are enforced by this library.
-
-## Requirements
-
-MCPTap requires:
-
-* Python 3.10 or newer,
-* `curl` or `wget` for installation,
-* an OpenRouter or Requesty API key,
-* optionally, an MCP server if you want MCP tool interception.
-* optionally C compiler, make, and C library headers if you want file access blocking.
-
-Runtime Python dependencies:
-
-```text
-aiohttp
-python-dotenv
-mcp
-pyyaml
-```
 
 ## Configuration files
 
@@ -344,12 +325,6 @@ or:
 ```
 
 ## Health endpoint
-
-MCPTap exposes:
-
-```text
-http://127.0.0.1:8787/health
-```
 
 Check it with:
 
