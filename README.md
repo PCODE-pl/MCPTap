@@ -354,7 +354,7 @@ See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for development setup, running lo
 
 ### `proxy.env`
 
-| Variable                                        |                   Default | Description                                                         |
+| Variable                                        |             Default Value | Description                                                         |
 | ----------------------------------------------- | ------------------------: | ------------------------------------------------------------------- |
 | `MCP_TAP_UPSTREAM_PROVIDER`                     |                  required | `openrouter` or `requesty`.                                         |
 | `MCP_TAP_LISTEN_HOST`                           |               `127.0.0.1` | Local host/interface to bind.                                       |
@@ -370,7 +370,7 @@ See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for development setup, running lo
 | `MCP_TAP_USE_TOOL_HOOK`                         |                     empty | Path to a Python hook script run before client tool calls.          |
 | `MCP_TAP_USE_TOOL_HOOK_TIMEOUT`                 |                      `30` | Timeout for the hook script, in seconds.                            |
 | `MCP_TAP_USE_TOOL_HOOK_SYNTHETIC_TOOL`          |                `get_goal` | Synthetic tool name to inject before the hook. Empty = direct mode. |
-| `MCP_TAP_PER_SESSION_DIR`                       | `/tmp/mcptap/per_session` | Directory for per-session blocklist control files.                  |
+| `MCP_TAP_PER_SESSION_DIR`                       | `/tmp/mcptap/per_session` | Directory for per-session control files.                            |
 | `MCP_TAP_LOG_LEVEL`                             |                    `INFO` | Python logging level.                                               |
 | `MCP_TAP_LOG_FILE`                              |                     empty | Optional communication log file path.                               |
 | `LOG_FILE_REDACT_HEADERS`                       |                       `0` | Redact sensitive headers in communication logs when true.           |
@@ -382,3 +382,12 @@ See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for development setup, running lo
 | `MCP_TAP_API_KEY`         |      yes | Upstream provider API key.                  |
 | `MCP_TAP_MODEL`           |      yes | Default forced model.                       |
 | `MCP_TAP_PLAN_MODE_MODEL` |      yes | Forced model used when plan mode is active. |
+
+### `LD_PRELOAD` file-block library
+
+| Variable                            |             Default Value | Description                                                                                                               |
+| ----------------------------------- | ------------------------: | ------------------------------------------------------------------------------------------------------------------------- |
+| `MCPTAP_FB_DIR`                     | `/tmp/mcptap/per_session` | Directory for per-session control files.                                                                                  |
+| `MCPTAP_FB_INTERPRETERS`            |        see `file_block.c` | Colon-separated list of basenames treated as interpreters.                                                                |
+| `MCPTAP_FB_ESCALATORS`              |        see `file_block.c` | Colon-separated list of `argv[0]` basenames treated as privilege-escalators.                                              |
+| `MCPTAP_FB_DISABLE_ESCALATOR_CHECK` |                     unset | When set to `1`, the surgical escalator+interpreter layer is disabled entirely (only the path-scan layer remains active). |
