@@ -555,7 +555,7 @@ EOF
 
     if [ "$WITH_FILE_BLOCK" -eq 1 ]; then
         log "File-block library enabled. Start Codex with:"
-        log "  LD_PRELOAD=$HOME/.local/lib/libmcptap_fileblock.so codex --profile=mcptap"
+        log "  LD_PRELOAD=$HOME/.local/lib/libmcptap_fileblock.so codex"
     fi
 }
 
