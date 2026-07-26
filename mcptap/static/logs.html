@@ -43,6 +43,7 @@
           :bordered="false"
           size="small"
           :row-props="rowProps"
+          @scroll="handleScroll"
         />
       </n-layout-content>
 
@@ -97,7 +98,7 @@
 </div>
 
 <script>
-const { createApp, ref, reactive, computed, onMounted, nextTick, watch, h } = Vue;
+const { createApp, ref, reactive, computed, onMounted, h } = Vue;
 
 const app = createApp({
   setup() {
@@ -169,11 +170,17 @@ const app = createApp({
           url += '&before=' + lastRow.timestamp;
         }
         const resp = await fetch(url);
+        if (!resp.ok) {
+          console.error('Failed to load logs:', resp.status, resp.statusText);
+          return;
+        }
         const json = await resp.json();
         if (json.rows && json.rows.length > 0) {
           rows.value.push(...json.rows);
+          hasMore.value = json.has_more || false;
+        } else {
+          hasMore.value = false;
         }
-        hasMore.value = json.has_more || false;
       } catch(e) {
         console.error('Failed to load logs:', e);
       } finally {
@@ -206,31 +213,16 @@ const app = createApp({
       onClick: () => showDetail(row),
     });
 
-    function handleScroll() {
-      const table = document.querySelector('.n-data-table-base-table');
-      if (!table) return;
-      const container = table.closest('.n-scrollbar-container');
-      if (!container) return;
-      const scrollContent = container.querySelector('.n-scrollbar-content');
-      if (!scrollContent) return;
-      const scrollTop = container.scrollTop;
-      const scrollHeight = scrollContent.scrollHeight;
-      const clientHeight = container.clientHeight;
-      if (scrollTop + clientHeight >= scrollHeight - 100 && !loading.value && hasMore.value) {
+    // Uses the native scroll event emitted by n-data-table; e.target is
+    // the internal scroll container with scrollTop/scrollHeight/clientHeight.
+    function handleScroll(e) {
+      if (loading.value || !hasMore.value) return;
+      const target = e && e.target;
+      if (!target) return;
+      const { scrollTop, scrollHeight, clientHeight } = target;
+      if (scrollTop + clientHeight >= scrollHeight - 100) {
         loadMore();
       }
-    }
-
-    function setupScrollListener() {
-      nextTick(() => {
-        const table = document.querySelector('.n-data-table-base-table');
-        if (!table) return;
-        const container = table.closest('.n-scrollbar-container');
-        if (container) {
-          container.removeEventListener('scroll', handleScroll);
-          container.addEventListener('scroll', handleScroll);
-        }
-      });
     }
 
     function calcTableHeight() {
@@ -241,11 +233,6 @@ const app = createApp({
       calcTableHeight();
       window.addEventListener('resize', calcTableHeight);
       await loadMore();
-      setupScrollListener();
-    });
-
-    watch(rows, () => {
-      setupScrollListener();
     });
 
     return {
@@ -253,7 +240,7 @@ const app = createApp({
       rows, loading, hasMore, selectedRange, rangeOptions,
       columns, tableMaxHeight,
       drawerVisible, detail, detailLoading,
-      onRangeChange, showDetail, rowProps,
+      onRangeChange, showDetail, rowProps, handleScroll,
       formatTimestamp, formatCost, formatJson,
       NDataTable, NConfigProvider, NLayout, NLayoutHeader, NLayoutContent,
       NLayoutFooter, NDrawer, NDrawerContent, NSelect, NSpin, NCode,
