@@ -128,7 +128,7 @@ async def proxy(request: web.Request) -> web.StreamResponse:
     if not is_responses_call or not (intercept.enabled or hook_gateway.enabled):
         log_store: Optional[LogStore] = request.app.get("log_store")
         start_time = time.time()
-        resp = await forward_rewritten(
+        resp, response_raw = await forward_rewritten(
             request,
             session,
             target_url,
@@ -139,7 +139,7 @@ async def proxy(request: web.Request) -> web.StreamResponse:
             record_from_response(
                 log_store,
                 request_body=payload,
-                response_raw=b"",
+                response_raw=response_raw,
                 response_body_json=None,
                 session_id=request.headers.get("session-id", "").strip() or "default",
                 model=forced_model,
