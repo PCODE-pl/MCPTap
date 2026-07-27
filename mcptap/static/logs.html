@@ -104,7 +104,7 @@ const app = createApp({
   setup() {
     const { darkTheme, NDataTable, NConfigProvider, NLayout, NLayoutHeader, NLayoutContent,
             NLayoutFooter, NDrawer, NDrawerContent, NSelect, NSpin, NCode, NDescriptions,
-            NDescriptionsItem } = naive;
+            NDescriptionsItem, NTag } = naive;
 
     const rows = ref([]);
     const loading = ref(false);
@@ -129,6 +129,15 @@ const app = createApp({
     const columns = [
       { title: "Date", key: "timestamp", width: 180, render(row) {
         return formatTimestamp(row.timestamp);
+      }},
+      { title: "Status", key: "status_code", width: 80, align: "center", render(row) {
+        const code = row.status_code;
+        if (!code) return '—';
+        let type = 'default';
+        if (code >= 200 && code < 300) type = 'success';
+        else if (code >= 300 && code < 400) type = 'warning';
+        else if (code >= 400) type = 'error';
+        return h(NTag, { size: 'small', type: type, bordered: false }, { default: () => String(code) });
       }},
       { title: "Model", key: "model", width: 250 },
       { title: "Provider", key: "provider", width: 150 },
@@ -244,7 +253,7 @@ const app = createApp({
       formatTimestamp, formatCost, formatJson,
       NDataTable, NConfigProvider, NLayout, NLayoutHeader, NLayoutContent,
       NLayoutFooter, NDrawer, NDrawerContent, NSelect, NSpin, NCode,
-      NDescriptions, NDescriptionsItem,
+      NDescriptions, NDescriptionsItem, NTag,
     };
   },
 });
