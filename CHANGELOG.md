@@ -1,6 +1,57 @@
 <!-- markdownlint-disable MD024 -->
 # Changelog
 
+## [2.5.2]
+
+### Added
+
+- Status column in logs UI table — the log viewer now displays the HTTP
+  status code as a colored n-tag badge in a dedicated column: green for
+  2xx, yellow for 3xx, red for 4xx/5xx. Failed requests (e.g. 429, 404) are
+  immediately visible without opening the detail drawer. (mcptap/static/logs.html)
+
+### Fixed
+
+- Error responses not logged — upstream error responses (429, 404, 500)
+  were silently dropped from the log database, making them invisible in the
+  UI. Three root causes fixed:
+  - response_flow.py — record_from_response was called after the
+    if status >= 400: break guard in the intercept loop, so error
+    responses were forwarded to the client but never persisted. The call is
+    now made before the status check.
+
+  - upstream.py — post_upstream_buffered only parsed body_json for
+    status < 400, so error bodies were always None. Parsing now runs for
+    all status codes, making the full error JSON available for logging.
+
+  - upstream.py / app.py — forward_rewritten (the non-intercept path)
+    streamed the response to the client but discarded the body, so
+    record_from_response received response_raw=b"". forward_rewritten
+    now returns a (StreamResponse, bytes) tuple; app.py passes the
+    collected body to the log store.
+
+  New test file tests/test_error_logging.py (5 tests) covers
+  TestPostUpstreamBufferedErrorParsing, TestRecordFromResponseErrors, and
+  TestInterceptLoopErrorLogging — verifying that 429/500 responses are
+  parsed, recorded with correct status codes, and contain the full error
+  body.
+
+- Infinite scroll never firing — the logs UI used
+  document.querySelector('.n-data-table-base-table') and
+  .closest('.n-scrollbar-container') to find the scroll container and
+  attach a scroll listener. These internal Naive UI class names are unstable
+  and may not exist at mount time, so infinite-scroll loading never fired.
+  Replaced with the native @scroll event emitted by n-data-table (where
+  e.target is the scroll container with scrollTop/scrollHeight/
+  clientHeight). Removed the fragile setupScrollListener/
+  nextTick/watch(rows) plumbing. Guarded loadMore to set
+  hasMore=false when the API returns 0 rows, preventing infinite retry
+  loops. (mcptap/static/logs.html)
+
+### Full Changelog
+
+[https://github.com/PCODE-pl/MCPTap/compare/v2.5.1...v2.5.2](https://github.com/PCODE-pl/MCPTap/compare/v2.5.1...v2.5.2)
+
 ## [2.5.1]
 
 ### Highlights
