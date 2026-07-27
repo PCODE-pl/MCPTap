@@ -158,6 +158,22 @@ async def handle_responses_with_intercept(
         last_headers = resp_headers
         last_body_raw = raw
 
+        # Log every upstream response, including errors (e.g. 429, 500),
+        # so that failed requests are visible in the UI.
+        record_from_response(
+            log_store,
+            request_body=working_payload,
+            response_raw=raw,
+            response_body_json=body_json,
+            session_id=session_id,
+            model=forced_model,
+            provider=provider,
+            status_code=status,
+            request_path=path,
+            stream=client_wanted_stream,
+            start_time=request_start_time,
+        )
+
         if status >= 400:
             LOGGER.warning(
                 "Upstream returned HTTP %s during intercept loop iteration=%d",
@@ -173,20 +189,6 @@ async def handle_responses_with_intercept(
         tokens = extract_usage_total_tokens(body_json)
         if tokens > 0:
             await session_tracker.add_usage(session_id, tokens)
-
-        record_from_response(
-            log_store,
-            request_body=working_payload,
-            response_raw=raw,
-            response_body_json=body_json,
-            session_id=session_id,
-            model=forced_model,
-            provider=provider,
-            status_code=status,
-            request_path=path,
-            stream=client_wanted_stream,
-            start_time=request_start_time,
-        )
 
         has_intercepted = has_intercepted_calls(body_json, intercept_names)
         has_client = has_client_tool_calls(body_json, intercept_names)

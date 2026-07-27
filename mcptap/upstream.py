@@ -55,17 +55,18 @@ async def post_upstream_buffered(
         response_headers = filtered_headers(resp.headers)
         log_communication("upstream_response", "POST", url, response_headers, raw, status=resp.status)
 
+    # Parse the body for all status codes, not just < 400, so that error
+    # responses (429, 500, etc.) are also available for logging and inspection.
     body_json: Optional[Dict[str, Any]] = None
-    if resp.status < 400:
-        if stream:
-            body_json = response_json_from_sse(raw)
-        else:
-            try:
-                candidate = json.loads(raw.decode("utf-8"))
-                if isinstance(candidate, dict):
-                    body_json = candidate
-            except (UnicodeDecodeError, json.JSONDecodeError):
-                body_json = None
+    if stream:
+        body_json = response_json_from_sse(raw)
+    else:
+        try:
+            candidate = json.loads(raw.decode("utf-8"))
+            if isinstance(candidate, dict):
+                body_json = candidate
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            body_json = None
     return resp.status, response_headers, raw, body_json
 
 
@@ -133,7 +134,13 @@ async def forward_rewritten(
     target_url: str,
     request_headers: Dict[str, str],
     payload: Dict[str, Any],
-) -> web.StreamResponse:
+) -> Tuple[web.StreamResponse, bytes]:
+    """Forward a rewritten request to upstream, streaming the response to the
+    client while also collecting the raw body for logging.
+
+    Returns a ``(StreamResponse, bytes)`` tuple where the second element is the
+    full response body, enabling logging of error responses (429, 500, etc.).
+    """
     body = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
     outgoing_headers = dict(request_headers)
     outgoing_headers["Content-Type"] = "application/json"
@@ -148,15 +155,19 @@ async def forward_rewritten(
         )
     except (ClientError, OSError) as exc:
         LOGGER.exception("Upstream request failed: %s", exc)
-        return web.json_response(
+        error_body = json.dumps(
             {
                 "error": {
                     "message": "OpenRouter proxy could not reach the upstream API",
                     "type": "proxy_upstream_error",
                 }
-            },
+            }
+        ).encode("utf-8")
+        resp = web.json_response(
+            json.loads(error_body.decode("utf-8")),
             status=502,
         )
+        return resp, error_body
     response = web.StreamResponse(
         status=upstream_response.status,
         reason=upstream_response.reason,
@@ -183,7 +194,7 @@ async def forward_rewritten(
     with contextlib.suppress(ConnectionResetError, BrokenPipeError):
         await response.write_eof()
     LOGGER.info("%s %s -> HTTP %s", request.method, request.path_qs, upstream_response.status)
-    return response
+    return response, bytes(response_body)
 
 
 def create_client_session() -> ClientSession:
