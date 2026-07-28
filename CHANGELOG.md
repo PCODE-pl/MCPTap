@@ -1,6 +1,36 @@
 <!-- markdownlint-disable MD024 -->
 # Changelog
 
+## [2.5.3]
+
+### Added
+
+- SQLite log retention via background asyncio task — a new
+  `LogRetentionTask` runs every hour inside the aiohttp event loop and
+  deletes log entries older than `MCP_TAP_LOG_RETENTION_DAYS` (default 30).
+  The task is wired into the application lifecycle (`on_startup` /
+  `on_cleanup`) alongside the existing `ConfigReloader`, and gracefully
+  survives transient purge errors (logs and continues).
+
+  - `settings.py` — new field `log_retention_days` (env
+    `MCP_TAP_LOG_RETENTION_DAYS`, default `30`).
+  - `log_store.py` — new method `LogStore.purge_old(retention_days)`
+    that executes `DELETE FROM request_logs WHERE timestamp < ?` and
+    returns the number of deleted rows.
+  - `log_retention.py` — new module with `LogRetentionTask` class.
+  - `app.py` — `_start_log_retention` / `_stop_log_retention` lifecycle
+    hooks; skipped when log store is disabled.
+
+  Tests: `tests/test_log_store.py` adds `TestPurgeOld` (4 tests — deletes
+  old entries only, returns 0 when nothing to delete / when disabled,
+  deletes all when retention is 0). `tests/test_log_retention.py` (5
+  tests — purge_once, disabled store, start/stop lifecycle, purge in loop,
+  error resilience).
+
+### Full Changelog
+
+[https://github.com/PCODE-pl/MCPTap/compare/v2.5.2...v2.5.3](https://github.com/PCODE-pl/MCPTap/compare/v2.5.2...v2.5.3)
+
 ## [2.5.2]
 
 ### Added
