@@ -338,3 +338,99 @@ class TestTimeRanges:
         for val in ("15m", "30m", "1h", "3h", "24h", "48h", "1w"):
             assert val in TIME_RANGE_MAP
             assert TIME_RANGE_MAP[val] > 0
+
+
+class TestPurgeOld:
+    """Tests for LogStore.purge_old() retention method."""
+
+    def test_purge_deletes_old_entries_only(self, log_store):
+        now = time.time()
+        # Old entry (40 days ago)
+        log_store.record(
+            timestamp=now - 40 * 86400,
+            session_id="old",
+            model="m1",
+            provider="p1",
+            input_tokens=1,
+            output_tokens=1,
+            total_tokens=2,
+            cost=0.0,
+            status_code=200,
+            request_body=None,
+            response_body=None,
+            request_path="/",
+            stream=False,
+            duration_ms=1,
+        )
+        # Recent entry (1 day ago)
+        log_store.record(
+            timestamp=now - 86400,
+            session_id="recent",
+            model="m1",
+            provider="p1",
+            input_tokens=2,
+            output_tokens=2,
+            total_tokens=4,
+            cost=0.0,
+            status_code=200,
+            request_body=None,
+            response_body=None,
+            request_path="/",
+            stream=False,
+            duration_ms=1,
+        )
+
+        deleted = log_store.purge_old(retention_days=30)
+        assert deleted == 1
+
+        rows, _ = log_store.query(range_seconds=None, limit=10)
+        assert len(rows) == 1
+        assert rows[0]["session_id"] == "recent"
+
+    def test_purge_returns_zero_when_nothing_to_delete(self, log_store):
+        log_store.record(
+            timestamp=time.time(),
+            session_id="fresh",
+            model="m1",
+            provider="p1",
+            input_tokens=1,
+            output_tokens=1,
+            total_tokens=2,
+            cost=0.0,
+            status_code=200,
+            request_body=None,
+            response_body=None,
+            request_path="/",
+            stream=False,
+            duration_ms=1,
+        )
+        deleted = log_store.purge_old(retention_days=30)
+        assert deleted == 0
+
+    def test_purge_returns_zero_when_disabled(self, tmp_path):
+        store = LogStore(str(tmp_path / "disabled.db"), enabled=False)
+        deleted = store.purge_old(retention_days=30)
+        assert deleted == 0
+
+    def test_purge_deletes_all_when_retention_is_zero(self, log_store):
+        for i in range(3):
+            log_store.record(
+                timestamp=time.time() - i * 100,
+                session_id=f"s{i}",
+                model="m1",
+                provider="p1",
+                input_tokens=1,
+                output_tokens=1,
+                total_tokens=2,
+                cost=0.0,
+                status_code=200,
+                request_body=None,
+                response_body=None,
+                request_path="/",
+                stream=False,
+                duration_ms=1,
+            )
+        deleted = log_store.purge_old(retention_days=0)
+        assert deleted == 3
+        rows, _ = log_store.query(range_seconds=None, limit=10)
+        assert len(rows) == 0

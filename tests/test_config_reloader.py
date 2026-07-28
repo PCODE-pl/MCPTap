@@ -69,6 +69,7 @@ def _make_settings(**overrides) -> Settings:
         use_tool_hook_pending_ttl=600.0,
         per_session_dir="/tmp/x",
         log_db_path="/tmp/x.db",
+        log_retention_days=30,
     )
     defaults.update(overrides)
     return Settings(**defaults)
