@@ -276,6 +276,22 @@ class LogStore:
             "duration_ms": row[14],
         }
 
+    def purge_old(self, retention_days: int = 30) -> int:
+        """Delete log entries older than *retention_days*.
+
+        Returns the number of deleted rows.
+        """
+        if not self._enabled:
+            return 0
+        cutoff = time.time() - (retention_days * 86400)
+        conn = self.connect()
+        cur = conn.execute(
+            "DELETE FROM request_logs WHERE timestamp < ?",
+            (cutoff,),
+        )
+        conn.commit()
+        return cur.rowcount
+
     def close(self) -> None:
         if self._conn is not None:
             self._conn.close()

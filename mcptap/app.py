@@ -17,6 +17,7 @@ from mcptap.config_reloader import (
     reload_tool_hook,
 )
 from mcptap.http_utils import filtered_headers, upstream_path
+from mcptap.log_retention import LogRetentionTask
 from mcptap.log_store import LogStore, record_from_response
 from mcptap.mcp_intercept import MCPInterceptor, load_intercept_config
 from mcptap.response_flow import handle_responses_with_intercept
@@ -214,6 +215,21 @@ async def _close_log_store(app: web.Application) -> None:
         log_store.close()
 
 
+async def _start_log_retention(app: web.Application) -> None:
+    log_store: Optional[LogStore] = app.get("log_store")
+    if log_store is None or not log_store.enabled:
+        return
+    task = LogRetentionTask(log_store)
+    app["log_retention"] = task
+    task.start()
+
+
+async def _stop_log_retention(app: web.Application) -> None:
+    task: Optional[LogRetentionTask] = app.get("log_retention")
+    if task is not None:
+        await task.stop()
+
+
 def build_app() -> web.Application:
     app = web.Application(client_max_size=100 * 1024 * 1024)
     try:
@@ -251,6 +267,8 @@ def build_app() -> web.Application:
     app.on_startup.append(_create_client_session_startup)
     app.on_startup.append(_start_mcp_intercept)
     app.on_startup.append(_start_config_reloader)
+    app.on_startup.append(_start_log_retention)
+    app.on_cleanup.append(_stop_log_retention)
     app.on_cleanup.append(_stop_config_reloader)
     app.on_cleanup.append(_stop_mcp_intercept)
     app.on_cleanup.append(_close_client_session)
