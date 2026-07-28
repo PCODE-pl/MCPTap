@@ -689,6 +689,19 @@ migrations.  Each record stores:
 | `stream`         | Whether the response was streamed        |
 | `duration_ms`    | Round-trip duration                      |
 
+### Retention
+
+A background task automatically purges log entries older than a configurable
+number of days:
+
+```env
+MCP_TAP_LOG_RETENTION_DAYS=30
+```
+
+The task runs every hour and deletes expired records from the SQLite
+database.  Set to `0` to delete all entries on each purge cycle.  The
+default is `30` days.
+
 ## 10. Logging
 
 Runtime logs on Linux:
