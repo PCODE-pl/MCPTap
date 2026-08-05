@@ -554,8 +554,11 @@ EOF
     printf '%b' "$NC"
 
     if [ "$WITH_FILE_BLOCK" -eq 1 ]; then
-        log "File-block library enabled. Start Codex with:"
+        log "File-block library enabled."
+        log "Start Codex with:"
         log "  LD_PRELOAD=$HOME/.local/lib/libmcptap_fileblock.so codex"
+        log "Start Hermes Agent with:"
+        log "  LD_PRELOAD=$HOME/.local/lib/libmcptap_fileblock.so hermes"
     fi
 }
 
