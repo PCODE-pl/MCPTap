@@ -1,6 +1,59 @@
 <!-- markdownlint-disable MD024 -->
 # Changelog
 
+## [2.6.0]
+
+### Added
+
+- **HTTP session-id header injection via LD_PRELOAD** — `file_block.c`
+  now intercepts `connect`, `send`, `write`, `close`, `dup`, and `dup2`
+  to automatically inject a `session-id: <id>` HTTP header into requests
+  sent to the MCPTap proxy on localhost. The header carries
+  `CODEX_THREAD_ID` or `HERMES_SESSION_ID` (fallback), so MCPTap can
+  attribute requests to the correct session without the client sending
+  the header explicitly. The MCPTap listen address is discovered from
+  `/proc/<pid>/environ` (PID read from `proxy.pid`, refreshed every 5 s).
+  A compact fd bitmap with pthread mutex tracks which sockets connect to
+  MCPTap. Only plain HTTP (localhost) is supported — encrypted traffic
+  (HTTPS) is not intercepted.
+
+- **`HERMES_SESSION_ID` fallback** — `build_control_path()` in
+  `file_block.c` now reads `CODEX_THREAD_ID` first and falls back to
+  `HERMES_SESSION_ID` when the former is unset, enabling Hermes Agent
+  sessions to use the same per-session file-blocking control files.
+
+- **PID file for LD_PRELOAD discovery** — `mcptap/app.py` writes the
+  proxy process PID to `/tmp/mcptap/proxy.pid` at startup and removes it
+  on cleanup. The `file_block.c` library reads this file to locate the
+  MCPTap process and fetch its listen address from `/proc/<pid>/environ`.
+
+- **`ha()` shell alias** — new alias in `examples/home/user/.bash_aliases`
+  launches Hermes Agent with `LD_PRELOAD` file blocking, mirroring the
+  existing `cx()` alias for Codex CLI.
+
+- **Shared `get_profile()` helper** — profile detection logic extracted
+  from `cx()` into a reusable `get_profile()` function, now used by both
+  `cx()` and `ha()`. New project profiles added: `alokai`, `llmcouncil`,
+  `shopware`.
+
+- **Hermes Agent documentation** — `README.md` and `docs/FEATURES.md`
+  updated with Hermes Agent setup instructions, configuration example
+  (`provider: custom`, `base_url`, `api_mode: codex_responses`), and
+  references alongside Codex CLI throughout.
+
+### Changed
+
+- **`cx()` alias simplified** — the `systemctl --user restart mcptap.service`
+  call was removed; profile detection now delegates to `get_profile()`.
+
+- **Makefile: link `-lpthread`** — `file_block/Makefile` adds `-lpthread`
+  for the pthread mutex used by the fd tracking table and MCPTap address
+  cache.
+
+### Full Changelog
+
+[https://github.com/PCODE-pl/MCPTap/compare/v2.5.4...v2.6.0](https://github.com/PCODE-pl/MCPTap/compare/v2.5.4...v2.6.0)
+
 ## [2.5.4]
 
 ### Added
