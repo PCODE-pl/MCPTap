@@ -1,6 +1,6 @@
 CC ?= gcc
 CFLAGS = -Wall -Wextra -O2 -fPIC -shared
-LDFLAGS = -ldl
+LDFLAGS = -ldl -lpthread
 TARGET = libmcptap_fileblock.so
 SRC = file_block.c
 

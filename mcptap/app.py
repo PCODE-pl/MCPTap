@@ -1,7 +1,9 @@
 """Aiohttp application setup, request handlers, and lifecycle management."""
 
 import json
+import os
 import time
+from pathlib import Path
 from typing import Any, Dict, Optional
 
 from aiohttp import (  # type: ignore
@@ -215,6 +217,30 @@ async def _close_log_store(app: web.Application) -> None:
         log_store.close()
 
 
+_PID_FILE = Path(settings.per_session_dir).parent / "proxy.pid"
+
+
+def _write_pid_file() -> None:
+    """Write current PID to /tmp/mcptap/proxy.pid for LD_PRELOAD discovery.
+
+    The file_block .so library reads this to locate the MCPTap process and
+    fetch its listen address from /proc/<pid>/environ.
+    """
+    try:
+        _PID_FILE.parent.mkdir(parents=True, exist_ok=True)
+        _PID_FILE.write_text(str(os.getpid()))
+    except OSError as exc:
+        LOGGER.warning("Failed to write PID file %s: %s", _PID_FILE, exc)
+
+
+def _remove_pid_file() -> None:
+    """Remove the PID file on shutdown."""
+    try:
+        _PID_FILE.unlink(missing_ok=True)
+    except OSError as exc:
+        LOGGER.warning("Failed to remove PID file %s: %s", _PID_FILE, exc)
+
+
 async def _start_log_retention(app: web.Application) -> None:
     log_store: Optional[LogStore] = app.get("log_store")
     if log_store is None or not log_store.enabled:
@@ -268,6 +294,7 @@ def build_app() -> web.Application:
     app.on_startup.append(_start_mcp_intercept)
     app.on_startup.append(_start_config_reloader)
     app.on_startup.append(_start_log_retention)
+    app.on_cleanup.append(_remove_pid_file)
     app.on_cleanup.append(_stop_log_retention)
     app.on_cleanup.append(_stop_config_reloader)
     app.on_cleanup.append(_stop_mcp_intercept)
@@ -284,6 +311,7 @@ def build_app() -> web.Application:
 
 
 def main() -> None:
+    _write_pid_file()
     LOGGER.info(
         "Listening on http://%s:%s; upstream=%s; forced_model=%s; forced_plan_mode_model=%s; forced_provider=%s",
         settings.listen_host,
