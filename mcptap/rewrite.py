@@ -169,7 +169,8 @@ def rewrite_json_payload(
             payload["tools"] = tools
             payload["tool_config"] = {"include_server_side_tool_invocations": True}
 
-        del payload["include"]
+        if "include" in payload:
+            del payload["include"]
 
     if PROVIDER_OPENROUTER == settings.upstream_provider:
         if candidate_force_model.startswith("@"):
