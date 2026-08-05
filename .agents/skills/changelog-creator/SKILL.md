@@ -106,7 +106,7 @@ Format the entry following the existing `CHANGELOG.md` style:
 ### Step 6 — Output
 
 Print the complete changelog entry as a Markdown block in the chat response.
-Do not write to any file. The user will review and insert it manually.
+Also write it to CHANGELOG.md file. The user will review and commit it manually.
 
 ## Example invocation
 
@@ -125,4 +125,4 @@ Agent:
 3. Runs `git log v2.2.0..master` and `git diff v2.2.0..master --stat`.
 4. Reads commit subjects/bodies and detailed diffs as needed.
 5. Classifies changes into Added/Changed/Fixed/etc.
-6. Outputs the formatted entry as text — no file writes, no commits.
+6. Outputs the formatted entry as text and writes it to CHANGELOG.md file — no commits.
