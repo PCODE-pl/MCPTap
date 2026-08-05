@@ -286,9 +286,9 @@ intercepted MCP tools), MCPTap has two modes:
 In both modes, the hook can optionally return a ``blocked_files`` list in an
 ``allow`` response. MCPTap writes the list to a per-session control file at
 ``<MCP_TAP_PER_SESSION_DIR>/<session_id>/blocked_files``. The LD_PRELOAD library
-(loaded once when Codex starts) reads this file automatically and blocks
+(loaded once when Codex/Hermes Agent starts) reads this file automatically and blocks
 access to the listed files at the libc level. No per-command prefixing is
-needed — the library is active for the entire Codex session.
+needed — the library is active for the entire Codex/Hermes Agent session.
 
 Hidden MCP intercepted tool calls (such as ``consult_council``) are excluded
 from the hook. When the model returns mixed calls (intercepted and client),
@@ -380,7 +380,7 @@ list to a per-session control file at
 ``<MCP_TAP_PER_SESSION_DIR>/<session_id>/blocked_files``. The
 ``libmcptap_fileblock.so`` library (loaded via ``LD_PRELOAD`` when Codex
 starts) reads this file automatically. It identifies the session via the
-``CODEX_THREAD_ID`` environment variable (set by Codex CLI for all child
+``CODEX_THREAD_ID`` environment variable (set by Codex CLI/Hermes Agent for all child
 processes) and constructs the control file path as
 ``<MCPTAP_FB_DIR>/<CODEX_THREAD_ID>/blocked_files``. The library
 intercepts ``open``, ``openat``, ``fopen``, ``access``, ``stat``, ``lstat``,
@@ -462,21 +462,23 @@ MCP_TAP_USE_TOOL_HOOK=/home/user/.config/mcptap/use_tool_hook.py
 MCP_TAP_USE_TOOL_HOOK_SYNTHETIC_TOOL=
 ```
 
-3/ Start Codex CLI with ``LD_PRELOAD`` set once:
+3/ Start Codex/Hermes Agent CLI with ``LD_PRELOAD`` set once:
 
 ```shell
-LD_PRELOAD=~/.local/lib/libmcptap_fileblock.so codex
+LD_PRELOAD=~/.local/lib/libmcptap_fileblock.so [codex|hermes]
 ```
 
 Or add an alias to your shell configuration:
 
 ```shell
-alias codex='LD_PRELOAD=~/.local/lib/libmcptap_fileblock.so codex'
+alias [codex|hermes]='LD_PRELOAD=~/.local/lib/libmcptap_fileblock.so [codex|hermes]'
 ```
 
+Replace `[codex|hermes]` with `codex` or `hermes`.
+
 The library is inherited by all child processes (shell commands, scripts, etc.)
-for the entire Codex session. It identifies the session via the
-``CODEX_THREAD_ID`` environment variable (set automatically by Codex CLI) and
+for the entire Codex/Hermes Agent session. It identifies the session via the
+``CODEX_THREAD_ID`` environment variable (set automatically by Codex/Hermes Agent CLI) and
 reads the control file at
 ``/tmp/mcptap/per_session/<CODEX_THREAD_ID>/blocked_files``.
 
@@ -487,7 +489,7 @@ reads the control file at
 ### File-block limitations and configuration
 
 The LD_PRELOAD library blocks file access by intercepting libc syscalls in
-the **parent process** (Codex and its shell children). Because `glibc`
+the **parent process** (Codex/Hermes Agent and its shell children). Because `glibc`
 drops `LD_PRELOAD` libraries when executing a **setuid** binary (such as
 `sudo`, `su`, `doas`, `pkexec`), a child started via an escalator runs
 **without** the library and would otherwise be able to read a blocked file.
