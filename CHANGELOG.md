@@ -1,6 +1,32 @@
 <!-- markdownlint-disable MD024 -->
 # Changelog
 
+## [2.5.4]
+
+### Added
+
+- GitHub Sponsors funding configuration — new `.github/FUNDING.yml`
+  enables the "Sponsor" button on the repository page, linking to
+  `pczerkas` and `PCODE-pl` GitHub Sponsors profiles.
+
+### Fixed
+
+- **KeyError on payload rewrite** — `rewrite_json_payload` in
+  `mcptap/rewrite.py` unconditionally deleted the `include` key from
+  the request payload, raising `KeyError` when the field was absent.
+  The removal is now guarded by an `if "include" in payload` check.
+
+### Changed
+
+- Suppress markdownlint MD041 on `LICENSE` — added a
+  `<!-- markdownlint-disable-next-line MD041 -->` directive so the
+  Apache License heading (which does not start with a Markdown `#`
+  heading) no longer triggers the first-line-heading rule.
+
+### Full Changelog
+
+[https://github.com/PCODE-pl/MCPTap/compare/v2.5.3...v2.5.4](https://github.com/PCODE-pl/MCPTap/compare/v2.5.3...v2.5.4)
+
 ## [2.5.3]
 
 ### Added
