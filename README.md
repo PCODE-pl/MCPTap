@@ -368,6 +368,10 @@ MCP tools are executed locally with the permissions of the MCPTap process.
 
 See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for development setup, running locally, and linting configuration.
 
+## Issues
+
+The list of issues that MCPTap addresses (at least partially): [docs/ISSUES.md](docs/ISSUES.md).
+
 ## Configuration reference
 
 ### `proxy.env`
