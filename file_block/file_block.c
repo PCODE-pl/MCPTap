@@ -1,12 +1,15 @@
 /*
- * libmcptap_fileblock.so — LD_PRELOAD library that blocks file access
- * to paths listed in a per-session control file.
+ * libmcptap_fileblock.so — LD_PRELOAD library for MCPTap session integration.
  *
+ * 1. File access blocking
+ *
+ * Blocks file access to paths listed in a per-session control file.
  * The session ID is read from the CODEX_THREAD_ID environment variable
- * (set automatically by Codex CLI for all child processes).  The control
+ * (set automatically by Codex CLI for all child processes), or
+ * HERMES_SESSION_ID (set by Hermes Agent) as fallback.  The control
  * file is expected at:
  *
- *   <MCPTAP_FB_DIR>/<CODEX_THREAD_ID>/blocked_files
+ *   <MCPTAP_FB_DIR>/<session_id>/blocked_files
  *
  * where MCPTAP_FB_DIR defaults to /tmp/mcptap/per_session.
  *
@@ -24,6 +27,20 @@
  *   Colon-separated list of process names (as reported by /proc/self/comm)
  *   that bypass all blocklist checks. Default: "git:ssh". Set to empty
  *   string to disable the allowlist entirely.
+ *
+ * 2. HTTP session-id header injection
+ *
+ * When the host process connects to the MCPTap proxy on localhost, this
+ * layer injects a "session-id" HTTP header carrying the session ID into
+ * outgoing HTTP requests. The MCPTap proxy listens for this header to
+ * attribute requests to the correct session.
+ *
+ * The MCPTap listen address is discovered from /proc/<pid>/environ where
+ * <pid> is read from <MCPTAP_FB_DIR>/../proxy.pid (written by proxy.py
+ * at startup). The address is cached and refreshed every 5 seconds.
+ *
+ * Injected syscalls: connect (fd tracking), send, write (header injection),
+ * close, dup, dup2 (fd table maintenance).
  */
 
 #define _GNU_SOURCE
@@ -186,7 +203,9 @@ static int is_process_allowed(void) {
 
 /* Build the path to the per-session control file.
  * Uses MCPTAP_FB_FILE if set (for testing / override).
- * Otherwise constructs: <MCPTAP_FB_DIR>/<CODEX_THREAD_ID>/blocked_files
+ * Otherwise constructs: <MCPTAP_FB_DIR>/<session_id>/blocked_files
+ * where session_id is read from CODEX_THREAD_ID (Codex CLI) or
+ * HERMES_SESSION_ID (Hermes Agent) as fallback.
  * Returns 0 on success, -1 if no session ID is available. */
 static int build_control_path(char *buf, size_t buf_size) {
     /* Explicit override (for tests / standalone use) */
@@ -197,6 +216,8 @@ static int build_control_path(char *buf, size_t buf_size) {
     }
 
     const char *session_id = getenv("CODEX_THREAD_ID");
+    if (!session_id || !*session_id)
+        session_id = getenv("HERMES_SESSION_ID");
     if (!session_id || !*session_id)
         return -1;
 
@@ -964,4 +985,380 @@ int posix_spawnp(pid_t *pid, const char *file,
         return -1;
     }
     return real_posix_spawnp(pid, file, file_actions, attrp, argv, envp);
+}
+
+/* ----------------------------------------------------------------------- */
+/* HTTP session-id header injection                                         */
+/*                                                                         */
+/* When the host process (Hermes Agent) makes HTTP requests to the MCPTap   */
+/* proxy on localhost, this layer injects a "session-id" HTTP header        */
+/* carrying HERMES_SESSION_ID so MCPTap can attribute requests to the       */
+/* correct session.                                                        */
+/*                                                                         */
+/* Mechanism:                                                              */
+/*   1. connect() — when the peer matches the MCPTap listen address        */
+/*      (discovered from /proc/<pid>/environ via the PID file), the fd is  */
+/*      marked in a tracking table.                                        */
+/*   2. send()/write() — if the fd is tracked and the buffer looks like     */
+/*      an HTTP request header block (contains "\r\n\r\n"), inject          */
+/*      "session-id: <id>\r\n" before the terminating blank line.          */
+/*   3. close()/dup()/dup2() — maintain the fd tracking table.             */
+/*                                                                         */
+/* The MCPTap address is read from /proc/<mcptap_pid>/environ where        */
+/* mcptap_pid is read from <per_session_dir>/../proxy.pid. This file is    */
+/* written by proxy.py at startup. The address is cached and refreshed     */
+/* every 5 seconds (like maybe_reload).                                    */
+/* ----------------------------------------------------------------------- */
+
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <pthread.h>
+
+/* --- fd tracking table --- */
+
+#define MCPTAP_MAX_FD 65536
+
+/* Compact bitmap: bit set = fd is a connection to MCPTap proxy. */
+static unsigned char _fd_bitmap[MCPTAP_MAX_FD / 8];
+static pthread_mutex_t _fd_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+static void _fd_set(int fd) {
+    if (fd < 0 || fd >= MCPTAP_MAX_FD)
+        return;
+    pthread_mutex_lock(&_fd_mutex);
+    _fd_bitmap[fd / 8] |= (1 << (fd % 8));
+    pthread_mutex_unlock(&_fd_mutex);
+}
+
+static void _fd_clear(int fd) {
+    if (fd < 0 || fd >= MCPTAP_MAX_FD)
+        return;
+    pthread_mutex_lock(&_fd_mutex);
+    _fd_bitmap[fd / 8] &= ~(1 << (fd % 8));
+    pthread_mutex_unlock(&_fd_mutex);
+}
+
+static int _fd_is_set(int fd) {
+    if (fd < 0 || fd >= MCPTAP_MAX_FD)
+        return 0;
+    pthread_mutex_lock(&_fd_mutex);
+    int val = (_fd_bitmap[fd / 8] >> (fd % 8)) & 1;
+    pthread_mutex_unlock(&_fd_mutex);
+    return val;
+}
+
+/* --- MCPTap address discovery --- */
+
+static char _mcptap_host[64] = "127.0.0.1";
+static int  _mcptap_port = 8787;
+static int  _mcptap_addr_loaded = 0;
+static time_t _mcptap_addr_last_check = 0;
+static pthread_mutex_t _mcptap_addr_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+/* Read MCP_TAP_LISTEN_HOST and MCP_TAP_LISTEN_PORT from
+ * /proc/<pid>/environ, where <pid> is read from the proxy.pid file.
+ * The environ file is a sequence of NUL-terminated KEY=VALUE strings. */
+static void _load_mcptap_addr(void) {
+    char pid_path[512];
+    const char *per_session = getenv("MCPTAP_FB_DIR");
+    if (!per_session || !*per_session)
+        per_session = "/tmp/mcptap/per_session";
+
+    /* proxy.pid lives one directory above per_session_dir:
+     *   /tmp/mcptap/per_session  ->  /tmp/mcptap/proxy.pid */
+    char pid_file[512];
+    snprintf(pid_file, sizeof(pid_file), "%s/../proxy.pid", per_session);
+
+    /* Read PID using raw syscall to bypass our own open() interceptor. */
+    int _checking_save = _checking;
+    _checking = 1;
+    int pfd = (int)syscall(SYS_openat, AT_FDCWD, pid_file, O_RDONLY, 0);
+    _checking = _checking_save;
+    if (pfd < 0)
+        return;
+
+    char pid_buf[32];
+    ssize_t pn = read(pfd, pid_buf, sizeof(pid_buf) - 1);
+    close(pfd);
+    if (pn <= 0)
+        return;
+    pid_buf[pn] = '\0';
+    /* Strip whitespace */
+    char *end = pid_buf + pn;
+    while (end > pid_buf && (end[-1] == '\n' || end[-1] == '\r' ||
+           end[-1] == ' ' || end[-1] == '\t'))
+        *--end = '\0';
+    int mcptap_pid = atoi(pid_buf);
+    if (mcptap_pid <= 0)
+        return;
+
+    snprintf(pid_path, sizeof(pid_path), "/proc/%d/environ", mcptap_pid);
+
+    _checking_save = _checking;
+    _checking = 1;
+    int efd = (int)syscall(SYS_openat, AT_FDCWD, pid_path, O_RDONLY, 0);
+    _checking = _checking_save;
+    if (efd < 0)
+        return;
+
+    /* environ can be up to the process's arg_max, but a single page is
+     * usually enough for the keys we need. */
+    char env_buf[8192];
+    ssize_t en = read(efd, env_buf, sizeof(env_buf) - 1);
+    close(efd);
+    if (en <= 0)
+        return;
+    env_buf[en] = '\0';
+
+    /* Walk NUL-separated KEY=VALUE entries. */
+    char host_buf[64] = "";
+    char port_buf[16] = "";
+    char *p = env_buf;
+    char *env_end = env_buf + en;
+    while (p < env_end) {
+        size_t len = strnlen(p, env_end - p);
+        if (len == 0)
+            break;
+        if (strncmp(p, "MCP_TAP_LISTEN_HOST=", 20) == 0 && len > 20) {
+            size_t copy = len - 20;
+            if (copy >= sizeof(host_buf))
+                copy = sizeof(host_buf) - 1;
+            memcpy(host_buf, p + 20, copy);
+            host_buf[copy] = '\0';
+        } else if (strncmp(p, "MCP_TAP_LISTEN_PORT=", 20) == 0 && len > 20) {
+            size_t copy = len - 20;
+            if (copy >= sizeof(port_buf))
+                copy = sizeof(port_buf) - 1;
+            memcpy(port_buf, p + 20, copy);
+            port_buf[copy] = '\0';
+        }
+        p += len + 1;
+    }
+
+    if (*host_buf)
+        snprintf(_mcptap_host, sizeof(_mcptap_host), "%s", host_buf);
+    if (*port_buf) {
+        int port = atoi(port_buf);
+        if (port > 0)
+            _mcptap_port = port;
+    }
+    _mcptap_addr_loaded = 1;
+}
+
+static void _maybe_reload_mcptap_addr(void) {
+    time_t now = time(NULL);
+    pthread_mutex_lock(&_mcptap_addr_mutex);
+    if (!_mcptap_addr_loaded || now - _mcptap_addr_last_check > 5) {
+        _mcptap_addr_last_check = now;
+        _load_mcptap_addr();
+    }
+    pthread_mutex_unlock(&_mcptap_addr_mutex);
+}
+
+/* Check if a sockaddr matches the MCPTap proxy listen address. */
+static int _is_mcptap_peer(const struct sockaddr *addr, socklen_t addrlen) {
+    (void)addrlen;
+    if (!addr)
+        return 0;
+    _maybe_reload_mcptap_addr();
+
+    if (addr->sa_family == AF_INET) {
+        const struct sockaddr_in *sin = (const struct sockaddr_in *)addr;
+        if (sin->sin_port != htons((uint16_t)_mcptap_port))
+            return 0;
+        struct in_addr expected;
+        if (inet_pton(AF_INET, _mcptap_host, &expected) != 1)
+            return 0;
+        return sin->sin_addr.s_addr == expected.s_addr;
+    }
+    /* AF_UNIX (unix socket) — not used by MCPTap, skip. */
+    return 0;
+}
+
+/* --- HTTP header injection --- */
+
+/* Check if buffer looks like an HTTP request header block (starts with an
+ * HTTP method) and contains the header terminator "\r\n\r\n". Returns
+ * pointer to the terminator, or NULL if not a header block. */
+static char *_find_header_end(char *buf, size_t len) {
+    /* Quick check: must start with an HTTP method verb. */
+    if (len < 5)
+        return NULL;
+    /* Common HTTP methods: GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS */
+    if (strncmp(buf, "GET ", 4) != 0 &&
+        strncmp(buf, "POST", 4) != 0 &&
+        strncmp(buf, "PUT ", 4) != 0 &&
+        strncmp(buf, "DELE", 4) != 0 &&
+        strncmp(buf, "PATC", 4) != 0 &&
+        strncmp(buf, "HEAD", 4) != 0 &&
+        strncmp(buf, "OPTI", 4) != 0)
+        return NULL;
+
+    /* Find \r\n\r\n — the header terminator. */
+    char *terminator = NULL;
+    for (size_t i = 0; i + 3 < len; i++) {
+        if (buf[i] == '\r' && buf[i+1] == '\n' &&
+            buf[i+2] == '\r' && buf[i+3] == '\n') {
+            terminator = buf + i;
+            break;
+        }
+    }
+    return terminator;
+}
+
+/* Case-insensitive substring search for "session-id:" within the header
+ * block. If already present, we skip injection. */
+static int _has_session_id_header(const char *buf, size_t len) {
+    const char needle[] = "session-id:";
+    const size_t needle_len = sizeof(needle) - 1;
+    if (len < needle_len)
+        return 0;
+    for (size_t i = 0; i + needle_len <= len; i++) {
+        if (strncasecmp(buf + i, needle, needle_len) == 0)
+            return 1;
+    }
+    return 0;
+}
+
+/* Build the "session-id: <id>\r\n" injection line.
+ * Returns the line length, or 0 if no session ID available. */
+static size_t _build_session_header(char *out, size_t out_size) {
+    const char *session_id = getenv("CODEX_THREAD_ID");
+    if (!session_id || !*session_id)
+        session_id = getenv("HERMES_SESSION_ID");
+    if (!session_id || !*session_id)
+        return 0;
+    return (size_t)snprintf(out, out_size, "session-id: %s\r\n", session_id);
+}
+
+/* Inject session-id header into the buffer if needed.
+ * Returns a newly malloc'd buffer (caller must free) and sets *out_len,
+ * or returns NULL if no injection was performed (caller uses original).
+ *
+ * The injection point is after the last header's "\r\n" and before the
+ * final "\r\n" that terminates the header block:
+ *   "...last-header: val\r\n\r\nbody"
+ *                 insert here ^
+ * becomes:
+ *   "...last-header: val\r\nsession-id: <id>\r\n\r\nbody"
+ */
+static char *_inject_session_header(const char *buf, size_t len, size_t *out_len) {
+    char *header_end = _find_header_end((char *)buf, len);
+    if (!header_end)
+        return NULL;
+
+    if (_has_session_id_header(buf, (size_t)(header_end - buf)))
+        return NULL;
+
+    char session_line[512];
+    size_t session_line_len = _build_session_header(session_line, sizeof(session_line));
+    if (session_line_len == 0)
+        return NULL;
+
+    /* header_end points to "\r\n\r\n". The last header line ends with "\r\n"
+     * at header_end[0..1]. Insert the session-id line AFTER that "\r\n"
+     * and BEFORE the final "\r\n" (header_end+2). */
+    size_t prefix_len = (size_t)(header_end - buf) + 2; /* includes last header's \r\n */
+    size_t tail_len = len - prefix_len; /* the final "\r\n" + body */
+    size_t new_len = len + session_line_len;
+
+    char *new_buf = (char *)malloc(new_len);
+    if (!new_buf)
+        return NULL;
+
+    memcpy(new_buf, buf, prefix_len);
+    memcpy(new_buf + prefix_len, session_line, session_line_len);
+    memcpy(new_buf + prefix_len + session_line_len, buf + prefix_len, tail_len);
+
+    *out_len = new_len;
+    return new_buf;
+}
+
+/* --- Interceptors: connect, send, write, close, dup, dup2 --- */
+
+typedef int (*connect_fn)(int, const struct sockaddr *, socklen_t);
+typedef ssize_t (*send_fn)(int, const void *, size_t, int);
+typedef ssize_t (*write_fn)(int, const void *, size_t);
+typedef int (*close_fn)(int);
+typedef int (*dup_fn)(int);
+typedef int (*dup2_fn)(int, int);
+
+static connect_fn real_connect = NULL;
+static send_fn real_send = NULL;
+static write_fn real_write = NULL;
+static close_fn real_close = NULL;
+static dup_fn real_dup = NULL;
+static dup2_fn real_dup2 = NULL;
+
+static void init_net_funcs(void) {
+    if (!real_connect) real_connect = (connect_fn)dlsym(RTLD_NEXT, "connect");
+    if (!real_send)    real_send    = (send_fn)dlsym(RTLD_NEXT, "send");
+    if (!real_write)   real_write   = (write_fn)dlsym(RTLD_NEXT, "write");
+    if (!real_close)   real_close   = (close_fn)dlsym(RTLD_NEXT, "close");
+    if (!real_dup)     real_dup     = (dup_fn)dlsym(RTLD_NEXT, "dup");
+    if (!real_dup2)    real_dup2    = (dup2_fn)dlsym(RTLD_NEXT, "dup2");
+}
+
+int connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen) {
+    init_net_funcs();
+    /* Mark fd BEFORE calling real_connect — the peer address is known
+     * at connect() time regardless of whether the connection succeeds. */
+    if (_is_mcptap_peer(addr, addrlen))
+        _fd_set(sockfd);
+    return real_connect(sockfd, addr, addrlen);
+}
+
+ssize_t send(int fd, const void *buf, size_t len, int flags) {
+    init_net_funcs();
+    if (_fd_is_set(fd) && len > 0) {
+        size_t new_len = 0;
+        char *new_buf = _inject_session_header((const char *)buf, len, &new_len);
+        if (new_buf) {
+            ssize_t n = real_send(fd, new_buf, new_len, flags);
+            free(new_buf);
+            return n;
+        }
+    }
+    return real_send(fd, buf, len, flags);
+}
+
+ssize_t write(int fd, const void *buf, size_t count) {
+    init_net_funcs();
+    if (_fd_is_set(fd) && count > 0) {
+        size_t new_len = 0;
+        char *new_buf = _inject_session_header((const char *)buf, count, &new_len);
+        if (new_buf) {
+            ssize_t n = real_write(fd, new_buf, new_len);
+            free(new_buf);
+            return n;
+        }
+    }
+    return real_write(fd, buf, count);
+}
+
+int close(int fd) {
+    init_net_funcs();
+    _fd_clear(fd);
+    return real_close(fd);
+}
+
+int dup(int oldfd) {
+    init_net_funcs();
+    int newfd = real_dup(oldfd);
+    if (newfd >= 0 && _fd_is_set(oldfd))
+        _fd_set(newfd);
+    return newfd;
+}
+
+int dup2(int oldfd, int newfd) {
+    init_net_funcs();
+    int ret = real_dup2(oldfd, newfd);
+    if (ret >= 0) {
+        if (_fd_is_set(oldfd))
+            _fd_set(newfd);
+        else
+            _fd_clear(newfd);
+    }
+    return ret;
 }
