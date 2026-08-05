@@ -52,7 +52,7 @@ MCPTap
 
 MCPTap is designed for workflows like:
 
-* using Codex CLI through OpenRouter or Requesty,
+* using Codex/Hermes Agent CLI through OpenRouter or Requesty,
 * forcing a cheaper model for normal work and a stronger model for planning,
 * giving a weaker model access to a stronger “expert” model through an MCP tool,
 * disabling access to sensitive files,
@@ -114,6 +114,12 @@ After installation, start Codex with the library loaded:
 
 ```sh
 LD_PRELOAD=~/.local/lib/libmcptap_fileblock.so codex
+```
+
+Hermes Agent can be started in the same way:
+
+```sh
+LD_PRELOAD=~/.local/lib/libmcptap_fileblock.so hermes
 ```
 
 See the [Tool-call hook](docs/FEATURES.md#7-tool-call-hook) section for details on how `blocked_files` from the hook are enforced by this library.
@@ -232,6 +238,18 @@ supports_websockets = false
 [memories]
 extract_model = "openai/gpt-5.5"
 consolidation_model = "openai/gpt-5.5"
+```
+
+## Hermes Agent configuration
+
+Example Hermes Agent configuration:
+
+```yaml
+model:
+  [...]
+  provider: custom
+  base_url: http://127.0.0.1:8787/v1
+  api_mode: codex_responses
 ```
 
 ## Features
