@@ -26,7 +26,7 @@ class TestMigrations:
         db_path = str(tmp_path / "fresh.db")
         store = LogStore(db_path)
         version = store.migrate()
-        assert version == 1
+        assert version == 2
         store.connect()
         tables = store.connect().execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
         assert ("request_logs",) in tables
@@ -34,7 +34,7 @@ class TestMigrations:
 
     def test_migrate_is_idempotent(self, log_store):
         version = log_store.migrate()
-        assert version == 1
+        assert version == 2
 
     def test_migrate_creates_backup_on_existing_db(self, tmp_path):
         db_path = str(tmp_path / "with_backup.db")

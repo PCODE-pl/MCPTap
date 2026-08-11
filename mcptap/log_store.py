@@ -13,6 +13,10 @@ import time
 import uuid
 from typing import Any, Dict, List, NamedTuple, Optional, Tuple
 
+# Maximum size (in chars) of request/response bodies stored in SQLite.
+# Larger bodies are truncated to prevent unbounded database growth.
+MAX_BODY_SIZE = 65536
+
 # ---------------------------------------------------------------------------
 # Migration definitions
 # ---------------------------------------------------------------------------
@@ -51,6 +55,27 @@ MIGRATIONS: List[Migration] = [
             CREATE INDEX IF NOT EXISTS idx_request_logs_session
                 ON request_logs(session_id);
             PRAGMA user_version = 1;
+        """,
+    ),
+    Migration(
+        version=2,
+        description="credit snapshots for cross-validation",
+        sql="""
+            CREATE TABLE IF NOT EXISTS credit_snapshots (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                provider        TEXT NOT NULL,
+                credits_url     TEXT NOT NULL,
+                fetched_at      REAL NOT NULL,
+                total_credits   REAL DEFAULT 0,
+                total_usage     REAL DEFAULT 0,
+                local_cost_sum  REAL DEFAULT 0,
+                request_count   INTEGER DEFAULT 0,
+                discrepancy     REAL DEFAULT 0,
+                status          TEXT DEFAULT 'ok'
+            );
+            CREATE INDEX IF NOT EXISTS idx_credit_snapshots_provider
+                ON credit_snapshots(provider, fetched_at DESC);
+            PRAGMA user_version = 2;
         """,
     ),
 ]
@@ -94,14 +119,14 @@ class LogStore:
         """Run forward-only migrations. Returns the final schema version."""
         os.makedirs(os.path.dirname(self._db_path) or ".", exist_ok=True)
 
-        if os.path.exists(self._db_path):
-            backup_path = self._db_path + ".bak"
-            shutil.copy2(self._db_path, backup_path)
-
         conn = sqlite3.connect(self._db_path)
         conn.execute("PRAGMA journal_mode=WAL;")
         try:
             current = conn.execute("PRAGMA user_version").fetchone()[0]
+            needs_migration = any(m.version > current for m in MIGRATIONS)
+            if needs_migration and os.path.exists(self._db_path):
+                backup_path = self._db_path + ".bak"
+                shutil.copy2(self._db_path, backup_path)
             for migration in MIGRATIONS:
                 if migration.version <= current:
                     continue
@@ -146,6 +171,10 @@ class LogStore:
             return ""
         log_id = str(uuid.uuid4())
         conn = self.connect()
+        if request_body and len(request_body) > MAX_BODY_SIZE:
+            request_body = request_body[:MAX_BODY_SIZE] + "...[truncated]"
+        if response_body and len(response_body) > MAX_BODY_SIZE:
+            response_body = response_body[:MAX_BODY_SIZE] + "...[truncated]"
         conn.execute(
             """
             INSERT INTO request_logs (
@@ -285,17 +314,122 @@ class LogStore:
             return 0
         cutoff = time.time() - (retention_days * 86400)
         conn = self.connect()
-        cur = conn.execute(
+        cur_logs = conn.execute(
             "DELETE FROM request_logs WHERE timestamp < ?",
             (cutoff,),
         )
+        cur_snap = conn.execute(
+            "DELETE FROM credit_snapshots WHERE fetched_at < ?",
+            (cutoff,),
+        )
         conn.commit()
-        return cur.rowcount
+        # Checkpoint WAL to reclaim disk space after bulk deletes without
+        # the heavy full-table rewrite that VACUUM requires.
+        conn.execute("PRAGMA wal_checkpoint(PASSIVE)")
+        return cur_logs.rowcount + cur_snap.rowcount
 
     def close(self) -> None:
         if self._conn is not None:
             self._conn.close()
             self._conn = None
+
+    # ------------------------------------------------------------------
+    # Credit snapshot helpers
+    # ------------------------------------------------------------------
+
+    def insert_credit_snapshot(
+        self,
+        provider: str,
+        credits_url: str,
+        fetched_at: float,
+        total_credits: float,
+        total_usage: float,
+        local_cost_sum: float,
+        request_count: int,
+        discrepancy: float,
+        status: str,
+    ) -> int:
+        """Insert a credit snapshot row. Returns the new row ID."""
+        if not self._enabled:
+            return 0
+        conn = self.connect()
+        cur = conn.execute(
+            """
+            INSERT INTO credit_snapshots (
+                provider, credits_url, fetched_at,
+                total_credits, total_usage, local_cost_sum,
+                request_count, discrepancy, status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                provider,
+                credits_url,
+                fetched_at,
+                total_credits,
+                total_usage,
+                local_cost_sum,
+                request_count,
+                discrepancy,
+                status,
+            ),
+        )
+        conn.commit()
+        return cur.lastrowid or 0
+
+    def get_last_credit_snapshot(
+        self,
+        provider: str,
+    ) -> Optional[Dict[str, Any]]:
+        """Return the most recent credit snapshot for *provider*, or None."""
+        conn = self.connect()
+        row = conn.execute(
+            """
+            SELECT id, provider, credits_url, fetched_at,
+                   total_credits, total_usage, local_cost_sum,
+                   request_count, discrepancy, status
+            FROM credit_snapshots
+            WHERE provider = ?
+            ORDER BY fetched_at DESC
+            LIMIT 1
+            """,
+            (provider,),
+        ).fetchone()
+        if row is None:
+            return None
+        return {
+            "id": row[0],
+            "provider": row[1],
+            "credits_url": row[2],
+            "fetched_at": row[3],
+            "total_credits": row[4],
+            "total_usage": row[5],
+            "local_cost_sum": row[6],
+            "request_count": row[7],
+            "discrepancy": row[8],
+            "status": row[9],
+        }
+
+    def sum_cost_since(
+        self,
+        provider: str,
+        since: float,
+    ) -> Tuple[float, int]:
+        """Sum cost and count requests for *provider* since *since* timestamp.
+
+        Returns ``(cost_sum, request_count)``.
+        """
+        conn = self.connect()
+        row = conn.execute(
+            """
+            SELECT COALESCE(SUM(cost), 0), COUNT(*)
+            FROM request_logs
+            WHERE provider = ? AND timestamp >= ?
+            """,
+            (provider, since),
+        ).fetchone()
+        if row is None:
+            return 0.0, 0
+        return float(row[0]), int(row[1])
 
 
 # ---------------------------------------------------------------------------

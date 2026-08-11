@@ -17,8 +17,10 @@
  * directly to override the auto-constructed path.
  *
  * Blocked syscalls: open, openat, openat64, access, faccessat,
- * fopen, fopen64, stat, stat64, lstat, lstat64, __xstat, __xstat64,
- * __lxstat, __lxstat64, statx, readlink, readlinkat, realpath,
+ * fopen, fopen64, freopen, freopen64, creat, creat64, opendir,
+ * stat, stat64, lstat, lstat64, __xstat, __xstat64,
+ * __lxstat, __lxstat64, statx, fstatat, fstatat64,
+ * readlink, readlinkat, realpath,
  * openat2 (Linux 5.6+, via exported wrapper symbol).
  *
  * Returns -1 / NULL with errno = EACCES for blocked paths.
@@ -55,6 +57,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/syscall.h>
+#include <dirent.h>
 #include <unistd.h>
 
 /* ----------------------------------------------------------------------- */
@@ -72,13 +75,12 @@
     #define __NR_openat2 437
 #endif
 
-/* Minimal definition of struct open_how if the kernel headers
- * don't provide it (matches the kernel ABI exactly). */
-struct mcptap_open_how {
-    unsigned long long flags;
-    unsigned long long mode;
-    unsigned long long resolve;
-};
+/*
+ * struct open_how is defined by the kernel headers via fcntl.h.
+ * We rely on the system definition and don't define our own copy.
+ * The interceptor below uses const struct open_how * to match the
+ * system openat2() declaration exactly.
+ */
 
 /* ----------------------------------------------------------------------- */
 /* Function pointer typedefs                                               */
@@ -92,6 +94,7 @@ typedef FILE *(*fopen_fn)(const char *, const char *);
 typedef int (*stat_fn)(const char *, struct stat *);
 typedef int (*lstat_fn)(const char *, struct stat *);
 typedef int (*statx_fn)(int, const char *, int, unsigned int, struct statx *);
+typedef int (*fstatat_fn)(int, const char *, struct stat *, int);
 typedef ssize_t (*readlink_fn)(const char *, char *, size_t);
 typedef ssize_t (*readlinkat_fn)(int, const char *, char *, size_t);
 typedef char *(*realpath_fn)(const char *, char *);
@@ -812,6 +815,43 @@ int __lxstat64(int ver, const char *path, struct stat64 *buf) {
     return real(ver, path, buf);
 }
 
+/* --- stat64 / lstat64 (direct glibc exports, used by Python 3.14) --- */
+int stat64(const char *path, struct stat64 *buf) {
+    init_real_funcs();
+    maybe_reload();
+    if (is_path_blocked(path)) {
+        errno = EACCES;
+        return -1;
+    }
+    typedef int (*fn_t)(const char *, struct stat64 *);
+    fn_t real = (fn_t)dlsym(RTLD_NEXT, "stat64");
+    if (!real) {
+        /* glibc < 2.33: stat64 redirects to __xstat64 */
+        typedef int (*xstat64_fn)(int, const char *, struct stat64 *);
+        xstat64_fn xs = (xstat64_fn)dlsym(RTLD_NEXT, "__xstat64");
+        return xs ? xs(1, path, buf) : -1;
+    }
+    return real(path, buf);
+}
+
+int lstat64(const char *path, struct stat64 *buf) {
+    init_real_funcs();
+    maybe_reload();
+    if (is_path_blocked(path)) {
+        errno = EACCES;
+        return -1;
+    }
+    typedef int (*fn_t)(const char *, struct stat64 *);
+    fn_t real = (fn_t)dlsym(RTLD_NEXT, "lstat64");
+    if (!real) {
+        /* glibc < 2.33: lstat64 redirects to __lxstat64 */
+        typedef int (*lxstat64_fn)(int, const char *, struct stat64 *);
+        lxstat64_fn xs = (lxstat64_fn)dlsym(RTLD_NEXT, "__lxstat64");
+        return xs ? xs(1, path, buf) : -1;
+    }
+    return real(path, buf);
+}
+
 /* --- statx (glibc >= 2.28) --- */
 int statx(int dirfd, const char *pathname, int flags, unsigned int mask,
           struct statx *buf) {
@@ -822,6 +862,140 @@ int statx(int dirfd, const char *pathname, int flags, unsigned int mask,
         return -1;
     }
     return real_openat ? ((statx_fn)dlsym(RTLD_NEXT, "statx"))(dirfd, pathname, flags, mask, buf) : -1;
+}
+
+/* --- stat / lstat (non-64, glibc >= 2.33 without _FILE_OFFSET_BITS=64) --- */
+int stat(const char *path, struct stat *buf) {
+    init_real_funcs();
+    maybe_reload();
+    if (is_path_blocked(path)) {
+        errno = EACCES;
+        return -1;
+    }
+    stat_fn real = (stat_fn)dlsym(RTLD_NEXT, "stat");
+    if (!real) {
+        /* glibc < 2.33: stat is an inline redirecting to __xstat */
+        typedef int (*xstat_fn)(int, const char *, struct stat *);
+        xstat_fn xs = (xstat_fn)dlsym(RTLD_NEXT, "__xstat");
+        return xs ? xs(1, path, buf) : -1;
+    }
+    return real(path, buf);
+}
+
+int lstat(const char *path, struct stat *buf) {
+    init_real_funcs();
+    maybe_reload();
+    if (is_path_blocked(path)) {
+        errno = EACCES;
+        return -1;
+    }
+    lstat_fn real = (lstat_fn)dlsym(RTLD_NEXT, "lstat");
+    if (!real) {
+        /* glibc < 2.33: lstat is an inline redirecting to __lxstat */
+        typedef int (*lxstat_fn)(int, const char *, struct stat *);
+        lxstat_fn xs = (lxstat_fn)dlsym(RTLD_NEXT, "__lxstat");
+        return xs ? xs(1, path, buf) : -1;
+    }
+    return real(path, buf);
+}
+
+/* --- fstatat / fstatat64 (glibc >= 2.33 replaces __xstat family) --- */
+int fstatat(int dirfd, const char *pathname, struct stat *buf, int flags) {
+    init_real_funcs();
+    maybe_reload();
+    if (is_path_blocked(pathname)) {
+        errno = EACCES;
+        return -1;
+    }
+    fstatat_fn real = (fstatat_fn)dlsym(RTLD_NEXT, "fstatat");
+    if (!real) {
+        /* glibc < 2.33: fstatat is an inline redirecting to __fxstatat */
+        typedef int (*fxstatat_fn)(int, int, const char *, struct stat *, int);
+        fxstatat_fn xs = (fxstatat_fn)dlsym(RTLD_NEXT, "__fxstatat");
+        return xs ? xs(1, dirfd, pathname, buf, flags) : -1;
+    }
+    return real(dirfd, pathname, buf, flags);
+}
+
+int fstatat64(int dirfd, const char *pathname, struct stat64 *buf, int flags) {
+    init_real_funcs();
+    maybe_reload();
+    if (is_path_blocked(pathname)) {
+        errno = EACCES;
+        return -1;
+    }
+    typedef int (*fstatat64_fn)(int, const char *, struct stat64 *, int);
+    fstatat64_fn real = (fstatat64_fn)dlsym(RTLD_NEXT, "fstatat64");
+    if (!real) {
+        /* glibc < 2.33: fstatat64 is an inline redirecting to __fxstatat64 */
+        typedef int (*fxstatat64_fn)(int, int, const char *, struct stat64 *, int);
+        fxstatat64_fn xs = (fxstatat64_fn)dlsym(RTLD_NEXT, "__fxstatat64");
+        return xs ? xs(1, dirfd, pathname, buf, flags) : -1;
+    }
+    return real(dirfd, pathname, buf, flags);
+}
+
+/* --- opendir (glibc opendir calls openat internally, bypassing our hook) --- */
+DIR *opendir(const char *name) {
+    init_real_funcs();
+    maybe_reload();
+    if (is_path_blocked(name)) {
+        errno = EACCES;
+        return NULL;
+    }
+    typedef DIR *(*opendir_fn)(const char *);
+    opendir_fn real = (opendir_fn)dlsym(RTLD_NEXT, "opendir");
+    return real(name);
+}
+
+/* --- creat / creat64 (equivalent to open with O_CREAT|O_WRONLY|O_TRUNC) --- */
+int creat(const char *path, mode_t mode) {
+    init_real_funcs();
+    maybe_reload();
+    if (is_path_blocked(path)) {
+        errno = EACCES;
+        return -1;
+    }
+    typedef int (*creat_fn)(const char *, mode_t);
+    creat_fn real = (creat_fn)dlsym(RTLD_NEXT, "creat");
+    return real(path, mode);
+}
+
+int creat64(const char *path, mode_t mode) {
+    init_real_funcs();
+    maybe_reload();
+    if (is_path_blocked(path)) {
+        errno = EACCES;
+        return -1;
+    }
+    typedef int (*creat64_fn)(const char *, mode_t);
+    creat64_fn real = (creat64_fn)dlsym(RTLD_NEXT, "creat64");
+    return real(path, mode);
+}
+
+/* --- freopen / freopen64 (calls open internally, bypassing our hook) --- */
+FILE *freopen(const char *path, const char *mode, FILE *stream) {
+    init_real_funcs();
+    maybe_reload();
+    if (path && is_path_blocked(path)) {
+        errno = EACCES;
+        return NULL;
+    }
+    typedef FILE *(*freopen_fn)(const char *, const char *, FILE *);
+    freopen_fn real = (freopen_fn)dlsym(RTLD_NEXT, "freopen");
+    return real(path, mode, stream);
+}
+
+FILE *freopen64(const char *path, const char *mode, FILE *stream) {
+    init_real_funcs();
+    maybe_reload();
+    if (path && is_path_blocked(path)) {
+        errno = EACCES;
+        return NULL;
+    }
+    typedef FILE *(*freopen64_fn)(const char *, const char *, FILE *);
+    freopen64_fn real = (freopen64_fn)dlsym(RTLD_NEXT, "freopen64");
+    return real(path, mode, stream);
 }
 
 /* --- readlink / readlinkat --- */
@@ -868,7 +1042,7 @@ char *realpath(const char *path, char *resolved) {
 /* because wrapping the generic syscall() function breaks Electron/Node.   */
 /* ----------------------------------------------------------------------- */
 
-int openat2(int dirfd, const char *pathname, struct mcptap_open_how *how,
+int openat2(int dirfd, const char *pathname, const struct open_how *how,
             size_t size) {
     init_real_funcs();
     maybe_reload();

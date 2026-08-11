@@ -18,6 +18,7 @@ from mcptap.config_reloader import (
     reload_per_model_config,
     reload_tool_hook,
 )
+from mcptap.credits_checker import CreditsCheckerTask
 from mcptap.http_utils import filtered_headers, upstream_path
 from mcptap.log_retention import LogRetentionTask
 from mcptap.log_store import LogStore, record_from_response
@@ -233,7 +234,7 @@ def _write_pid_file() -> None:
         LOGGER.warning("Failed to write PID file %s: %s", _PID_FILE, exc)
 
 
-def _remove_pid_file() -> None:
+async def _remove_pid_file(app: web.Application) -> None:
     """Remove the PID file on shutdown."""
     try:
         _PID_FILE.unlink(missing_ok=True)
@@ -254,6 +255,18 @@ async def _stop_log_retention(app: web.Application) -> None:
     task: Optional[LogRetentionTask] = app.get("log_retention")
     if task is not None:
         await task.stop()
+
+
+async def _start_credits_checker(app: web.Application) -> None:
+    checker: Optional[CreditsCheckerTask] = app.get("credits_checker")
+    if checker is not None:
+        checker.start()
+
+
+async def _stop_credits_checker(app: web.Application) -> None:
+    checker: Optional[CreditsCheckerTask] = app.get("credits_checker")
+    if checker is not None:
+        await checker.stop()
 
 
 def build_app() -> web.Application:
@@ -290,12 +303,15 @@ def build_app() -> web.Application:
     app["hook_gateway"] = hook_gateway
     app["log_store"] = log_store
     app["config_reloader"] = ConfigReloader()
+    app["credits_checker"] = CreditsCheckerTask(log_store)
     app.on_startup.append(_create_client_session_startup)
     app.on_startup.append(_start_mcp_intercept)
     app.on_startup.append(_start_config_reloader)
     app.on_startup.append(_start_log_retention)
+    app.on_startup.append(_start_credits_checker)
     app.on_cleanup.append(_remove_pid_file)
     app.on_cleanup.append(_stop_log_retention)
+    app.on_cleanup.append(_stop_credits_checker)
     app.on_cleanup.append(_stop_config_reloader)
     app.on_cleanup.append(_stop_mcp_intercept)
     app.on_cleanup.append(_close_client_session)

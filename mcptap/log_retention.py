@@ -60,4 +60,4 @@ class LogRetentionTask:
             return
         deleted = self._log_store.purge_old(settings.log_retention_days)
         if deleted:
-            LOGGER.info("LogRetentionTask: purged %d old log entries", deleted)
+            LOGGER.info("LogRetentionTask: purged %d old entries (request_logs + credit_snapshots)", deleted)
