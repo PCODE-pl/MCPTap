@@ -55,6 +55,8 @@ _PROVIDER_ENV_KEYS = [
     "MCP_TAP_PLAN_MODE_MODEL",
     "MCP_TAP_OPENROUTER_PROVIDER",
     "MCP_TAP_OPENROUTER_DISABLE_PROVIDER_FALLBACKS",
+    "MCP_TAP_CREDITS_URL",
+    "MCP_TAP_CREDITS_API_KEY",
 ]
 
 
@@ -81,6 +83,17 @@ class Settings:
     # OpenRouter provider pinning
     openrouter_provider: str
     openrouter_disable_provider_fallbacks: bool
+
+    # Credits API
+    credits_url: str
+    credits_api_key: str
+    credits_check_interval: int
+    credits_discrepancy_threshold: float
+
+    # Telegram alerts
+    telegram_bot_token: str
+    telegram_chat_id: str
+    telegram_alert_level: str
 
     # MCP intercept
     intercept_yaml: str
@@ -205,6 +218,15 @@ def _build_settings() -> Settings:
         "MCP_TAP_OPENROUTER_DISABLE_PROVIDER_FALLBACKS", "1"
     ).lower() not in {"0", "false", "no", "off"}
 
+    credits_url = (os.environ.get("MCP_TAP_CREDITS_URL") or "").strip()
+    credits_api_key = (os.environ.get("MCP_TAP_CREDITS_API_KEY") or "").strip()
+    credits_check_interval = int(os.environ.get("MCP_TAP_CREDITS_CHECK_INTERVAL", "300"))
+    credits_discrepancy_threshold = float(os.environ.get("MCP_TAP_CREDITS_DISCREPANCY_THRESHOLD", "0.01"))
+
+    telegram_bot_token = (os.environ.get("MCPTAP_TELEGRAM_BOT_TOKEN") or "").strip()
+    telegram_chat_id = (os.environ.get("MCPTAP_TELEGRAM_CHAT_ID") or "").strip()
+    telegram_alert_level = (os.environ.get("MCPTAP_TELEGRAM_ALERT_LEVEL") or "mismatch").strip().lower()
+
     _synthetic_tool_env = os.environ.get("MCP_TAP_USE_TOOL_HOOK_SYNTHETIC_TOOL")
     use_tool_hook_synthetic_tool = _synthetic_tool_env.strip() if _synthetic_tool_env is not None else "get_goal"
 
@@ -221,6 +243,13 @@ def _build_settings() -> Settings:
         plan_mode_max_input_size=int(os.environ.get("MCP_TAP_PLAN_MODE_MAX_INPUT_SIZE", 100000)),
         openrouter_provider=openrouter_provider,
         openrouter_disable_provider_fallbacks=openrouter_disable_provider_fallbacks,
+        credits_url=credits_url,
+        credits_api_key=credits_api_key,
+        credits_check_interval=credits_check_interval,
+        credits_discrepancy_threshold=credits_discrepancy_threshold,
+        telegram_bot_token=telegram_bot_token,
+        telegram_chat_id=telegram_chat_id,
+        telegram_alert_level=telegram_alert_level,
         intercept_yaml=(os.environ.get("MCP_TAP_INTERCEPT_YAML") or "").strip(),
         intercept_max_iterations=int(os.environ.get("MCP_TAP_INTERCEPT_MAX_ITERATIONS", "8")),
         intercept_tool_timeout=float(os.environ.get("MCP_TAP_INTERCEPT_TOOL_TIMEOUT", "120")),
