@@ -1,6 +1,50 @@
 <!-- markdownlint-disable MD024 -->
 # Changelog
 
+## [2.7.0]
+
+### Added
+
+- **Provider credit monitoring** — `CreditsCheckerTask` periodically fetches
+  the configured provider credits API, compares remote `total_usage` with
+  local request costs, and stores results in the new `credit_snapshots`
+  SQLite table. Mismatches and API errors can trigger configurable Telegram
+  alerts.
+
+- **Credit-monitoring configuration** — added
+  `MCP_TAP_CREDITS_URL`, `MCP_TAP_CREDITS_API_KEY`,
+  `MCP_TAP_CREDITS_CHECK_INTERVAL`,
+  `MCP_TAP_CREDITS_DISCREPANCY_THRESHOLD`,
+  `MCPTAP_TELEGRAM_BOT_TOKEN`, `MCPTAP_TELEGRAM_CHAT_ID`, and
+  `MCPTAP_TELEGRAM_ALERT_LEVEL` settings, with OpenRouter and Requesty
+  example configuration updates.
+
+- **Expanded file-block interception** — the LD_PRELOAD library now covers
+  `stat`, `lstat`, `stat64`, `lstat64`, `fstatat`, `fstatat64`, `opendir`,
+  `creat`, `creat64`, `freopen`, and `freopen64` in addition to the existing
+  file-access APIs.
+
+### Changed
+
+- **Provider-switch lifecycle** — configuration reloads snapshot the active
+  provider's local costs and restart credit monitoring when the provider or
+  credits endpoint changes.
+
+- **Request-log storage limits** — request and response bodies larger than
+  64 KiB are truncated before being stored in SQLite.
+
+- **Retention and migration safety** — log retention now removes old credit
+  snapshots as well as request logs and checkpoints the SQLite WAL; database
+  backups are created only when a pending migration exists.
+
+- **Test fixtures updated** — `TestMigrations` and the configuration-reload
+  tests now account for the schema version 2 migration and credit-monitoring
+  settings.
+
+### Full Changelog
+
+[https://github.com/PCODE-pl/MCPTap/compare/v2.6.1...v2.7.0](https://github.com/PCODE-pl/MCPTap/compare/v2.6.1...v2.7.0)
+
 ## [2.6.1]
 
 ### Added
