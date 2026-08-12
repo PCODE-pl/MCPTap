@@ -90,10 +90,10 @@ class CreditsCheckerTask:
         self._active_credits_url = new_url
         self._active_credits_api_key = settings.credits_api_key or settings.api_key
 
-        # Restart the task with the new provider context
+        # Restart the task with the new provider context.  Request logs and
+        # valid remote snapshots remain provider-scoped in SQLite, so no
+        # synthetic zero-usage checkpoint is required.
         if self._task is not None:
-            # Snapshot the old provider before restarting
-            self._snapshot_now(self._log_store, old_provider)
             self._task.cancel()
             try:
                 loop = asyncio.get_event_loop()
@@ -111,15 +111,6 @@ class CreditsCheckerTask:
                 self._active_provider,
                 settings.credits_check_interval,
             )
-
-    def snapshot_if_active(self) -> None:
-        """Take a snapshot for the current provider if checker is running.
-
-        Called before env reload so the old provider's data is captured
-        before the credits URL / API key become stale.
-        """
-        if self._active_credits_url:
-            self._snapshot_now(self._log_store, self._active_provider)
 
     # ------------------------------------------------------------------
     # Internal: polling loop
@@ -236,48 +227,6 @@ class CreditsCheckerTask:
             discrepancy=discrepancy,
             status=status,
         )
-
-    # ------------------------------------------------------------------
-    # Internal: snapshot for provider switch (synchronous path)
-    # ------------------------------------------------------------------
-
-    def _snapshot_now(self, log_store: LogStore, provider: str) -> None:
-        """Take a best-effort snapshot for *provider* (sync, fire-and-forget).
-
-        Used during provider switches where we can't await an async fetch.
-        Stores only local cost data; remote values are zeroed.
-        """
-        if not self._active_credits_url or not provider:
-            return
-        try:
-            last = log_store.get_last_credit_snapshot(provider)
-            since = last["fetched_at"] if last else 0.0
-            local_sum, request_count = log_store.sum_cost_since(provider, since)
-            if request_count == 0:
-                return
-            log_store.insert_credit_snapshot(
-                provider=provider,
-                credits_url=self._active_credits_url,
-                fetched_at=time.time(),
-                total_credits=0.0,
-                total_usage=0.0,
-                local_cost_sum=local_sum,
-                request_count=request_count,
-                discrepancy=0.0,
-                status="switch_snapshot",
-            )
-            LOGGER.info(
-                "CreditsCheckerTask: switch snapshot provider=%s local_sum=$%.4f requests=%d",
-                provider,
-                local_sum,
-                request_count,
-            )
-        except Exception as exc:
-            LOGGER.debug(
-                "CreditsCheckerTask: switch snapshot failed for %s: %s",
-                provider,
-                exc,
-            )
 
     # ------------------------------------------------------------------
     # Internal: store snapshot

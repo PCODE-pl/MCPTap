@@ -246,11 +246,7 @@ async def reload_env_and_propagate(app: Any) -> None:
 
     This is the full cascade: env -> Settings -> per-model / tool-hook / intercept.
     """
-    # Snapshot credits for the old provider before reload makes the
-    # old credits URL / API key unreachable.
     credits_checker = app.get("credits_checker")
-    if credits_checker is not None:
-        credits_checker.snapshot_if_active()
 
     try:
         reload_settings()

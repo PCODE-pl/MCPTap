@@ -525,6 +525,30 @@ class TestReloadCallbacks:
         app.__setitem__.assert_any_call("per_model_config", {"new": True})
 
     @pytest.mark.asyncio
+    async def test_reload_env_and_propagate_does_not_create_zero_credit_snapshot(self):
+        """A config reload must not add a non-remote credit snapshot."""
+        app = MagicMock()
+        old_intercept = MagicMock()
+        old_intercept.stop = AsyncMock()
+        old_intercept.enabled = False
+        credits_checker = MagicMock()
+        app.get = MagicMock(
+            side_effect=lambda key: {
+                "mcp_intercept": old_intercept,
+                "credits_checker": credits_checker,
+            }.get(key)
+        )
+        app.__getitem__ = MagicMock(side_effect=lambda k: {} if k == "per_model_config" else None)
+
+        with patch("mcptap.config_reloader.reload_settings", return_value=_make_settings()):
+            with patch("mcptap.config_reloader.load_per_model_config", return_value={}):
+                with patch("mcptap.config_reloader.load_intercept_config", return_value=None):
+                    await reload_env_and_propagate(app)
+
+        credits_checker.snapshot_if_active.assert_not_called()
+        credits_checker.on_provider_changed.assert_called_once()
+
+    @pytest.mark.asyncio
     async def test_reload_env_and_propagate_settings_error_skips_callbacks(self):
         app = MagicMock()
 
