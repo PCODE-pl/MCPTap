@@ -18,6 +18,7 @@ from mcptap.encrypted_replay import (  # noqa: E402
     filter_encrypted_replay_items,
     log_replay_sanitization,
 )
+from mcptap.responses import response_json_from_raw  # noqa: E402
 from mcptap.session import SessionTracker  # noqa: E402
 from mcptap.upstream import post_upstream_buffered_with_replay_retry  # noqa: E402
 
@@ -159,6 +160,55 @@ class TestEncryptedReplayRetry:
         assert removal == ReplayItemRemoval()
         assert len(payload["input"]) == 1
         assert mock_post.await_count == 1
+
+    @pytest.mark.asyncio
+    async def test_streaming_retry_recognizes_json_error_response(self):
+        payload = {
+            "model": "luna",
+            "input": [
+                _encrypted_item("reasoning", "reasoning-to-remove"),
+                {"role": "user", "content": "continue"},
+            ],
+        }
+        rejection = {
+            "error": {
+                "message": (
+                    "Your request contains encrypted reasoning that was produced under a different model. "
+                    "Encrypted payloads can only be replayed to the endpoint that created them."
+                )
+            }
+        }
+        success = {"id": "resp_1", "output": []}
+        responses = [
+            (404, json.dumps(rejection).encode("utf-8")),
+            (200, json.dumps(success).encode("utf-8")),
+        ]
+
+        async def post_with_real_parsing(*_args, **_kwargs):
+            status, raw = responses.pop(0)
+            return status, {"Content-Type": "application/json"}, raw, response_json_from_raw(raw, stream=True)
+
+        with patch("mcptap.upstream.post_upstream_buffered", side_effect=post_with_real_parsing) as mock_post:
+            status, _headers, _raw, body_json, removal = await post_upstream_buffered_with_replay_retry(
+                session=AsyncMock(),
+                path="/v1/responses",
+                headers={"Authorization": "Bearer test"},
+                body=payload,
+                stream=True,
+            )
+
+        assert status == 200
+        assert body_json == success
+        assert removal == ReplayItemRemoval(reasoning=1)
+        assert payload["input"] == [{"role": "user", "content": "continue"}]
+        assert mock_post.await_count == 2
+
+
+class TestResponsesApiParsing:
+    def test_streaming_request_parses_json_error_response(self):
+        error = {"error": {"message": "Unknown response ID"}}
+
+        assert response_json_from_raw(json.dumps(error).encode("utf-8"), stream=True) == error
 
 
 class TestProxyEncryptedReplay:
