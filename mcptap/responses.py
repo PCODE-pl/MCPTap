@@ -286,6 +286,17 @@ def response_json_from_sse(raw: bytes) -> Optional[Dict[str, Any]]:
     return None
 
 
+def response_json_from_raw(raw: bytes, stream: bool) -> Optional[Dict[str, Any]]:
+    """Parse an upstream Responses API body from JSON or SSE bytes."""
+    if stream:
+        return response_json_from_sse(raw)
+    try:
+        candidate = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return None
+    return candidate if isinstance(candidate, dict) else None
+
+
 def extract_intercepted_calls(
     response_body: Dict[str, Any],
     intercept_tool_names: Set[str],

@@ -19,16 +19,28 @@ from mcptap.config_reloader import (
     reload_tool_hook,
 )
 from mcptap.credits_checker import CreditsCheckerTask
+from mcptap.encrypted_replay import (
+    ReplayContext,
+    build_route_fingerprint,
+    log_replay_sanitization,
+)
 from mcptap.http_utils import filtered_headers, upstream_path
 from mcptap.log_retention import LogRetentionTask
 from mcptap.log_store import LogStore, record_from_response
 from mcptap.mcp_intercept import MCPInterceptor, load_intercept_config
 from mcptap.response_flow import handle_responses_with_intercept
+from mcptap.responses import response_json_from_raw
 from mcptap.rewrite import load_per_model_config, rewrite_json_payload
 from mcptap.session import SessionTracker
 from mcptap.settings import LOGGER, settings
 from mcptap.tool_hook import ToolHookGateway
-from mcptap.upstream import create_client_session, forward_rewritten, passthrough
+from mcptap.upstream import (
+    create_client_session,
+    emit_buffered_response,
+    forward_rewritten,
+    passthrough,
+    post_upstream_buffered_with_replay_retry,
+)
 
 
 async def health(_request: web.Request) -> web.Response:
@@ -129,9 +141,90 @@ async def proxy(request: web.Request) -> web.StreamResponse:
     )
 
     is_responses_call = request.method == "POST" and path.rstrip("/").endswith("/responses")
+    replay_context: Optional[ReplayContext] = None
+    if is_responses_call:
+        session_id = request.headers.get("session-id", "").strip() or "default"
+        route_fingerprint = build_route_fingerprint(
+            path=path,
+            model=str(payload.get("model", "")),
+            upstream_base_url=settings.upstream_base_url,
+            upstream_provider=settings.upstream_provider,
+            api_key=settings.api_key,
+            provider=payload.get("provider"),
+        )
+        replay_plan = await session_tracker.prepare_encrypted_replay(
+            session_id,
+            route_fingerprint,
+            payload,
+        )
+        log_replay_sanitization(
+            LOGGER,
+            session_id=session_id,
+            removal=replay_plan.removal,
+            previous_route_fingerprint=replay_plan.previous_route_fingerprint,
+            route_fingerprint=route_fingerprint,
+            reason="model_route_changed",
+        )
+        replay_context = ReplayContext(
+            session_id=session_id,
+            route_fingerprint=route_fingerprint,
+            previous_route_fingerprint=replay_plan.previous_route_fingerprint,
+            retry_on_404=replay_plan.retry_on_404,
+        )
+
     if not is_responses_call or not (intercept.enabled or hook_gateway.enabled):
         log_store: Optional[LogStore] = request.app.get("log_store")
         start_time = time.time()
+        if replay_context is not None and replay_context.retry_on_404:
+            (
+                status,
+                response_headers,
+                response_raw,
+                response_body_json,
+                removal,
+            ) = await post_upstream_buffered_with_replay_retry(
+                session,
+                path,
+                request_headers,
+                payload,
+                client_wanted_stream,
+            )
+            log_replay_sanitization(
+                LOGGER,
+                session_id=replay_context.session_id,
+                removal=removal,
+                previous_route_fingerprint=replay_context.previous_route_fingerprint,
+                route_fingerprint=replay_context.route_fingerprint,
+                reason="upstream_404_retry",
+            )
+            if 200 <= status < 300:
+                await session_tracker.record_encrypted_replay(
+                    replay_context.session_id,
+                    replay_context.route_fingerprint,
+                    payload,
+                    response_body_json,
+                )
+            if log_store and log_store.enabled:
+                record_from_response(
+                    log_store,
+                    request_body=payload,
+                    response_raw=response_raw,
+                    response_body_json=response_body_json,
+                    session_id=replay_context.session_id,
+                    model=forced_model,
+                    provider=settings.openrouter_provider or settings.upstream_provider,
+                    status_code=status,
+                    request_path=path,
+                    stream=client_wanted_stream,
+                    start_time=start_time,
+                )
+            return await emit_buffered_response(
+                request,
+                status=status,
+                headers=response_headers,
+                raw=response_raw,
+            )
+
         resp, response_raw = await forward_rewritten(
             request,
             session,
@@ -139,6 +232,13 @@ async def proxy(request: web.Request) -> web.StreamResponse:
             request_headers,
             payload,
         )
+        if replay_context is not None and 200 <= resp.status < 300:
+            await session_tracker.record_encrypted_replay(
+                replay_context.session_id,
+                replay_context.route_fingerprint,
+                payload,
+                response_json_from_raw(response_raw, client_wanted_stream),
+            )
         if log_store and log_store.enabled and hasattr(resp, "status"):
             record_from_response(
                 log_store,
@@ -166,6 +266,7 @@ async def proxy(request: web.Request) -> web.StreamResponse:
         hook_gateway,
         session_tracker,
         log_store=request.app.get("log_store"),
+        replay_context=replay_context,
     )
 
 
