@@ -8,7 +8,6 @@ returned to the client, and on the next request the hook script decides
 whether to allow or block.
 """
 
-import contextlib
 import copy
 import json
 import time
@@ -20,6 +19,7 @@ from aiohttp import (  # type: ignore
     web,
 )
 
+from mcptap.encrypted_replay import ReplayContext, log_replay_sanitization
 from mcptap.file_block import write_blocklist
 from mcptap.log_store import LogStore, record_from_response
 from mcptap.mcp_intercept import MCPInterceptor
@@ -40,27 +40,11 @@ from mcptap.responses import (
 from mcptap.session import SessionTracker
 from mcptap.settings import LOGGER, settings
 from mcptap.tool_hook import PendingState, ToolHookGateway
-from mcptap.upstream import post_upstream_buffered
-
-
-async def _emit_buffered_response(
-    request: web.Request,
-    status: int,
-    headers: Dict[str, str],
-    raw: bytes,
-) -> web.StreamResponse:
-    response_headers = dict(headers)
-    response_headers.pop("Content-Encoding", None)
-    response_headers.pop("Content-Length", None)
-    if raw and not response_headers.get("Content-Type"):
-        response_headers["Content-Type"] = "application/json"
-    response = web.StreamResponse(status=status, headers=response_headers)
-    await response.prepare(request)
-    with contextlib.suppress(ConnectionResetError, BrokenPipeError):
-        await response.write(raw)
-        await response.write_eof()
-    LOGGER.info("%s %s -> HTTP %s", request.method, request.path_qs, status)
-    return response
+from mcptap.upstream import (
+    emit_buffered_response,
+    post_upstream_buffered,
+    post_upstream_buffered_with_replay_retry,
+)
 
 
 async def handle_responses_with_intercept(
@@ -74,6 +58,7 @@ async def handle_responses_with_intercept(
     hook_gateway: ToolHookGateway,
     session_tracker: SessionTracker,
     log_store: Optional[LogStore] = None,
+    replay_context: Optional[ReplayContext] = None,
 ) -> web.StreamResponse:
     """Talk to upstream in a loop, resolving intercepted tool calls locally
     until the model returns a final response with no intercepted calls.
@@ -125,6 +110,7 @@ async def handle_responses_with_intercept(
             log_store=log_store,
             request_start_time=request_start_time,
             provider=provider,
+            replay_context=replay_context,
         )
 
     last_status = 200
@@ -135,13 +121,30 @@ async def handle_responses_with_intercept(
 
     for iteration in range(settings.intercept_max_iterations):
         try:
-            status, resp_headers, raw, body_json = await post_upstream_buffered(
-                session,
-                path,
-                request_headers,
-                working_payload,
-                stream=client_wanted_stream,
-            )
+            if iteration == 0 and replay_context is not None and replay_context.retry_on_404:
+                status, resp_headers, raw, body_json, removal = await post_upstream_buffered_with_replay_retry(
+                    session,
+                    path,
+                    request_headers,
+                    working_payload,
+                    stream=client_wanted_stream,
+                )
+                log_replay_sanitization(
+                    LOGGER,
+                    session_id=replay_context.session_id,
+                    removal=removal,
+                    previous_route_fingerprint=replay_context.previous_route_fingerprint,
+                    route_fingerprint=replay_context.route_fingerprint,
+                    reason="upstream_404_retry",
+                )
+            else:
+                status, resp_headers, raw, body_json = await post_upstream_buffered(
+                    session,
+                    path,
+                    request_headers,
+                    working_payload,
+                    stream=client_wanted_stream,
+                )
         except (ClientError, OSError) as exc:
             LOGGER.exception("Upstream request failed: %s", exc)
             return web.json_response(
@@ -181,6 +184,14 @@ async def handle_responses_with_intercept(
                 iteration,
             )
             break
+
+        if replay_context is not None:
+            await session_tracker.record_encrypted_replay(
+                replay_context.session_id,
+                replay_context.route_fingerprint,
+                working_payload,
+                body_json,
+            )
 
         if body_json is None:
             LOGGER.warning("Upstream response could not be parsed during intercept loop; forwarding as-is")
@@ -260,9 +271,9 @@ async def handle_responses_with_intercept(
                     )
                     if client_wanted_stream:
                         sse_raw = build_sse_from_response(synthetic)
-                        return await _emit_buffered_response(request, status=200, headers={}, raw=sse_raw)
+                        return await emit_buffered_response(request, status=200, headers={}, raw=sse_raw)
                     else:
-                        return await _emit_buffered_response(
+                        return await emit_buffered_response(
                             request,
                             status=200,
                             headers={"Content-Type": "application/json"},
@@ -297,6 +308,7 @@ async def handle_responses_with_intercept(
                         log_store=log_store,
                         request_start_time=request_start_time,
                         provider=provider,
+                        replay_context=replay_context,
                     )
 
         break
@@ -306,7 +318,7 @@ async def handle_responses_with_intercept(
             settings.intercept_max_iterations,
         )
 
-    return await _emit_buffered_response(
+    return await emit_buffered_response(
         request,
         status=last_status,
         headers=last_headers,
@@ -330,6 +342,7 @@ async def _handle_direct_hook(
     log_store: Optional[LogStore] = None,
     request_start_time: float = 0.0,
     provider: str = "",
+    replay_context: Optional[ReplayContext] = None,
 ) -> web.StreamResponse:
     """Run the hook immediately without injecting a synthetic tool call.
 
@@ -346,9 +359,9 @@ async def _handle_direct_hook(
         error_resp = build_hook_error_response(str(exc), pending_state.forced_model)
         if client_wanted_stream:
             sse_raw = build_sse_from_response(error_resp)
-            return await _emit_buffered_response(request, status=200, headers={}, raw=sse_raw)
+            return await emit_buffered_response(request, status=200, headers={}, raw=sse_raw)
         else:
-            return await _emit_buffered_response(
+            return await emit_buffered_response(
                 request,
                 status=200,
                 headers={"Content-Type": "application/json"},
@@ -381,7 +394,7 @@ async def _handle_direct_hook(
                     session_id,
                 )
 
-        return await _emit_buffered_response(
+        return await emit_buffered_response(
             request,
             status=pending_state.saved_status,
             headers=pending_state.saved_headers,
@@ -428,6 +441,14 @@ async def _handle_direct_hook(
         if tokens > 0:
             await session_tracker.add_usage(session_id, tokens)
 
+    if replay_context is not None and 200 <= status < 300:
+        await session_tracker.record_encrypted_replay(
+            replay_context.session_id,
+            replay_context.route_fingerprint,
+            working_payload,
+            body_json,
+        )
+
     record_from_response(
         log_store,
         request_body=working_payload,
@@ -442,7 +463,7 @@ async def _handle_direct_hook(
         start_time=request_start_time,
     )
 
-    return await _emit_buffered_response(
+    return await emit_buffered_response(
         request,
         status=status,
         headers=resp_headers,
@@ -466,6 +487,7 @@ async def _handle_hook_decision(
     log_store: Optional[LogStore] = None,
     request_start_time: float = 0.0,
     provider: str = "",
+    replay_context: Optional[ReplayContext] = None,
 ) -> web.StreamResponse:
     """Handle the request that follows a synthetic get_goal call.
 
@@ -485,9 +507,9 @@ async def _handle_hook_decision(
         error_resp = build_hook_error_response(str(exc), pending_state.forced_model)
         if client_wanted_stream:
             sse_raw = build_sse_from_response(error_resp)
-            return await _emit_buffered_response(request, status=200, headers={}, raw=sse_raw)
+            return await emit_buffered_response(request, status=200, headers={}, raw=sse_raw)
         else:
-            return await _emit_buffered_response(
+            return await emit_buffered_response(
                 request,
                 status=200,
                 headers={"Content-Type": "application/json"},
@@ -521,7 +543,7 @@ async def _handle_hook_decision(
                     session_id,
                 )
 
-        return await _emit_buffered_response(
+        return await emit_buffered_response(
             request,
             status=pending_state.saved_status,
             headers=pending_state.saved_headers,
@@ -570,6 +592,14 @@ async def _handle_hook_decision(
         if tokens > 0:
             await session_tracker.add_usage(session_id, tokens)
 
+    if replay_context is not None and 200 <= status < 300:
+        await session_tracker.record_encrypted_replay(
+            replay_context.session_id,
+            replay_context.route_fingerprint,
+            working_payload,
+            body_json,
+        )
+
     record_from_response(
         log_store,
         request_body=working_payload,
@@ -584,7 +614,7 @@ async def _handle_hook_decision(
         start_time=request_start_time,
     )
 
-    return await _emit_buffered_response(
+    return await emit_buffered_response(
         request,
         status=status,
         headers=resp_headers,

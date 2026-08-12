@@ -7,6 +7,14 @@ from typing import Any, Dict, Optional
 
 from aiohttp import web  # type: ignore
 
+from mcptap.encrypted_replay import (
+    EncryptedReplayPlan,
+    ReplayItemRemoval,
+    encrypted_replay_hashes_from_payload,
+    encrypted_replay_hashes_from_response,
+    filter_encrypted_replay_items,
+    has_encrypted_replay_items,
+)
 from mcptap.settings import settings
 
 
@@ -37,6 +45,8 @@ class SessionTracker:
 
     def __init__(self) -> None:
         self._sessions: Dict[str, Dict[str, Any]] = {}
+        self._encrypted_replay_hashes: Dict[str, Dict[str, set[str]]] = {}
+        self._last_replay_route: Dict[str, str] = {}
         self._lock = asyncio.Lock()
 
     async def track_request(self, request: web.Request, forced_model: str) -> Dict[str, Any]:
@@ -95,9 +105,67 @@ class SessionTracker:
                 return 0.0
             return time.time() - info["start_time"]
 
+    async def prepare_encrypted_replay(
+        self,
+        session_id: str,
+        route_fingerprint: str,
+        payload: Dict[str, Any],
+    ) -> EncryptedReplayPlan:
+        """Filter replay items that are not valid for the effective upstream route."""
+        if not has_encrypted_replay_items(payload):
+            async with self._lock:
+                return EncryptedReplayPlan(
+                    previous_route_fingerprint=self._last_replay_route.get(session_id),
+                    retry_on_404=False,
+                    removal=ReplayItemRemoval(),
+                )
+
+        async with self._lock:
+            previous_route = self._last_replay_route.get(session_id)
+            allowed_hashes = self._encrypted_replay_hashes.get(session_id, {}).get(route_fingerprint)
+            if allowed_hashes is None and previous_route is None:
+                return EncryptedReplayPlan(
+                    previous_route_fingerprint=None,
+                    retry_on_404=True,
+                    removal=ReplayItemRemoval(),
+                )
+
+            removal = filter_encrypted_replay_items(payload, allowed_hashes or set())
+            return EncryptedReplayPlan(
+                previous_route_fingerprint=previous_route,
+                retry_on_404=False,
+                removal=removal,
+            )
+
+    async def record_encrypted_replay(
+        self,
+        session_id: str,
+        route_fingerprint: str,
+        request_payload: Dict[str, Any],
+        response_body: Optional[Dict[str, Any]],
+    ) -> None:
+        """Record encrypted replay items accepted by a successful upstream route."""
+        request_hashes = encrypted_replay_hashes_from_payload(request_payload)
+        response_hashes = encrypted_replay_hashes_from_response(response_body)
+
+        async with self._lock:
+            if session_id not in self._sessions:
+                ts = uuid_v7_timestamp(session_id)
+                self._sessions[session_id] = {
+                    "session_id": session_id,
+                    "start_time": ts if ts is not None else time.time(),
+                    "total_tokens": 0,
+                    "forced_model": settings.model,
+                }
+            hashes_by_route = self._encrypted_replay_hashes.setdefault(session_id, {})
+            hashes_by_route.setdefault(route_fingerprint, set()).update(request_hashes | response_hashes)
+            self._last_replay_route[session_id] = route_fingerprint
+
     async def cleanup_expired(self) -> None:
         now = time.time()
         async with self._lock:
             expired = [sid for sid, info in self._sessions.items() if now - info["start_time"] > 3600]
             for sid in expired:
                 del self._sessions[sid]
+                self._encrypted_replay_hashes.pop(sid, None)
+                self._last_replay_route.pop(sid, None)

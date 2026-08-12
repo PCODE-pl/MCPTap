@@ -12,8 +12,13 @@ from aiohttp import (  # type: ignore
     web,
 )
 
+from mcptap.encrypted_replay import (
+    ReplayItemRemoval,
+    filter_encrypted_replay_items,
+    is_encrypted_replay_error,
+)
 from mcptap.http_utils import filtered_headers, log_communication
-from mcptap.responses import response_json_from_sse
+from mcptap.responses import response_json_from_raw
 from mcptap.settings import LOGGER, settings
 
 
@@ -57,17 +62,61 @@ async def post_upstream_buffered(
 
     # Parse the body for all status codes, not just < 400, so that error
     # responses (429, 500, etc.) are also available for logging and inspection.
-    body_json: Optional[Dict[str, Any]] = None
-    if stream:
-        body_json = response_json_from_sse(raw)
-    else:
-        try:
-            candidate = json.loads(raw.decode("utf-8"))
-            if isinstance(candidate, dict):
-                body_json = candidate
-        except (UnicodeDecodeError, json.JSONDecodeError):
-            body_json = None
+    body_json = response_json_from_raw(raw, stream)
     return resp.status, response_headers, raw, body_json
+
+
+async def post_upstream_buffered_with_replay_retry(
+    session: ClientSession,
+    path: str,
+    headers: Dict[str, str],
+    body: Dict[str, Any],
+    stream: bool,
+) -> Tuple[int, Dict[str, str], bytes, Optional[Dict[str, Any]], ReplayItemRemoval]:
+    """Retry once after removing encrypted replay items rejected by upstream."""
+    status, response_headers, raw, body_json = await post_upstream_buffered(
+        session,
+        path,
+        headers,
+        body,
+        stream,
+    )
+    if not is_encrypted_replay_error(status, body_json):
+        return status, response_headers, raw, body_json, ReplayItemRemoval()
+
+    removal = filter_encrypted_replay_items(body, set())
+    if not removal.total:
+        return status, response_headers, raw, body_json, removal
+
+    status, response_headers, raw, body_json = await post_upstream_buffered(
+        session,
+        path,
+        headers,
+        body,
+        stream,
+    )
+    return status, response_headers, raw, body_json, removal
+
+
+async def emit_buffered_response(
+    request: web.Request,
+    status: int,
+    headers: Dict[str, str],
+    raw: bytes,
+) -> web.StreamResponse:
+    """Write a buffered upstream response to the client."""
+    response_headers = dict(headers)
+    response_headers.pop("Content-Encoding", None)
+    response_headers.pop("Content-Length", None)
+    if raw and not response_headers.get("Content-Type"):
+        response_headers["Content-Type"] = "application/json"
+    response = web.StreamResponse(status=status, headers=response_headers)
+    await response.prepare(request)
+    with contextlib.suppress(ConnectionResetError, BrokenPipeError):
+        await response.write(raw)
+        await response.write_eof()
+    LOGGER.info("%s %s -> HTTP %s", request.method, request.path_qs, status)
+    return response
 
 
 async def passthrough(
