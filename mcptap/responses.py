@@ -289,7 +289,9 @@ def response_json_from_sse(raw: bytes) -> Optional[Dict[str, Any]]:
 def response_json_from_raw(raw: bytes, stream: bool) -> Optional[Dict[str, Any]]:
     """Parse an upstream Responses API body from JSON or SSE bytes."""
     if stream:
-        return response_json_from_sse(raw)
+        sse_response = response_json_from_sse(raw)
+        if sse_response is not None:
+            return sse_response
     try:
         candidate = json.loads(raw.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError):
