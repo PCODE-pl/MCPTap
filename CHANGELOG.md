@@ -1,6 +1,26 @@
 <!-- markdownlint-disable MD024 -->
 # Changelog
 
+## [2.8.1]
+
+### Added
+
+- **Credit-checker recovery regression test** — added one test,
+  `test_api_failure_does_not_reset_credit_baseline` in
+  `tests/test_credits_checker.py`, covering recovery after a failed credits
+  API request.
+
+### Fixed
+
+- **False cumulative credit mismatches** — `LogStore.get_last_credit_snapshot`
+  now ignores `status="error"` snapshots when selecting the remote usage
+  baseline, preventing transient provider API failures from producing large
+  false discrepancies after recovery.
+
+### Full Changelog
+
+[https://github.com/PCODE-pl/MCPTap/compare/v2.8.0...v2.8.1](https://github.com/PCODE-pl/MCPTap/compare/v2.8.0...v2.8.1)
+
 ## [2.8.0]
 
 ### Added
