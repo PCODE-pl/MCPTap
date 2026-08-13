@@ -380,7 +380,7 @@ class LogStore:
         self,
         provider: str,
     ) -> Optional[Dict[str, Any]]:
-        """Return the most recent credit snapshot for *provider*, or None."""
+        """Return the most recent remote credit snapshot for *provider*."""
         conn = self.connect()
         row = conn.execute(
             """
@@ -388,7 +388,7 @@ class LogStore:
                    total_credits, total_usage, local_cost_sum,
                    request_count, discrepancy, status
             FROM credit_snapshots
-            WHERE provider = ?
+            WHERE provider = ? AND status IN ('ok', 'mismatch')
             ORDER BY fetched_at DESC
             LIMIT 1
             """,
