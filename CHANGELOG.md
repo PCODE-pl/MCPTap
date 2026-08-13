@@ -1,6 +1,40 @@
 <!-- markdownlint-disable MD024 -->
 # Changelog
 
+## [2.8.0]
+
+### Added
+
+- **Encrypted replay tracking** — new `mcptap/encrypted_replay.py` helpers
+  fingerprint effective upstream routes, hash model-bound encrypted items, and
+  filter invalid reasoning and compaction payloads without exposing encrypted
+  content in diagnostics.
+
+- **Encrypted replay test coverage** — added nine tests in
+  `tests/test_encrypted_replay.py` across `TestEncryptedReplayFiltering`,
+  `TestEncryptedReplayRetry`, `TestResponsesApiParsing`,
+  `TestProxyEncryptedReplay`, and `TestEncryptedReplayLogging`.
+
+### Changed
+
+- **Encrypted Responses replay handling** — successful encrypted reasoning and
+  compaction items are tracked per session and upstream route. Stale items are
+  removed after route changes, and matching upstream 404 rejections trigger a
+  single retry with sanitized input for buffered and streamed Responses API
+  requests.
+
+- **Streaming error parsing** — streamed Responses API bodies are now parsed
+  as JSON when they contain an error response, allowing encrypted replay retry
+  detection to work consistently across response modes.
+
+- **Credit snapshot lifecycle** — provider reloads no longer create synthetic
+  zero-usage switch snapshots; provider-scoped request logs and valid remote
+  snapshots remain the source of credit usage history.
+
+### Full Changelog
+
+[https://github.com/PCODE-pl/MCPTap/compare/v2.7.0...v2.8.0](https://github.com/PCODE-pl/MCPTap/compare/v2.7.0...v2.8.0)
+
 ## [2.7.0]
 
 ### Added
