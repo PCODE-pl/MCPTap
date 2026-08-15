@@ -7,7 +7,7 @@ from typing import Any, Dict, Iterable, List, Optional
 
 from aiohttp import ClientError, ClientSession, ClientTimeout  # type: ignore
 
-from mcptap.settings import settings
+from mcptap.settings import PROVIDER_OPENROUTER, get_provider_api_key
 
 BENCHMARK_ENDPOINT = (
     "https://openrouter.ai/api/v1/benchmarks?source=openrouter&benchmark_type=tau_bench_verified_airline"
@@ -87,11 +87,16 @@ class OpenRouterBenchmarkProvider:
         self._timeout = ClientTimeout(total=timeout_seconds)
 
     def _get_api_key(self) -> str:
-        api_key = self._api_key if self._api_key is not None else settings.api_key
-        api_key = api_key.strip()
-        if not api_key:
-            raise OpenRouterBenchmarkError("MCP_TAP_API_KEY must not be empty")
-        return api_key
+        if self._api_key is not None:
+            api_key = self._api_key.strip()
+            if not api_key:
+                raise OpenRouterBenchmarkError("OpenRouter API key must not be empty")
+            return api_key
+
+        try:
+            return get_provider_api_key(PROVIDER_OPENROUTER)
+        except (RuntimeError, ValueError) as exc:
+            raise OpenRouterBenchmarkError(str(exc)) from exc
 
     async def fetch_benchmark(self) -> Dict[str, Any]:
         """Fetch and return the complete OpenRouter benchmark response."""
