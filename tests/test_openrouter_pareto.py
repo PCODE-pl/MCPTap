@@ -42,7 +42,13 @@ def test_calculate_pareto_frontier_keeps_non_dominated_records(records, expected
 
 
 @pytest.mark.asyncio
-async def test_fetch_benchmark_uses_configured_token_and_endpoint(monkeypatch):
+async def test_fetch_benchmark_uses_openrouter_env_token_and_endpoint(tmp_path, monkeypatch):
+    config_dir = tmp_path / "mcptap"
+    config_dir.mkdir()
+    (config_dir / "openrouter.env").write_text("MCP_TAP_API_KEY=openrouter-token\n")
+    monkeypatch.setattr("mcptap.settings.CONFIG_DIR", config_dir)
+    monkeypatch.setattr("mcptap.settings.settings.api_key", "active-requesty-token")
+
     requests = []
 
     async def handler(request):
@@ -64,10 +70,6 @@ async def test_fetch_benchmark_uses_configured_token_and_endpoint(monkeypatch):
     app.router.add_get("/benchmarks", handler)
 
     async with TestServer(app) as server:
-        monkeypatch.setattr(
-            "mcptap.pareto.openrouter.settings.api_key",
-            "configured-openrouter-token",
-        )
         provider = OpenRouterBenchmarkProvider(
             endpoint=f"{server.make_url('/benchmarks')}?source=openrouter&benchmark_type=tau_bench_verified_airline"
         )
@@ -75,13 +77,18 @@ async def test_fetch_benchmark_uses_configured_token_and_endpoint(monkeypatch):
         response = await provider.fetch_benchmark()
 
     assert response["meta"] == {"source": "openrouter"}
-    assert requests[0].headers["Authorization"] == "Bearer configured-openrouter-token"
+    assert requests[0].headers["Authorization"] == "Bearer openrouter-token"
     assert requests[0].query["source"] == "openrouter"
     assert requests[0].query["benchmark_type"] == "tau_bench_verified_airline"
 
 
 @pytest.mark.asyncio
-async def test_fetch_pareto_returns_filtered_benchmark_records(monkeypatch):
+async def test_fetch_pareto_returns_filtered_benchmark_records(tmp_path, monkeypatch):
+    config_dir = tmp_path / "mcptap"
+    config_dir.mkdir()
+    (config_dir / "openrouter.env").write_text("MCP_TAP_API_KEY=openrouter-token\n")
+    monkeypatch.setattr("mcptap.settings.CONFIG_DIR", config_dir)
+
     async def handler(_request):
         return web.json_response(
             {
@@ -109,7 +116,6 @@ async def test_fetch_pareto_returns_filtered_benchmark_records(monkeypatch):
     app.router.add_get("/benchmarks", handler)
 
     async with TestServer(app) as server:
-        monkeypatch.setattr("mcptap.pareto.openrouter.settings.api_key", "test-token")
         provider = OpenRouterBenchmarkProvider(endpoint=str(server.make_url("/benchmarks")))
 
         result = await provider.fetch_pareto()

@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Set
 
-from dotenv import load_dotenv  # type: ignore
+from dotenv import dotenv_values, load_dotenv  # type: ignore
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -45,6 +45,25 @@ HOP_BY_HOP_HEADERS: Set[str] = {
 }
 
 CONFIG_DIR = Path.home() / ".config/mcptap"
+
+_PROVIDER_ENV_FILES = {
+    PROVIDER_OPENROUTER: "openrouter.env",
+    PROVIDER_REQUESTY: "requesty.env",
+}
+
+
+def get_provider_api_key(provider: str) -> str:
+    """Read an API key directly from the selected provider configuration file."""
+    provider_name = provider.strip().lower()
+    provider_env_file = _PROVIDER_ENV_FILES.get(provider_name)
+    if provider_env_file is None:
+        raise ValueError(f"Unsupported provider: {provider}")
+
+    api_key = (dotenv_values(CONFIG_DIR / provider_env_file).get("MCP_TAP_API_KEY") or "").strip()
+    if not api_key:
+        raise RuntimeError(f"MCP_TAP_API_KEY must not be empty in {provider_env_file}")
+    return api_key
+
 
 # Keys that ``load_dotenv`` injects from provider env files. These must be
 # cleaned from ``os.environ`` before loading a different provider file to avoid
@@ -121,6 +140,9 @@ class Settings:
     # Request log database
     log_db_path: str
     log_retention_days: int
+
+    # Pareto data provider
+    pareto_provider: str = PROVIDER_OPENROUTER
 
 
 class _SettingsProxy:
@@ -267,6 +289,7 @@ def _build_settings() -> Settings:
         per_session_dir=(os.environ.get("MCP_TAP_PER_SESSION_DIR") or "/tmp/mcptap/per_session").strip(),
         log_db_path=(os.environ.get("MCP_TAP_LOG_DB") or os.path.expanduser("~/.local/share/mcptap/logs.db")).strip(),
         log_retention_days=int(os.environ.get("MCP_TAP_LOG_RETENTION_DAYS", "30")),
+        pareto_provider=(os.environ.get("MCP_TAP_PARETO_PROVIDER") or PROVIDER_OPENROUTER).strip().lower(),
     )
 
 
