@@ -65,3 +65,28 @@ def test_meta_tool_schema_transformation_applies_to_nested_objects():
     assert nested_schema["type"] == ["object", "null"]
     assert nested_schema["required"] == ["verbose"]
     assert nested_schema["properties"]["verbose"]["type"] == ["boolean", "null"]
+
+
+def test_meta_tool_schema_transformation_drops_search_content_types_from_non_preview_tools():
+    payload = {
+        "model": "client-model",
+        "input": [],
+        "tools": [
+            {
+                "type": "function",
+                "name": "search",
+                "search_content_types": ["text"],
+                "parameters": {"type": "object", "properties": {}},
+            },
+            {
+                "type": "web_search_preview",
+                "search_content_types": ["text"],
+            },
+        ],
+    }
+
+    with patch.object(settings, "upstream_provider", PROVIDER_META):
+        rewrite_json_payload(MagicMock(method="POST", path_qs="/v1/responses"), payload, MCPInterceptor(None), {})
+
+    assert "search_content_types" not in payload["tools"][0]
+    assert payload["tools"][1]["search_content_types"] == ["text"]
