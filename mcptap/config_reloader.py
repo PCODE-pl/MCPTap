@@ -8,6 +8,7 @@ cascade when any of them changes:
   requesty.env      -> reload env files + Settings + all dependent components
   meta.env          -> reload env files + Settings + all dependent components
   nano-gpt.env      -> reload env files + Settings + all dependent components
+  llmtr.env         -> reload env files + Settings + all dependent components
   mcp-intercept.yaml -> reload MCPInterceptor (stop old subprocess, start new)
   per-model.yaml    -> reload per-model config dict
   use_tool_hook.py   -> reload tool hook enabled flag + Settings (path may change)
@@ -34,6 +35,7 @@ _FILE_OPENROUTER_ENV = "openrouter.env"
 _FILE_REQUESTY_ENV = "requesty.env"
 _FILE_META_ENV = "meta.env"
 _FILE_NANO_GPT_ENV = "nano-gpt.env"
+_FILE_LLMTR_ENV = "llmtr.env"
 _FILE_INTERCEPT_YAML = "mcp-intercept.yaml"
 _FILE_PER_MODEL_YAML = "per-model.yaml"
 _FILE_USE_TOOL_HOOK = "use_tool_hook.py"
@@ -45,6 +47,7 @@ _ENV_FILES = {
     _FILE_REQUESTY_ENV,
     _FILE_META_ENV,
     _FILE_NANO_GPT_ENV,
+    _FILE_LLMTR_ENV,
 }
 
 # Files whose content is embedded in settings (path stored in proxy.env).

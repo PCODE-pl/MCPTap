@@ -140,6 +140,7 @@ openrouter.env     OpenRouter model and API key configuration
 requesty.env       Requesty model and API key configuration
 meta.env           Meta model and API key configuration
 nano-gpt.env       NanoGPT model and API key configuration
+llmtr.env          LLMTR model and API key configuration
 mcp-intercept.yaml optional MCP tool interception configuration
 per-model.yaml     optional per-model instruction overrides
 use_tool_hook.py   optional tool-call hook script (runs before client tool calls)
@@ -178,6 +179,7 @@ openrouter
 requesty
 meta
 nano-gpt
+llmtr
 ```
 
 ### 2. Configure the provider
@@ -228,6 +230,20 @@ Example:
 MCP_TAP_API_KEY=sk-nano-...
 MCP_TAP_MODEL=openai/gpt-5.6-sol
 MCP_TAP_PLAN_MODE_MODEL=openai/gpt-5.6-sol
+```
+
+For LLMTR, edit:
+
+```sh
+~/.config/mcptap/llmtr.env
+```
+
+Example:
+
+```env
+MCP_TAP_API_KEY=llmtr-...
+MCP_TAP_MODEL=zai/glm-5.2
+MCP_TAP_PLAN_MODE_MODEL=zai/glm-5.2
 ```
 
 ## Codex configuration
@@ -421,7 +437,7 @@ The list of issues that MCPTap addresses (at least partially): [docs/ISSUES.md](
 | `MCP_TAP_LOG_FILE`                              |                     empty | Optional communication log file path.                               |
 | `LOG_FILE_REDACT_HEADERS`                       |                       `0` | Redact sensitive headers in communication logs when true.           |
 
-### `openrouter.env`, `requesty.env`, `meta.env`, `nano-gpt.env`
+### `openrouter.env`, `requesty.env`, `meta.env`, `nano-gpt.env`, `llmtr.env`
 
 | Variable                  | Required | Description                                 |
 | ------------------------- | -------: | ------------------------------------------- |
