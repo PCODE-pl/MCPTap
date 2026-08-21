@@ -260,6 +260,9 @@ z-ai/glm-5.2:
 policy/free-fallback-to-paid:
   instructions: |
     Keep answers compact unless the user explicitly asks for detail.
+
+muse/spark:
+  disable_builtin_tools: true
 ```
 
 Notes:
@@ -268,6 +271,7 @@ Notes:
 * model suffixes such as `:floor` are ignored for matching fallback,
 * OpenRouter presets such as `@preset/name` are supported,
 * Requesty policies such as `policy/name` are supported,
+* `disable_builtin_tools: true` removes Responses built-in tool types for that model while preserving function tools,
 * instructions are injected only on the first request, not on follow-up requests using `previous_response_id`.
 
 ## 7. Tool-call hook
