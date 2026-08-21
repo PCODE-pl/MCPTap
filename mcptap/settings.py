@@ -21,6 +21,7 @@ from dotenv import dotenv_values, load_dotenv  # type: ignore
 PROVIDER_OPENROUTER = "openrouter"
 PROVIDER_REQUESTY = "requesty"
 PROVIDER_META = "meta"
+PROVIDER_NANO_GPT = "nano-gpt"
 
 SYNTHETIC_GET_GOAL_CALL_ID = "synthetic_get_goal"
 SYNTHETIC_GET_GOAL_TOOL_NAME = "get_goal"
@@ -51,6 +52,14 @@ _PROVIDER_ENV_FILES = {
     PROVIDER_OPENROUTER: "openrouter.env",
     PROVIDER_REQUESTY: "requesty.env",
     PROVIDER_META: "meta.env",
+    PROVIDER_NANO_GPT: "nano-gpt.env",
+}
+
+_UPSTREAM_BASE_URLS = {
+    PROVIDER_OPENROUTER: "https://openrouter.ai/api/v1",
+    PROVIDER_REQUESTY: "https://router.requesty.ai/v1",
+    PROVIDER_META: "https://api.meta.ai/v1",
+    PROVIDER_NANO_GPT: "https://api.nano-gpt.com/api/v1",
 }
 
 
@@ -185,17 +194,11 @@ def _load_env_files() -> None:
     """
     load_dotenv(CONFIG_DIR / "proxy.env", override=True)
 
-    upstream_provider = os.environ.get("MCP_TAP_UPSTREAM_PROVIDER") or ""
+    upstream_provider = (os.environ.get("MCP_TAP_UPSTREAM_PROVIDER") or "").strip().lower()
 
-    provider_env_file = ""
-    if PROVIDER_OPENROUTER == upstream_provider:
-        provider_env_file = "openrouter.env"
-    elif PROVIDER_REQUESTY == upstream_provider:
-        provider_env_file = "requesty.env"
-    elif PROVIDER_META == upstream_provider:
-        provider_env_file = "meta.env"
+    provider_env_file = _PROVIDER_ENV_FILES.get(upstream_provider, "")
     if not provider_env_file:
-        raise RuntimeError("MCP_TAP_UPSTREAM_PROVIDER must be one of 'openrouter' or 'requesty'")
+        raise RuntimeError("MCP_TAP_UPSTREAM_PROVIDER must be one of 'openrouter', 'requesty', 'meta', 'nano-gpt'")
 
     # Remove stale provider-specific keys before loading the new provider file.
     for key in _PROVIDER_ENV_KEYS:
@@ -206,21 +209,12 @@ def _load_env_files() -> None:
 
 def _build_settings() -> Settings:
     """Build a Settings instance from the current os.environ."""
-    upstream_provider = os.environ.get("MCP_TAP_UPSTREAM_PROVIDER") or ""
+    upstream_provider = (os.environ.get("MCP_TAP_UPSTREAM_PROVIDER") or "").strip().lower()
 
-    upstream_base_url = ""
-    provider_env_file = ""
-    if PROVIDER_OPENROUTER == upstream_provider:
-        upstream_base_url = "https://openrouter.ai/api/v1"
-        provider_env_file = "openrouter.env"
-    elif PROVIDER_REQUESTY == upstream_provider:
-        upstream_base_url = "https://router.requesty.ai/v1"
-        provider_env_file = "requesty.env"
-    elif PROVIDER_META == upstream_provider:
-        upstream_base_url = "https://api.meta.ai/v1"
-        provider_env_file = "meta.env"
+    upstream_base_url = _UPSTREAM_BASE_URLS.get(upstream_provider, "")
+    provider_env_file = _PROVIDER_ENV_FILES.get(upstream_provider, "")
     if not upstream_base_url:
-        raise RuntimeError("MCP_TAP_UPSTREAM_PROVIDER must be one of 'openrouter', 'requesty', 'meta'")
+        raise RuntimeError("MCP_TAP_UPSTREAM_PROVIDER must be one of 'openrouter', 'requesty', 'meta', 'nano-gpt'")
 
     api_key = (os.environ.get("MCP_TAP_API_KEY") or "").strip()
     if not api_key:
