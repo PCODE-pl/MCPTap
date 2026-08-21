@@ -90,3 +90,46 @@ def test_meta_tool_schema_transformation_drops_search_content_types_from_non_pre
 
     assert "search_content_types" not in payload["tools"][0]
     assert payload["tools"][1]["search_content_types"] == ["text"]
+
+
+def test_meta_drops_unsupported_tool_types_and_rewrites_web_search():
+    payload = {
+        "model": "client-model",
+        "input": [],
+        "tools": [
+            {"type": "custom", "name": "apply_patch", "description": "x", "format": {"type": "grammar"}},
+            {
+                "type": "tool_search",
+                "execution": "client",
+                "parameters": {
+                    "type": "object",
+                    "properties": {"limit": {"type": "number"}, "query": {"type": "string"}},
+                    "required": ["query"],
+                },
+            },
+            {"type": "web_search", "search_content_types": ["text", "image"], "external_web_access": True},
+            {
+                "type": "function",
+                "name": "exec",
+                "parameters": {
+                    "type": "object",
+                    "properties": {"cmd": {"type": "string"}, "workdir": {"type": "string"}},
+                    "required": ["cmd"],
+                },
+            },
+        ],
+    }
+
+    with patch.object(settings, "upstream_provider", PROVIDER_META):
+        rewrite_json_payload(MagicMock(method="POST", path_qs="/v1/responses"), payload, MCPInterceptor(None), {})
+
+    types = [t["type"] for t in payload["tools"]]
+    assert "custom" not in types
+    assert "tool_search" not in types
+    assert "web_search" not in types
+    assert "web_search_preview" in types
+    # web_search_preview keeps only "text" for Meta (image is unsupported)
+    assert payload["tools"][0]["search_content_types"] == ["text"]
+    exec_tool = next(t for t in payload["tools"] if t.get("name") == "exec")
+    assert exec_tool["parameters"]["required"] == ["cmd", "workdir"]
+    assert exec_tool["parameters"]["properties"]["workdir"]["type"] == ["string", "null"]
