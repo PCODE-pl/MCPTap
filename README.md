@@ -138,6 +138,7 @@ Important files:
 proxy.env          main MCPTap configuration
 openrouter.env     OpenRouter model and API key configuration
 requesty.env       Requesty model and API key configuration
+meta.env           Meta model and API key configuration
 mcp-intercept.yaml optional MCP tool interception configuration
 per-model.yaml     optional per-model instruction overrides
 use_tool_hook.py   optional tool-call hook script (runs before client tool calls)
@@ -204,6 +205,12 @@ Example:
 MCP_TAP_API_KEY=rqsty-sk-...
 MCP_TAP_MODEL=nvidia/nemotron-3-nano-30b-a3b:free
 MCP_TAP_PLAN_MODE_MODEL=zai/glm-5.2:floor
+```
+
+For Meta, edit:
+
+```sh
+~/.config/mcptap/meta.env
 ```
 
 ## Codex configuration
@@ -397,7 +404,7 @@ The list of issues that MCPTap addresses (at least partially): [docs/ISSUES.md](
 | `MCP_TAP_LOG_FILE`                              |                     empty | Optional communication log file path.                               |
 | `LOG_FILE_REDACT_HEADERS`                       |                       `0` | Redact sensitive headers in communication logs when true.           |
 
-### `openrouter.env` and `requesty.env`
+### `openrouter.env`, `requesty.env`, `meta.env`
 
 | Variable                  | Required | Description                                 |
 | ------------------------- | -------: | ------------------------------------------- |
