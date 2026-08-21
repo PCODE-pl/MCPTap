@@ -22,6 +22,7 @@ PROVIDER_OPENROUTER = "openrouter"
 PROVIDER_REQUESTY = "requesty"
 PROVIDER_META = "meta"
 PROVIDER_NANO_GPT = "nano-gpt"
+PROVIDER_LLMTR = "llmtr"
 
 SYNTHETIC_GET_GOAL_CALL_ID = "synthetic_get_goal"
 SYNTHETIC_GET_GOAL_TOOL_NAME = "get_goal"
@@ -53,6 +54,7 @@ _PROVIDER_ENV_FILES = {
     PROVIDER_REQUESTY: "requesty.env",
     PROVIDER_META: "meta.env",
     PROVIDER_NANO_GPT: "nano-gpt.env",
+    PROVIDER_LLMTR: "llmtr.env",
 }
 
 _UPSTREAM_BASE_URLS = {
@@ -60,6 +62,7 @@ _UPSTREAM_BASE_URLS = {
     PROVIDER_REQUESTY: "https://router.requesty.ai/v1",
     PROVIDER_META: "https://api.meta.ai/v1",
     PROVIDER_NANO_GPT: "https://api.nano-gpt.com/api/v1",
+    PROVIDER_LLMTR: "https://llmtr.com/v1",
 }
 
 
@@ -198,7 +201,9 @@ def _load_env_files() -> None:
 
     provider_env_file = _PROVIDER_ENV_FILES.get(upstream_provider, "")
     if not provider_env_file:
-        raise RuntimeError("MCP_TAP_UPSTREAM_PROVIDER must be one of 'openrouter', 'requesty', 'meta', 'nano-gpt'")
+        raise RuntimeError(
+            "MCP_TAP_UPSTREAM_PROVIDER must be one of 'openrouter', 'requesty', 'meta', 'nano-gpt', 'llmtr'"
+        )
 
     # Remove stale provider-specific keys before loading the new provider file.
     for key in _PROVIDER_ENV_KEYS:
@@ -214,7 +219,9 @@ def _build_settings() -> Settings:
     upstream_base_url = _UPSTREAM_BASE_URLS.get(upstream_provider, "")
     provider_env_file = _PROVIDER_ENV_FILES.get(upstream_provider, "")
     if not upstream_base_url:
-        raise RuntimeError("MCP_TAP_UPSTREAM_PROVIDER must be one of 'openrouter', 'requesty', 'meta', 'nano-gpt'")
+        raise RuntimeError(
+            "MCP_TAP_UPSTREAM_PROVIDER must be one of 'openrouter', 'requesty', 'meta', 'nano-gpt', 'llmtr'"
+        )
 
     api_key = (os.environ.get("MCP_TAP_API_KEY") or "").strip()
     if not api_key:

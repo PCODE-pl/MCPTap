@@ -143,6 +143,27 @@ uses `https://nano-gpt.com/api/v1` as the website host alias — MCPTap uses the
 dedicated `https://api.nano-gpt.com/api/v1` host which has a higher ingress
 limit (32 MiB) required for long-running agents.
 
+## 4b. LLMTR notes
+
+When using LLMTR:
+
+```env
+MCP_TAP_UPSTREAM_PROVIDER=llmtr
+```
+
+MCPTap forwards requests to:
+
+```text
+https://llmtr.com/v1
+```
+
+LLMTR is an OpenAI-compatible AI gateway that exposes GPT, Claude, Gemini,
+Qwen, Z.AI GLM and Turkey-hosted models behind a single `llmtr-` prefixed API
+key. Model IDs use the canonical `provider/model` format (e.g. `zai/glm-5.2`),
+which MCPTap passes through unchanged. Authentication uses a Bearer token
+(`Authorization: Bearer llmtr-...`). No per-provider payload rewriting is
+needed; LLMTR accepts the standard OpenAI-compatible tool schemas.
+
 ## 5. MCP tool interception
 
 MCPTap can expose selected MCP tools to the model as normal function tools.

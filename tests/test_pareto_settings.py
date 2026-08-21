@@ -60,6 +60,33 @@ def test_nano_gpt_provider_loads_settings_and_credentials(tmp_path, monkeypatch)
         assert get_provider_api_key("NANO-GPT") == "sk-nano-test"
 
 
+def test_llmtr_provider_loads_settings_and_credentials(tmp_path, monkeypatch):
+    config_dir = tmp_path / "mcptap"
+    config_dir.mkdir()
+    (config_dir / "proxy.env").write_text(
+        "MCP_TAP_UPSTREAM_PROVIDER= LLMTR \nMCP_TAP_LISTEN_HOST=127.0.0.1\nMCP_TAP_LISTEN_PORT=8787\n"
+    )
+    (config_dir / "llmtr.env").write_text(
+        "MCP_TAP_API_KEY=llmtr-test\nMCP_TAP_MODEL=zai/glm-5.2\nMCP_TAP_PLAN_MODE_MODEL=zai/glm-5.2\n"
+    )
+    for key in (
+        "MCP_TAP_API_KEY",
+        "MCP_TAP_MODEL",
+        "MCP_TAP_PLAN_MODE_MODEL",
+        "MCP_TAP_UPSTREAM_PROVIDER",
+    ):
+        monkeypatch.delenv(key, raising=False)
+
+    with patch("mcptap.settings.CONFIG_DIR", config_dir):
+        _load_env_files()
+        settings = _build_settings()
+        assert settings.upstream_provider == "llmtr"
+        assert settings.upstream_base_url == "https://llmtr.com/v1"
+        assert settings.provider_env_file == "llmtr.env"
+        assert settings.api_key == "llmtr-test"
+        assert get_provider_api_key("LLMTR") == "llmtr-test"
+
+
 def test_get_provider_api_key_rejects_unknown_provider():
     with pytest.raises(ValueError, match="Unsupported provider"):
         get_provider_api_key("unknown")

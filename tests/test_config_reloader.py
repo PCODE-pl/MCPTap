@@ -22,6 +22,7 @@ if sys_path not in sys.path:
 
 from mcptap.config_reloader import (  # noqa: E402
     _ENV_FILES,
+    _FILE_LLMTR_ENV,
     _FILE_NANO_GPT_ENV,
     ConfigReloader,
     reload_env_and_propagate,
@@ -165,6 +166,10 @@ class TestStaleEnvCleanup:
 
 def test_nano_gpt_env_is_watched_for_reload():
     assert _FILE_NANO_GPT_ENV in _ENV_FILES
+
+
+def test_llmtr_env_is_watched_for_reload():
+    assert _FILE_LLMTR_ENV in _ENV_FILES
 
 
 class TestConfigReloaderMtime:
