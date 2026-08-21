@@ -20,7 +20,8 @@ from mcptap.settings import (
 def load_per_model_config() -> Dict[str, Dict[str, Any]]:
     """Load per-model configuration from MCP_TAP_PER_MODEL_YAML.
 
-    Returns a dict mapping model identifiers to their config (e.g. instructions).
+    Returns a dict mapping model identifiers to their config (e.g. instructions
+    or per-model tool compatibility options).
     Supports model names with suffixes like ':floor' (suffix is ignored for matching).
     Also supports '@preset/name' and 'policy/name' entries.
     """
@@ -43,7 +44,7 @@ def load_per_model_config() -> Dict[str, Dict[str, Any]]:
         if not isinstance(cfg, dict):
             continue
         base_model = model_key.split(":")[0] if ":" in model_key else model_key
-        if isinstance(cfg.get("instructions"), str):
+        if isinstance(cfg.get("instructions"), str) or isinstance(cfg.get("disable_builtin_tools"), bool):
             result[model_key] = cfg
             if base_model != model_key:
                 result[base_model] = cfg
@@ -174,6 +175,24 @@ _META_UNSUPPORTED_TOOL_TYPES = {
     "code_interpreter",
 }
 
+_BUILTIN_RESPONSES_TOOL_TYPES = {
+    "web_search",
+    "web_search_preview",
+    "file_search",
+    "computer_use",
+    "computer_use_preview",
+    "code_interpreter",
+    "image_generation",
+    "tool_search",
+}
+
+
+def _get_per_model_config(model: str, per_model_config: Dict[str, Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    config = per_model_config.get(model)
+    if config is None and model:
+        config = per_model_config.get(model.split(":")[0])
+    return config
+
 
 def _transform_meta_tool_schemas(payload: Dict[str, Any]) -> None:
     tools = payload.get("tools")
@@ -233,17 +252,31 @@ def _inject_per_model_instructions(
     if payload.get("previous_response_id") is not None:
         return
 
-    config = per_model_config.get(model)
-    if config is None:
-        if model:
-            base = model.split(":")[0]
-            config = per_model_config.get(base)
-        else:
-            return
-
-    if config and "instructions" in config:
-        payload["instructions"] = payload.get("instructions", "") + "\n\n" + config["instructions"]
+    config = _get_per_model_config(model, per_model_config)
+    instructions = config.get("instructions") if config else None
+    if isinstance(instructions, str):
+        payload["instructions"] = payload.get("instructions", "") + "\n\n" + instructions
         LOGGER.debug("Injected per-model instructions for model=%s", model)
+
+
+def _disable_per_model_builtin_tools(
+    payload: Dict[str, Any],
+    model: str,
+    per_model_config: Dict[str, Dict[str, Any]],
+) -> None:
+    """Remove Responses built-in tools for models that do not support them."""
+    config = _get_per_model_config(model, per_model_config)
+    if not config or config.get("disable_builtin_tools") is not True:
+        return
+
+    tools = payload.get("tools")
+    if not isinstance(tools, list):
+        return
+
+    payload["tools"] = [
+        tool for tool in tools if not isinstance(tool, dict) or tool.get("type") not in _BUILTIN_RESPONSES_TOOL_TYPES
+    ]
+    LOGGER.debug("Disabled Responses built-in tools for model=%s", model)
 
 
 def rewrite_json_payload(
@@ -265,6 +298,7 @@ def rewrite_json_payload(
     _inject_tools(payload, intercept)
     if forced_model:
         _inject_per_model_instructions(payload, forced_model, per_model_config)
+        _disable_per_model_builtin_tools(payload, forced_model, per_model_config)
 
     candidate_force_model = settings.model
     reasoning = payload.get("reasoning", {})

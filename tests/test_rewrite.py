@@ -3,8 +3,44 @@
 from unittest.mock import MagicMock, patch
 
 from mcptap.mcp_intercept import MCPInterceptor
-from mcptap.rewrite import rewrite_json_payload
+from mcptap.rewrite import load_per_model_config, rewrite_json_payload
 from mcptap.settings import PROVIDER_META, settings
+
+
+def test_per_model_disable_builtin_tools_keeps_function_tools_on_every_request():
+    with (
+        patch.object(
+            settings,
+            "per_model_yaml",
+            "muse/spark:\n  disable_builtin_tools: true\n",
+        ),
+        patch.object(settings, "model", "muse/spark"),
+        patch.object(settings, "upstream_provider", "requesty"),
+    ):
+        per_model_config = load_per_model_config()
+        assert per_model_config["muse/spark"]["disable_builtin_tools"] is True
+
+        for payload in (
+            {
+                "model": "client-model",
+                "input": [],
+                "tools": [
+                    {"type": "web_search_preview"},
+                    {"type": "file_search"},
+                    {"type": "function", "name": "exec", "parameters": {"type": "object"}},
+                ],
+            },
+            {
+                "model": "client-model",
+                "previous_response_id": "resp_123",
+                "input": [],
+                "tools": [{"type": "code_interpreter"}, {"type": "function", "name": "exec"}],
+            },
+        ):
+            rewrite_json_payload(
+                MagicMock(method="POST", path_qs="/v1/responses"), payload, MCPInterceptor(None), per_model_config
+            )
+            assert [tool["type"] for tool in payload["tools"]] == ["function"]
 
 
 def test_meta_tool_schemas_require_all_properties_and_nullable_optional_values():
