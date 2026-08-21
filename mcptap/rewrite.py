@@ -10,6 +10,7 @@ from mcptap.http_utils import deep_getsizeof
 from mcptap.mcp_intercept import MCPInterceptor
 from mcptap.settings import (
     LOGGER,
+    PROVIDER_META,
     PROVIDER_OPENROUTER,
     PROVIDER_REQUESTY,
     settings,
@@ -106,6 +107,90 @@ def _inject_tools(payload: Dict[str, Any], intercept: MCPInterceptor) -> None:
     payload["tools"] = tools
 
 
+def _make_nullable_schema(schema: Dict[str, Any]) -> Dict[str, Any]:
+    if "const" in schema:
+        return {"anyOf": [schema, {"type": "null"}]}
+
+    for key in ("anyOf", "oneOf"):
+        alternatives = schema.get(key)
+        if isinstance(alternatives, list):
+            if not any(isinstance(item, dict) and item.get("type") == "null" for item in alternatives):
+                schema[key] = [*alternatives, {"type": "null"}]
+            return schema
+
+    schema_type = schema.get("type")
+    if isinstance(schema_type, str):
+        if schema_type != "null":
+            schema["type"] = [schema_type, "null"]
+    elif isinstance(schema_type, list) and "null" not in schema_type:
+        schema["type"] = [*schema_type, "null"]
+    elif schema_type is None and "enum" not in schema:
+        return {"anyOf": [schema, {"type": "null"}]}
+
+    enum = schema.get("enum")
+    if isinstance(enum, list) and None not in enum:
+        schema["enum"] = [*enum, None]
+    return schema
+
+
+def _transform_meta_schema(schema: Dict[str, Any]) -> Dict[str, Any]:
+    transformed = schema.copy()
+    properties = transformed.get("properties")
+    if isinstance(properties, dict):
+        required = transformed.get("required")
+        required_names = set(required) if isinstance(required, list) else set()
+        transformed_properties = {}
+        for name, property_schema in properties.items():
+            if not isinstance(property_schema, dict):
+                transformed_properties[name] = property_schema
+                continue
+            nested_schema = _transform_meta_schema(property_schema)
+            if name not in required_names:
+                nested_schema = _make_nullable_schema(nested_schema)
+            transformed_properties[name] = nested_schema
+        transformed["properties"] = transformed_properties
+        transformed["required"] = list(properties.keys())
+
+    for key in ("items", "contains", "if", "then", "else", "not"):
+        nested_schema = transformed.get(key)
+        if isinstance(nested_schema, dict):
+            transformed[key] = _transform_meta_schema(nested_schema)
+
+    for key in ("anyOf", "oneOf", "allOf", "prefixItems"):
+        nested_schemas = transformed.get(key)
+        if isinstance(nested_schemas, list):
+            transformed[key] = [
+                _transform_meta_schema(item) if isinstance(item, dict) else item for item in nested_schemas
+            ]
+
+    return transformed
+
+
+def _transform_meta_tool_schemas(payload: Dict[str, Any]) -> None:
+    tools = payload.get("tools")
+    if not isinstance(tools, list):
+        return
+
+    transformed_tools = []
+    for tool in tools:
+        if not isinstance(tool, dict):
+            transformed_tools.append(tool)
+            continue
+        transformed_tool = tool.copy()
+        parameters = transformed_tool.get("parameters")
+        if isinstance(parameters, dict):
+            transformed_tool["parameters"] = _transform_meta_schema(parameters)
+        function = transformed_tool.get("function")
+        if isinstance(function, dict):
+            transformed_function = function.copy()
+            function_parameters = transformed_function.get("parameters")
+            if isinstance(function_parameters, dict):
+                transformed_function["parameters"] = _transform_meta_schema(function_parameters)
+            transformed_tool["function"] = transformed_function
+        transformed_tools.append(transformed_tool)
+    payload["tools"] = transformed_tools
+
+
 def _inject_per_model_instructions(
     payload: Dict[str, Any],
     model: str,
@@ -176,6 +261,9 @@ def rewrite_json_payload(
         if candidate_force_model.startswith("@"):
             tools = [tool for tool in payload["tools"] if tool["type"] in ("function", "namespace")]
             payload["tools"] = tools
+
+    if PROVIDER_META == settings.upstream_provider:
+        _transform_meta_tool_schemas(payload)
 
     if LOGGER.isEnabledFor(logging.DEBUG):
         for key in ("tools",):

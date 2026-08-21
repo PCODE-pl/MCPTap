@@ -17,7 +17,7 @@ def filtered_headers(headers) -> Dict[str, str]:
 
 
 def _redact_headers(headers: Dict[str, str]) -> Dict[str, str]:
-    if settings.log_fileredact_headers:
+    if settings.log_file_redact_headers:
         return {
             name: "<redacted>" if name.lower() in SENSITIVE_HEADER_NAMES else value for name, value in headers.items()
         }
