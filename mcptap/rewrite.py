@@ -177,6 +177,8 @@ def _transform_meta_tool_schemas(payload: Dict[str, Any]) -> None:
             transformed_tools.append(tool)
             continue
         transformed_tool = tool.copy()
+        if transformed_tool.get("type") != "web_search_preview":
+            transformed_tool.pop("search_content_types", None)
         parameters = transformed_tool.get("parameters")
         if isinstance(parameters, dict):
             transformed_tool["parameters"] = _transform_meta_schema(parameters)
