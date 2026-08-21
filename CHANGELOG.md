@@ -1,6 +1,34 @@
 <!-- markdownlint-disable MD024 -->
 # Changelog
 
+## [2.9.0]
+
+### Added
+
+- **NanoGPT upstream provider** — new `nano-gpt.env` template, hot-reload support, and setup docs so NanoGPT can be selected as an upstream provider (`MCP_TAP_UPSTREAM_PROVIDER=nano-gpt`), forwarding to `https://api.nano-gpt.com/api/v1`.
+
+- **Meta upstream provider** — new `meta.env` template, hot-reload support, and setup docs for the Meta Responses-compatible endpoint (`https://api.meta.ai/v1`).
+
+- **Per-model `disable_builtin_tools`** — a per-model option that removes Responses built-in tool types for models that reject them while preserving function tools, kept independent from upstream provider branches. Covered by `test_per_model_disable_builtin_tools_keeps_function_tools_on_every_request` in `tests/test_rewrite.py`.
+
+### Changed
+
+- **Provider config generalization** — provider env files and upstream base URLs are now driven by a shared registry (`_PROVIDER_ENV_FILES`, `_UPSTREAM_BASE_URLS`), and `MCP_TAP_UPSTREAM_PROVIDER` values are normalized to lowercase. Watched env files grow to eight, including `meta.env` and `nano-gpt.env` (covered by `test_nano_gpt_env_is_watched_for_reload` in `tests/test_config_reloader.py`).
+
+- **Meta tool schema normalization** — every tool parameter property is required and optional parameters are encoded as nullable JSON Schema values, applied recursively to nested objects (covered by `test_meta_tool_schemas_require_all_properties_and_nullable_optional_values` and `test_meta_tool_schema_transformation_applies_to_nested_objects` in `tests/test_rewrite.py`).
+
+### Fixed
+
+- **Meta unsupported tools** — custom, `tool_search`, `computer_use_preview`, `image_generation`, and `code_interpreter` tool types are dropped (unsupported on the Meta endpoint) and `web_search` is rewritten to `web_search_preview` (covered by `test_meta_drops_unsupported_tool_types_and_rewrites_web_search`).
+
+- **Invalid Meta search metadata** — `search_content_types` is stripped from non-`web_search_preview` tools, preserved only on preview tools (covered by `test_meta_tool_schema_transformation_drops_search_content_types_from_non_preview_tools`).
+
+- **Header redaction setting lookup** — fixed the misspelled `log_fileredact_headers` to `log_file_redact_headers` so upstream request header redaction applies correctly.
+
+### Full Changelog
+
+[https://github.com/PCODE-pl/MCPTap/compare/v2.8.1...v2.9.0](https://github.com/PCODE-pl/MCPTap/compare/v2.8.1...v2.9.0)
+
 ## [2.8.1]
 
 ### Added
