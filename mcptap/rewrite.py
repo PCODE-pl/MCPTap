@@ -166,6 +166,15 @@ def _transform_meta_schema(schema: Dict[str, Any]) -> Dict[str, Any]:
     return transformed
 
 
+_META_UNSUPPORTED_TOOL_TYPES = {
+    "custom",
+    "tool_search",
+    "computer_use_preview",
+    "image_generation",
+    "code_interpreter",
+}
+
+
 def _transform_meta_tool_schemas(payload: Dict[str, Any]) -> None:
     tools = payload.get("tools")
     if not isinstance(tools, list):
@@ -176,8 +185,26 @@ def _transform_meta_tool_schemas(payload: Dict[str, Any]) -> None:
         if not isinstance(tool, dict):
             transformed_tools.append(tool)
             continue
+        tool_type = tool.get("type")
+        if tool_type in _META_UNSUPPORTED_TOOL_TYPES:
+            LOGGER.warning("Dropping unsupported tool type for Meta: %r (name=%r)", tool_type, tool.get("name"))
+            continue
+        # Meta supports web_search_preview, not bare web_search
+        if tool_type == "web_search":
+            LOGGER.info("Rewriting web_search -> web_search_preview for Meta")
+            tool = {**tool, "type": "web_search_preview"}
+            tool_type = "web_search_preview"
         transformed_tool = tool.copy()
-        if transformed_tool.get("type") != "web_search_preview":
+        if transformed_tool.get("type") == "web_search_preview":
+            # Meta Responses executor only supports "text"
+            sct = transformed_tool.get("search_content_types")
+            if isinstance(sct, list):
+                filtered = [v for v in sct if v == "text"]
+                if filtered:
+                    transformed_tool["search_content_types"] = filtered
+                else:
+                    transformed_tool.pop("search_content_types", None)
+        else:
             transformed_tool.pop("search_content_types", None)
         parameters = transformed_tool.get("parameters")
         if isinstance(parameters, dict):
