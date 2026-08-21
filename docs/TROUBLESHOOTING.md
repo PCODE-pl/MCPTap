@@ -28,6 +28,12 @@ or:
 ~/.config/mcptap/requesty.env
 ```
 
+or:
+
+```sh
+~/.config/mcptap/meta.env
+```
+
 Example:
 
 ```env

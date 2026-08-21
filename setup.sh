@@ -300,7 +300,7 @@ exec "$VENV_DIR/bin/python" "$INSTALL_DIR/proxy.py" "\$@"
 EOF
     chmod 0755 "$BIN_DIR/mcptap"
 
-    for file in proxy.env openrouter.env requesty.env mcp-intercept.yaml per-model.yaml use_tool_hook.py; do
+    for file in proxy.env openrouter.env requesty.env meta.env mcp-intercept.yaml per-model.yaml use_tool_hook.py; do
         src_file="$source_dir/examples/home/user/.config/mcptap/$file"
         dst_file="$CONFIG_DIR/$file"
         [ -f "$src_file" ] || continue
@@ -544,7 +544,7 @@ Virtualenv:  $VENV_DIR
 
 Next steps:
   1. Edit $CONFIG_DIR/proxy.env
-  2. Edit $CONFIG_DIR/openrouter.env or $CONFIG_DIR/requesty.env
+  2. Edit $CONFIG_DIR/{openrouter,requesty,meta}.env
   3. If using MCP interception, edit $CONFIG_DIR/mcp-intercept.yaml and set:
        MCP_TAP_INTERCEPT_YAML=@$CONFIG_DIR/mcp-intercept.yaml
 
