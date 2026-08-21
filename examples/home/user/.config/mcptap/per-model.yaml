@@ -6,3 +6,5 @@ deepseek/deepseek-v4-flash:floor:
 policy/free-fallback-to-paid:
   instructions: |
     Never use the 'filesystem' MCP server.
+meta/muse-spark-1.2:
+  disable_builtin_tools: true
