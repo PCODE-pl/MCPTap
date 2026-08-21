@@ -1,12 +1,13 @@
 """Hot-reload of configuration files at runtime.
 
-Polls mtime of six configuration files and triggers a selective reload
+Polls mtime of eight configuration files and triggers a selective reload
 cascade when any of them changes:
 
   proxy.env         -> reload env files + Settings + all dependent components
   openrouter.env    -> reload env files + Settings + all dependent components
   requesty.env      -> reload env files + Settings + all dependent components
   meta.env          -> reload env files + Settings + all dependent components
+  nano-gpt.env      -> reload env files + Settings + all dependent components
   mcp-intercept.yaml -> reload MCPInterceptor (stop old subprocess, start new)
   per-model.yaml    -> reload per-model config dict
   use_tool_hook.py   -> reload tool hook enabled flag + Settings (path may change)
@@ -32,12 +33,19 @@ _FILE_PROXY_ENV = "proxy.env"
 _FILE_OPENROUTER_ENV = "openrouter.env"
 _FILE_REQUESTY_ENV = "requesty.env"
 _FILE_META_ENV = "meta.env"
+_FILE_NANO_GPT_ENV = "nano-gpt.env"
 _FILE_INTERCEPT_YAML = "mcp-intercept.yaml"
 _FILE_PER_MODEL_YAML = "per-model.yaml"
 _FILE_USE_TOOL_HOOK = "use_tool_hook.py"
 
 # Files whose change triggers a full env + Settings reload.
-_ENV_FILES = {_FILE_PROXY_ENV, _FILE_OPENROUTER_ENV, _FILE_REQUESTY_ENV, _FILE_META_ENV}
+_ENV_FILES = {
+    _FILE_PROXY_ENV,
+    _FILE_OPENROUTER_ENV,
+    _FILE_REQUESTY_ENV,
+    _FILE_META_ENV,
+    _FILE_NANO_GPT_ENV,
+}
 
 # Files whose content is embedded in settings (path stored in proxy.env).
 _SETTING_BACKED_FILES = {_FILE_INTERCEPT_YAML, _FILE_PER_MODEL_YAML, _FILE_USE_TOOL_HOOK}

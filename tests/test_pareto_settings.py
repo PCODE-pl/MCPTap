@@ -10,6 +10,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from mcptap.settings import (  # noqa: E402
     _build_settings,
+    _load_env_files,
     get_provider_api_key,
 )
 
@@ -30,6 +31,33 @@ def test_get_provider_api_key_reads_requested_provider_env_file(tmp_path, monkey
     with patch("mcptap.settings.CONFIG_DIR", config_dir):
         assert get_provider_api_key("openrouter") == "openrouter-token"
         assert get_provider_api_key("requesty") == "requesty-token"
+
+
+def test_nano_gpt_provider_loads_settings_and_credentials(tmp_path, monkeypatch):
+    config_dir = tmp_path / "mcptap"
+    config_dir.mkdir()
+    (config_dir / "proxy.env").write_text(
+        "MCP_TAP_UPSTREAM_PROVIDER= NANO-GPT \nMCP_TAP_LISTEN_HOST=127.0.0.1\nMCP_TAP_LISTEN_PORT=8787\n"
+    )
+    (config_dir / "nano-gpt.env").write_text(
+        "MCP_TAP_API_KEY=sk-nano-test\nMCP_TAP_MODEL=openai/gpt-5.6-sol\nMCP_TAP_PLAN_MODE_MODEL=openai/gpt-5.6-sol\n"
+    )
+    for key in (
+        "MCP_TAP_API_KEY",
+        "MCP_TAP_MODEL",
+        "MCP_TAP_PLAN_MODE_MODEL",
+        "MCP_TAP_UPSTREAM_PROVIDER",
+    ):
+        monkeypatch.delenv(key, raising=False)
+
+    with patch("mcptap.settings.CONFIG_DIR", config_dir):
+        _load_env_files()
+        settings = _build_settings()
+        assert settings.upstream_provider == "nano-gpt"
+        assert settings.upstream_base_url == "https://api.nano-gpt.com/api/v1"
+        assert settings.provider_env_file == "nano-gpt.env"
+        assert settings.api_key == "sk-nano-test"
+        assert get_provider_api_key("NANO-GPT") == "sk-nano-test"
 
 
 def test_get_provider_api_key_rejects_unknown_provider():

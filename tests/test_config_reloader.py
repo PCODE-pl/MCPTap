@@ -21,6 +21,8 @@ if sys_path not in sys.path:
     sys.path.insert(0, sys_path)
 
 from mcptap.config_reloader import (  # noqa: E402
+    _ENV_FILES,
+    _FILE_NANO_GPT_ENV,
     ConfigReloader,
     reload_env_and_propagate,
     reload_intercept,
@@ -159,6 +161,10 @@ class TestStaleEnvCleanup:
 # ---------------------------------------------------------------------------
 # ConfigReloader mtime detection tests
 # ---------------------------------------------------------------------------
+
+
+def test_nano_gpt_env_is_watched_for_reload():
+    assert _FILE_NANO_GPT_ENV in _ENV_FILES
 
 
 class TestConfigReloaderMtime:

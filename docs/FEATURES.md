@@ -122,6 +122,27 @@ openai-responses/gpt-5.5
 
 MCPTap also strips trailing model suffix descriptors such as `:floor` before sending the final model name upstream where needed.
 
+## 4a. NanoGPT notes
+
+When using NanoGPT:
+
+```env
+MCP_TAP_UPSTREAM_PROVIDER=nano-gpt
+```
+
+MCPTap forwards requests to:
+
+```text
+https://api.nano-gpt.com/api/v1
+```
+
+NanoGPT is OpenAI Responses API-compatible (`/v1/responses` and `/api/v1/responses`
+are both accepted; MCPTap normalizes `/v1/...` and `/api/v1/...` prefixes before
+forwarding). The provider accepts bearer-token authorization and
+uses `https://nano-gpt.com/api/v1` as the website host alias — MCPTap uses the
+dedicated `https://api.nano-gpt.com/api/v1` host which has a higher ingress
+limit (32 MiB) required for long-running agents.
+
 ## 5. MCP tool interception
 
 MCPTap can expose selected MCP tools to the model as normal function tools.

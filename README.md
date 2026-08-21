@@ -139,6 +139,7 @@ proxy.env          main MCPTap configuration
 openrouter.env     OpenRouter model and API key configuration
 requesty.env       Requesty model and API key configuration
 meta.env           Meta model and API key configuration
+nano-gpt.env       NanoGPT model and API key configuration
 mcp-intercept.yaml optional MCP tool interception configuration
 per-model.yaml     optional per-model instruction overrides
 use_tool_hook.py   optional tool-call hook script (runs before client tool calls)
@@ -175,6 +176,8 @@ Supported upstream providers:
 ```text
 openrouter
 requesty
+meta
+nano-gpt
 ```
 
 ### 2. Configure the provider
@@ -211,6 +214,20 @@ For Meta, edit:
 
 ```sh
 ~/.config/mcptap/meta.env
+```
+
+For NanoGPT, edit:
+
+```sh
+~/.config/mcptap/nano-gpt.env
+```
+
+Example:
+
+```env
+MCP_TAP_API_KEY=sk-nano-...
+MCP_TAP_MODEL=openai/gpt-5.6-sol
+MCP_TAP_PLAN_MODE_MODEL=openai/gpt-5.6-sol
 ```
 
 ## Codex configuration
@@ -404,7 +421,7 @@ The list of issues that MCPTap addresses (at least partially): [docs/ISSUES.md](
 | `MCP_TAP_LOG_FILE`                              |                     empty | Optional communication log file path.                               |
 | `LOG_FILE_REDACT_HEADERS`                       |                       `0` | Redact sensitive headers in communication logs when true.           |
 
-### `openrouter.env`, `requesty.env`, `meta.env`
+### `openrouter.env`, `requesty.env`, `meta.env`, `nano-gpt.env`
 
 | Variable                  | Required | Description                                 |
 | ------------------------- | -------: | ------------------------------------------- |
