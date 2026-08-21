@@ -20,6 +20,7 @@ from dotenv import dotenv_values, load_dotenv  # type: ignore
 
 PROVIDER_OPENROUTER = "openrouter"
 PROVIDER_REQUESTY = "requesty"
+PROVIDER_META = "meta"
 
 SYNTHETIC_GET_GOAL_CALL_ID = "synthetic_get_goal"
 SYNTHETIC_GET_GOAL_TOOL_NAME = "get_goal"
@@ -49,6 +50,7 @@ CONFIG_DIR = Path.home() / ".config/mcptap"
 _PROVIDER_ENV_FILES = {
     PROVIDER_OPENROUTER: "openrouter.env",
     PROVIDER_REQUESTY: "requesty.env",
+    PROVIDER_META: "meta.env",
 }
 
 
@@ -190,6 +192,8 @@ def _load_env_files() -> None:
         provider_env_file = "openrouter.env"
     elif PROVIDER_REQUESTY == upstream_provider:
         provider_env_file = "requesty.env"
+    elif PROVIDER_META == upstream_provider:
+        provider_env_file = "meta.env"
     if not provider_env_file:
         raise RuntimeError("MCP_TAP_UPSTREAM_PROVIDER must be one of 'openrouter' or 'requesty'")
 
@@ -212,8 +216,11 @@ def _build_settings() -> Settings:
     elif PROVIDER_REQUESTY == upstream_provider:
         upstream_base_url = "https://router.requesty.ai/v1"
         provider_env_file = "requesty.env"
+    elif PROVIDER_META == upstream_provider:
+        upstream_base_url = "https://api.meta.ai/v1"
+        provider_env_file = "meta.env"
     if not upstream_base_url:
-        raise RuntimeError("MCP_TAP_UPSTREAM_PROVIDER must be one of 'openrouter' or 'requesty'")
+        raise RuntimeError("MCP_TAP_UPSTREAM_PROVIDER must be one of 'openrouter', 'requesty', 'meta'")
 
     api_key = (os.environ.get("MCP_TAP_API_KEY") or "").strip()
     if not api_key:
