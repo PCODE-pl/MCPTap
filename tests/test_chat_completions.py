@@ -89,6 +89,65 @@ def test_responses_developer_message_maps_to_supported_system_role():
     assert result["messages"] == [{"role": "system", "content": "Use concise answers."}]
 
 
+def test_empty_assistant_messages_are_not_sent_to_chat_upstream():
+    result = responses_request_to_chat(
+        {
+            "input": [
+                {"role": "assistant", "content": None},
+                {"type": "message", "role": "assistant", "content": []},
+                {"role": "user", "content": "Continue."},
+            ]
+        }
+    )
+
+    assert result["messages"] == [{"role": "user", "content": "Continue."}]
+
+
+def test_assistant_tool_calls_are_kept_when_content_is_empty():
+    result = responses_request_to_chat(
+        {
+            "input": [
+                {
+                    "role": "assistant",
+                    "content": None,
+                    "tool_calls": [
+                        {
+                            "id": "call_1",
+                            "type": "function",
+                            "function": {"name": "shell", "arguments": "{}"},
+                        }
+                    ],
+                }
+            ]
+        }
+    )
+
+    assert result["messages"][0]["role"] == "assistant"
+    assert result["messages"][0]["content"] is None
+    assert result["messages"][0]["tool_calls"][0]["id"] == "call_1"
+
+
+def test_empty_assistant_history_is_removed_before_follow_up():
+    store = ChatConversationStore()
+    store.store(
+        "resp_1",
+        [
+            {"role": "user", "content": "Start."},
+            {"role": "assistant", "content": None},
+        ],
+    )
+
+    result = responses_request_to_chat(
+        {"previous_response_id": "resp_1", "input": "Continue."},
+        store,
+    )
+
+    assert result["messages"] == [
+        {"role": "user", "content": "Start."},
+        {"role": "user", "content": "Continue."},
+    ]
+
+
 def test_chat_text_response_maps_to_responses_message_and_usage():
     body = {
         "id": "chatcmpl_123",
