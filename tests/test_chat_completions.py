@@ -82,6 +82,12 @@ def test_responses_request_maps_messages_tools_and_reasoning():
     assert "instructions" not in result
 
 
+def test_responses_developer_message_maps_to_supported_system_role():
+    result = responses_request_to_chat({"input": [{"role": "developer", "content": "Use concise answers."}]})
+
+    assert result["messages"] == [{"role": "system", "content": "Use concise answers."}]
+
+
 def test_chat_text_response_maps_to_responses_message_and_usage():
     body = {
         "id": "chatcmpl_123",
