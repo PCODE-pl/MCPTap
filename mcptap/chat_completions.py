@@ -172,7 +172,8 @@ def _build_chat_sse_from_response(response: Dict[str, Any]) -> bytes:
         nonlocal sequence_number
         event = {"type": event_type, "sequence_number": sequence_number, **payload}
         sequence_number += 1
-        lines.extend([f"event: {event_type}", f"data: {json.dumps(event, ensure_ascii=False)}", ""])
+        data = json.dumps(event, ensure_ascii=False, separators=(",", ":"))
+        lines.extend([f"data: {data}", ""])
 
     in_progress = copy.deepcopy(response)
     in_progress["status"] = "in_progress"
@@ -189,6 +190,7 @@ def _build_chat_sse_from_response(response: Dict[str, Any]) -> bytes:
         added_item["status"] = "in_progress"
         if item.get("type") == "message":
             added_item["content"] = []
+            added_item["phase"] = "commentary"
         elif item.get("type") == "function_call":
             added_item["arguments"] = ""
         append_event("response.output_item.added", output_index=output_index, item=added_item)
@@ -196,7 +198,7 @@ def _build_chat_sse_from_response(response: Dict[str, Any]) -> bytes:
         if item.get("type") == "message":
             content = item.get("content") or []
             text = "".join(str(part.get("text", "")) for part in content if isinstance(part, dict))
-            part = {"type": "output_text", "text": "", "annotations": []}
+            part = {"type": "output_text", "text": "", "annotations": [], "logprobs": []}
             append_event(
                 "response.content_part.added",
                 item_id=item_id,
@@ -211,6 +213,7 @@ def _build_chat_sse_from_response(response: Dict[str, Any]) -> bytes:
                     output_index=output_index,
                     content_index=0,
                     delta=text,
+                    logprobs=[],
                 )
             append_event(
                 "response.output_text.done",
@@ -218,13 +221,14 @@ def _build_chat_sse_from_response(response: Dict[str, Any]) -> bytes:
                 output_index=output_index,
                 content_index=0,
                 text=text,
+                logprobs=[],
             )
             append_event(
                 "response.content_part.done",
                 item_id=item_id,
                 output_index=output_index,
                 content_index=0,
-                part={"type": "output_text", "text": text, "annotations": []},
+                part={"type": "output_text", "text": text, "annotations": [], "logprobs": []},
             )
         elif item.get("type") == "function_call":
             arguments = str(item.get("arguments", ""))
@@ -515,6 +519,7 @@ def _chat_message_to_response_item(message: Dict[str, Any], content: str) -> Dic
         "id": f"msg_{uuid.uuid4().hex[:24]}",
         "status": "completed",
         "role": "assistant",
+        "phase": "commentary",
         "content": [{"type": "output_text", "text": content, "annotations": []}],
     }
     if isinstance(message.get("reasoning_content"), str):

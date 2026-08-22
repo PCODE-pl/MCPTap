@@ -241,10 +241,13 @@ def test_chat_stream_emits_text_delta_and_content_part_events():
     sse = result["sse"]
 
     assert b"response.content_part.added" in sse
+    assert b"event: " not in sse
     assert b"response.output_text.delta" in sse
-    assert b'"delta": "Hello"' in sse
+    assert b'"delta":"Hello"' in sse
     assert b"response.output_text.done" in sse
     assert b"response.content_part.done" in sse
+    assert b'"logprobs":[]' in sse
+    assert b'"phase":"commentary"' in sse
 
 
 def test_store_keeps_latest_response_history():
