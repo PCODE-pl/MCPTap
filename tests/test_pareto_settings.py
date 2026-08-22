@@ -55,7 +55,7 @@ def test_nano_gpt_provider_loads_settings_and_credentials(tmp_path, monkeypatch)
         _load_env_files()
         settings = _build_settings()
         assert settings.upstream_provider == "nano-gpt"
-        assert settings.upstream_base_url == "https://api.nano-gpt.com/api/v1"
+        assert settings.upstream_base_url == "https://nano-gpt.com/api/v1"
         assert settings.provider_env_file == "nano-gpt.env"
         assert settings.api_key == "sk-nano-test"
         assert get_provider_api_key("NANO-GPT") == "sk-nano-test"
