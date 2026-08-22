@@ -308,6 +308,8 @@ Notes:
 * OpenRouter presets such as `@preset/name` are supported,
 * Requesty policies such as `policy/name` are supported,
 * `disable_builtin_tools: true` removes Responses built-in tool types for that model while preserving function tools,
+* Muse Spark 1.2 models convert Codex's free-form `apply_patch` tool to a
+  function tool for providers that do not accept Responses `custom` tools,
 * instructions are injected only on the first request, not on follow-up requests using `previous_response_id`.
 
 ## 7. Tool-call hook

@@ -19,6 +19,11 @@
 
 ### Fixed
 
+- **Muse Spark custom tools through Codex** — Responses requests for
+  `meta/muse-spark-1.2` and its contributor tier convert Codex's free-form
+  `apply_patch` tool to a JSON-schema function tool for NanoGPT and OpenRouter,
+  then restore the Responses `custom_tool_call` shape in the response.
+
 - **Meta unsupported tools** — custom, `tool_search`, `computer_use_preview`, `image_generation`, and `code_interpreter` tool types are dropped (unsupported on the Meta endpoint) and `web_search` is rewritten to `web_search_preview` (covered by `test_meta_drops_unsupported_tool_types_and_rewrites_web_search`).
 
 - **Invalid Meta search metadata** — `search_content_types` is stripped from non-`web_search_preview` tools, preserved only on preview tools (covered by `test_meta_tool_schema_transformation_drops_search_content_types_from_non_preview_tools`).

@@ -25,7 +25,8 @@ from mcptap.encrypted_replay import (
     is_encrypted_replay_error,
 )
 from mcptap.http_utils import filtered_headers, log_communication
-from mcptap.responses import response_json_from_raw
+from mcptap.responses import build_sse_from_response, response_json_from_raw
+from mcptap.rewrite import convert_muse_custom_input_items, convert_muse_function_response
 from mcptap.settings import LOGGER, settings
 
 _CHAT_CONVERSATIONS = PersistentChatStore()
@@ -71,7 +72,10 @@ async def post_upstream_buffered(
     calls before returning the response to the client.
     """
     chat_mode = _uses_chat_completions(path)
-    request_body = responses_request_to_chat(body, _CHAT_CONVERSATIONS, stream=stream) if chat_mode else dict(body)
+    request_body = dict(body)
+    if chat_mode:
+        request_body = responses_request_to_chat(request_body, _CHAT_CONVERSATIONS, stream=stream)
+    convert_muse_custom_input_items(request_body, str(body.get("model", "")))
     upstream_path = _chat_upstream_path(path)
     outgoing_headers = dict(headers)
     outgoing_headers["Content-Type"] = "application/json"
@@ -106,6 +110,15 @@ async def post_upstream_buffered(
             raw, response_json = convert_chat_response(raw, stream, response_id=response_id)
             if response_json is None:
                 response_json = {}
+            original_response_json = response_json
+            converted_response_json = convert_muse_function_response(response_json, str(body.get("model", "")))
+            if converted_response_json != original_response_json:
+                raw = (
+                    build_sse_from_response(converted_response_json)
+                    if stream
+                    else json.dumps(converted_response_json, ensure_ascii=False).encode("utf-8")
+                )
+                response_json = converted_response_json
             body_json = response_json
             stored_chat_body = {key: value for key, value in chat_result.items() if key != "sse"}
             _CHAT_CONVERSATIONS.store_response(response_id, request_body["messages"], stored_chat_body)
@@ -114,6 +127,17 @@ async def post_upstream_buffered(
             body_json = response_json_from_raw(raw, stream)
     else:
         body_json = response_json_from_raw(raw, stream)
+        if body_json is not None and resp.status < 400:
+            original_body_json = body_json
+            converted_body_json = convert_muse_function_response(body_json, str(body.get("model", "")))
+            body_json = converted_body_json
+            if converted_body_json != original_body_json:
+                raw = (
+                    build_sse_from_response(converted_body_json)
+                    if stream
+                    else json.dumps(converted_body_json, ensure_ascii=False).encode("utf-8")
+                )
+                response_headers["Content-Type"] = "text/event-stream" if stream else "application/json"
     return resp.status, response_headers, raw, body_json
 
 
