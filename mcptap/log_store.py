@@ -78,6 +78,22 @@ MIGRATIONS: List[Migration] = [
             PRAGMA user_version = 2;
         """,
     ),
+    Migration(
+        version=3,
+        description="persistent chat histories for chat/completions translation",
+        sql="""
+            CREATE TABLE IF NOT EXISTS chat_histories (
+                id              TEXT PRIMARY KEY,
+                created_at      REAL NOT NULL,
+                expires_at      REAL NOT NULL,
+                data            BLOB NOT NULL,
+                bytes           INTEGER NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_chat_histories_expires
+                ON chat_histories(expires_at);
+            PRAGMA user_version = 3;
+        """,
+    ),
 ]
 
 
@@ -322,11 +338,15 @@ class LogStore:
             "DELETE FROM credit_snapshots WHERE fetched_at < ?",
             (cutoff,),
         )
+        cur_hist = conn.execute(
+            "DELETE FROM chat_histories WHERE expires_at < ?",
+            (time.time(),),
+        )
         conn.commit()
         # Checkpoint WAL to reclaim disk space after bulk deletes without
         # the heavy full-table rewrite that VACUUM requires.
         conn.execute("PRAGMA wal_checkpoint(PASSIVE)")
-        return cur_logs.rowcount + cur_snap.rowcount
+        return cur_logs.rowcount + cur_snap.rowcount + cur_hist.rowcount
 
     def close(self) -> None:
         if self._conn is not None:

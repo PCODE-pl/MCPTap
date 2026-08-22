@@ -8,7 +8,10 @@ from typing import Any, Dict, List, Optional, Tuple
 
 
 class ChatConversationStore:
-    """In-memory Responses response ID to Chat message history mapping."""
+    """In-memory Responses response ID to Chat message history mapping.
+
+    For persistence across restarts see ``mcptap.chat_store.PersistentChatStore``.
+    """
 
     def __init__(self) -> None:
         self._histories: Dict[str, List[Dict[str, Any]]] = {}
@@ -73,7 +76,7 @@ def _normalize_chat_message(message: Dict[str, Any]) -> Optional[Dict[str, Any]]
 
 def responses_request_to_chat(
     payload: Dict[str, Any],
-    conversation_store: Optional[ChatConversationStore] = None,
+    conversation_store: Optional[Any] = None,
     stream: Optional[bool] = None,
 ) -> Dict[str, Any]:
     """Convert a Responses request into an OpenAI Chat Completions request."""
