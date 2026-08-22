@@ -6,8 +6,6 @@ import time
 import uuid
 from typing import Any, Dict, List, Optional, Tuple
 
-from mcptap.responses import build_sse_from_response
-
 
 class ChatConversationStore:
     """In-memory Responses response ID to Chat message history mapping."""
@@ -165,6 +163,92 @@ def chat_response_to_responses(
     }
 
 
+def _build_chat_sse_from_response(response: Dict[str, Any]) -> bytes:
+    """Build Responses SSE with content and tool-call delta events."""
+    lines: List[str] = []
+    sequence_number = 0
+
+    def append_event(event_type: str, **payload: Any) -> None:
+        nonlocal sequence_number
+        event = {"type": event_type, "sequence_number": sequence_number, **payload}
+        sequence_number += 1
+        lines.extend([f"event: {event_type}", f"data: {json.dumps(event, ensure_ascii=False)}", ""])
+
+    in_progress = copy.deepcopy(response)
+    in_progress["status"] = "in_progress"
+    in_progress["output"] = []
+    in_progress["usage"] = None
+    append_event("response.created", response=in_progress)
+    append_event("response.in_progress", response=in_progress)
+
+    for output_index, item in enumerate(response.get("output") or []):
+        if not isinstance(item, dict):
+            continue
+        item_id = str(item.get("id", ""))
+        added_item = copy.deepcopy(item)
+        added_item["status"] = "in_progress"
+        if item.get("type") == "message":
+            added_item["content"] = []
+        elif item.get("type") == "function_call":
+            added_item["arguments"] = ""
+        append_event("response.output_item.added", output_index=output_index, item=added_item)
+
+        if item.get("type") == "message":
+            content = item.get("content") or []
+            text = "".join(str(part.get("text", "")) for part in content if isinstance(part, dict))
+            part = {"type": "output_text", "text": "", "annotations": []}
+            append_event(
+                "response.content_part.added",
+                item_id=item_id,
+                output_index=output_index,
+                content_index=0,
+                part=part,
+            )
+            if text:
+                append_event(
+                    "response.output_text.delta",
+                    item_id=item_id,
+                    output_index=output_index,
+                    content_index=0,
+                    delta=text,
+                )
+            append_event(
+                "response.output_text.done",
+                item_id=item_id,
+                output_index=output_index,
+                content_index=0,
+                text=text,
+            )
+            append_event(
+                "response.content_part.done",
+                item_id=item_id,
+                output_index=output_index,
+                content_index=0,
+                part={"type": "output_text", "text": text, "annotations": []},
+            )
+        elif item.get("type") == "function_call":
+            arguments = str(item.get("arguments", ""))
+            if arguments:
+                append_event(
+                    "response.function_call_arguments.delta",
+                    item_id=item_id,
+                    output_index=output_index,
+                    delta=arguments,
+                )
+            append_event(
+                "response.function_call_arguments.done",
+                item_id=item_id,
+                output_index=output_index,
+                arguments=arguments,
+            )
+
+        append_event("response.output_item.done", output_index=output_index, item=item)
+
+    append_event("response.completed", response=response)
+    lines.extend(["data: [DONE]", ""])
+    return "\n".join(lines).encode("utf-8")
+
+
 def chat_sse_to_responses(raw: bytes) -> Dict[str, Any]:
     """Aggregate Chat Completions SSE and return Responses JSON plus SSE bytes."""
     try:
@@ -182,7 +266,7 @@ def chat_sse_to_responses(raw: bytes) -> Dict[str, Any]:
         if isinstance(body.get("error"), dict):
             return body
         result = chat_response_to_responses(body)
-        result["sse"] = build_sse_from_response(result)
+        result["sse"] = _build_chat_sse_from_response(result)
         return result
 
     aggregate: Dict[str, Any] = {"id": "", "model": "", "choices": [], "usage": None}
@@ -254,7 +338,7 @@ def chat_sse_to_responses(raw: bytes) -> Dict[str, Any]:
         aggregate["choices"].append({"index": index, **state})
     aggregate["choices"].sort(key=lambda choice: choice["index"])
     result = chat_response_to_responses(aggregate)
-    result["sse"] = build_sse_from_response(result)
+    result["sse"] = _build_chat_sse_from_response(result)
     return result
 
 
@@ -298,7 +382,7 @@ def convert_chat_response(
             return raw, result
         if response_id:
             result["id"] = response_id
-        return build_sse_from_response(result), {key: value for key, value in result.items() if key != "sse"}
+        return _build_chat_sse_from_response(result), {key: value for key, value in result.items() if key != "sse"}
     body = _parse_json(raw)
     if body is None or "error" in body:
         return raw, body

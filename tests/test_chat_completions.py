@@ -227,6 +227,26 @@ def test_chat_json_response_received_for_stream_is_converted_to_responses_sse():
     assert b"response.completed" in result["sse"]
 
 
+def test_chat_stream_emits_text_delta_and_content_part_events():
+    raw = b"\n".join(
+        [
+            b'data: {"id":"chatcmpl_1","model":"m","choices":[{"index":0,"delta":{"role":"assistant","content":"Hello"},"finish_reason":null}]}',
+            b'data: {"id":"chatcmpl_1","model":"m","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}',
+            b"data: [DONE]",
+            b"",
+        ]
+    )
+
+    result = chat_sse_to_responses(raw)
+    sse = result["sse"]
+
+    assert b"response.content_part.added" in sse
+    assert b"response.output_text.delta" in sse
+    assert b'"delta": "Hello"' in sse
+    assert b"response.output_text.done" in sse
+    assert b"response.content_part.done" in sse
+
+
 def test_store_keeps_latest_response_history():
     store = ChatConversationStore()
     store.store("resp_1", [{"role": "user", "content": "Hello"}])
