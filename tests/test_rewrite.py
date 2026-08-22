@@ -98,6 +98,45 @@ def test_muse_spark_converts_custom_tools_for_nano_gpt():
         assert payload["tools"][0]["name"] == "apply_patch"
 
 
+def test_muse_spark_converts_all_custom_tools_for_nano_gpt():
+    with (
+        patch.object(settings, "model", "meta/muse-spark-1.2"),
+        patch.object(settings, "upstream_provider", "nano-gpt"),
+    ):
+        payload = {
+            "model": "client-model",
+            "input": [],
+            "tools": [
+                {"type": "custom", "name": "apply_patch"},
+                {"type": "custom", "name": "freeform_tool", "description": "Freeform input"},
+            ],
+        }
+
+        rewrite_json_payload(MagicMock(method="POST", path_qs="/v1/responses"), payload, MCPInterceptor(None), {})
+
+        assert [tool["type"] for tool in payload["tools"]] == ["function", "custom"]
+
+
+def test_muse_spark_function_response_conversion_preserves_non_tool_output():
+    body = {
+        "output": [
+            {"type": "message", "role": "assistant", "content": [{"type": "output_text", "text": "OK"}]},
+            {
+                "type": "function_call",
+                "id": "fc_1",
+                "call_id": "call_1",
+                "name": "apply_patch",
+                "arguments": json.dumps({"input": "patch"}),
+            },
+        ]
+    }
+
+    converted = convert_muse_function_response(body, "meta/muse-spark-1.2")
+
+    assert converted["output"][0] == body["output"][0]
+    assert converted["output"][1]["type"] == "custom_tool_call"
+
+
 def test_custom_tools_are_preserved_for_other_models():
     with (
         patch.object(settings, "model", "openai/gpt-5.6-luna"),

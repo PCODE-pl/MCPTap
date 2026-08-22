@@ -13,6 +13,7 @@ from mcptap.mcp_intercept import MCPInterceptor
 from mcptap.settings import (
     LOGGER,
     PROVIDER_META,
+    PROVIDER_NANO_GPT,
     PROVIDER_OPENROUTER,
     PROVIDER_REQUESTY,
     settings,
@@ -224,7 +225,7 @@ def convert_muse_custom_input_items(payload: Dict[str, Any], model: str) -> None
             converted_items.append(item)
             continue
         item_type = item.get("type")
-        if item_type == "custom_tool_call" and item.get("name") == "apply_patch":
+        if item_type == "custom_tool_call":
             converted_item = dict(item)
             converted_item["type"] = "function_call"
             converted_item["arguments"] = json.dumps({"input": item.get("input", "")}, ensure_ascii=False)
@@ -363,7 +364,10 @@ def _disable_muse_spark_custom_tools(
     model: str,
 ) -> None:
     """Convert custom tools to JSON-schema function tools for Muse Spark."""
-    if not is_muse_spark_model(model):
+    if not is_muse_spark_model(model) or settings.upstream_provider not in {
+        PROVIDER_NANO_GPT,
+        PROVIDER_OPENROUTER,
+    }:
         return
 
     tools = payload.get("tools")
