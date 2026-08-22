@@ -19,6 +19,11 @@
 
 ### Fixed
 
+- **NanoGPT Muse Spark transport** — automatically use the Chat Completions
+  adapter for both Muse Spark model IDs, even when
+  `MCP_TAP_USE_CHAT_COMPLETIONS=false`; other NanoGPT models keep the native
+  Responses path.
+
 - **Muse Spark custom tools through Codex** — Responses requests for
   `meta/muse-spark-1.2` and its contributor tier convert Codex's free-form
   `apply_patch` tool to a JSON-schema function tool for NanoGPT and OpenRouter,

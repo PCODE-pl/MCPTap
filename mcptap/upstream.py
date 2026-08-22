@@ -26,14 +26,18 @@ from mcptap.encrypted_replay import (
 )
 from mcptap.http_utils import filtered_headers, log_communication
 from mcptap.responses import build_sse_from_response, response_json_from_raw
-from mcptap.rewrite import convert_muse_custom_input_items, convert_muse_function_response
-from mcptap.settings import LOGGER, settings
+from mcptap.rewrite import convert_muse_custom_input_items, convert_muse_function_response, is_muse_spark_model
+from mcptap.settings import LOGGER, PROVIDER_NANO_GPT, settings
 
 _CHAT_CONVERSATIONS = PersistentChatStore()
 
 
 def _uses_chat_completions(path: str) -> bool:
-    return settings.use_chat_completions and path.rstrip("/").endswith("/responses")
+    if not path.rstrip("/").endswith("/responses"):
+        return False
+    return settings.use_chat_completions or (
+        settings.upstream_provider == PROVIDER_NANO_GPT and is_muse_spark_model(settings.model)
+    )
 
 
 def _chat_upstream_path(path: str) -> str:
