@@ -49,6 +49,10 @@ _REQUEST_FIELDS = {
 }
 
 
+def _normalize_chat_role(role: Any) -> Any:
+    return "system" if role == "developer" else role
+
+
 def responses_request_to_chat(
     payload: Dict[str, Any],
     conversation_store: Optional[ChatConversationStore] = None,
@@ -58,7 +62,11 @@ def responses_request_to_chat(
     previous_id = payload.get("previous_response_id")
     messages: List[Dict[str, Any]] = []
     if previous_id and conversation_store is not None:
-        messages = conversation_store.get(str(previous_id)) or []
+        messages = [
+            {**message, "role": _normalize_chat_role(message.get("role"))}
+            for message in conversation_store.get(str(previous_id)) or []
+            if isinstance(message, dict)
+        ]
 
     instructions = payload.get("instructions")
     if (
@@ -338,10 +346,15 @@ def _input_to_messages(input_value: Any) -> List[Dict[str, Any]]:
             continue
         role = item.get("role")
         if role in {"system", "developer", "user", "assistant", "tool"}:
-            messages.append({"role": role, "content": _content_to_chat(item.get("content"))})
+            messages.append({"role": _normalize_chat_role(role), "content": _content_to_chat(item.get("content"))})
             continue
         if item_type == "message":
-            messages.append({"role": item.get("role", "user"), "content": _content_to_chat(item.get("content"))})
+            messages.append(
+                {
+                    "role": _normalize_chat_role(item.get("role", "user")),
+                    "content": _content_to_chat(item.get("content")),
+                }
+            )
     return messages
 
 
