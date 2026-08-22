@@ -102,6 +102,10 @@ def responses_request_to_chat(
     messages.extend(_input_to_messages(payload.get("input")))
     result["messages"] = messages
 
+    if payload.get("stream"):
+        result["stream"] = True
+        result["stream_options"] = {"include_usage": True}
+
     for key in _REQUEST_FIELDS:
         if key in payload:
             result[key] = copy.deepcopy(payload[key])
