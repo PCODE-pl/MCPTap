@@ -49,6 +49,62 @@ _REQUEST_FIELDS = {
     "user",
 }
 
+# Keep Chat payload under LLMTR's context limit (muse-spark 196k).
+# 120k tokens ≈ 480k chars leaves headroom for completion + tools.
+CHAT_MAX_CHARS = 480_000
+
+
+def _estimate_messages_chars(messages: List[Dict[str, Any]]) -> int:
+    return sum(len(json.dumps(m, ensure_ascii=False)) for m in messages)
+
+
+def _truncate_chat_messages(messages: List[Dict[str, Any]], max_chars: int = CHAT_MAX_CHARS) -> List[Dict[str, Any]]:
+    """Drop oldest non-system messages until payload fits.
+
+    System instructions are preserved; compaction history and oldest turns
+    are discarded first. This prevents the 425k-token Codex compaction
+    from overflowing LLMTR's 196k window and triggering silent truncation
+    / hallucinated triple answers.
+    """
+    if _estimate_messages_chars(messages) <= max_chars:
+        return messages
+    system = [m for m in messages if m.get("role") == "system"]
+    others = [m for m in messages if m.get("role") != "system"]
+    # Keep most recent `others` that fit alongside system.
+    kept: List[Dict[str, Any]] = []
+    # Reserve space for system
+    budget = max_chars - _estimate_messages_chars(system)
+    # Walk others from newest to oldest
+    for msg in reversed(others):
+        msg_chars = len(json.dumps(msg, ensure_ascii=False))
+        if msg_chars > budget and kept:
+            continue
+        if len(json.dumps(kept + [msg], ensure_ascii=False)) > budget and kept:
+            # Need to drop this oldest kept to make room? Prefer recent, so break
+            break
+        # Simpler: accumulate from newest
+        if _estimate_messages_chars(kept) + msg_chars > budget:
+            break
+        kept.insert(0, msg)
+    # If even newest single message is oversized, truncate its content
+    if not kept and others:
+        last = copy.deepcopy(others[-1])
+        content = last.get("content")
+        if isinstance(content, str) and len(content) > max_chars // 2:
+            last["content"] = content[-max_chars // 2 :]
+        elif isinstance(content, list):
+            # Keep last parts that fit
+            kept_parts: List[Any] = []
+            for part in reversed(content):
+                part_chars = len(json.dumps(part, ensure_ascii=False))
+                if _estimate_messages_chars(kept_parts) + part_chars > budget // 2:
+                    break
+                kept_parts.insert(0, part)
+            if kept_parts:
+                last["content"] = kept_parts
+        kept = [last]
+    return system + kept
+
 
 def _normalize_chat_role(role: Any) -> Any:
     return "system" if role == "developer" else role
@@ -104,6 +160,7 @@ def responses_request_to_chat(
         messages.append({"role": "system", "content": instructions})
 
     messages.extend(_input_to_messages(payload.get("input")))
+    messages = _truncate_chat_messages(messages)
     result["messages"] = messages
 
     effective_stream = stream if stream is not None else bool(payload.get("stream"))

@@ -134,6 +134,27 @@ def test_stream_request_enables_usage_reporting():
     assert result["stream_options"] == {"include_usage": True}
 
 
+def test_truncate_preserves_system_and_recent():
+    from mcptap.chat_completions import _truncate_chat_messages
+
+    msgs = [{"role": "system", "content": "sys"}] + [{"role": "user", "content": "x" * 200000}] * 5
+    truncated = _truncate_chat_messages(msgs, max_chars=300000)
+    assert truncated[0]["role"] == "system"
+    assert len(truncated) < len(msgs)
+
+
+def test_truncate_oversized_single_message_is_clipped():
+    payload = {
+        "model": "m",
+        "instructions": "sys",
+        "input": [{"role": "user", "content": "A" * 600000}],
+        "stream": True,
+    }
+    result = responses_request_to_chat(payload, stream=True)
+    total = len(json.dumps(result["messages"]))
+    assert total <= 600000
+
+
 def test_empty_assistant_history_is_removed_before_follow_up():
     store = ChatConversationStore()
     store.store(
