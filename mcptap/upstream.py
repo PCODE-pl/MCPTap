@@ -71,7 +71,7 @@ async def post_upstream_buffered(
     calls before returning the response to the client.
     """
     chat_mode = _uses_chat_completions(path)
-    request_body = responses_request_to_chat(body, _CHAT_CONVERSATIONS) if chat_mode else dict(body)
+    request_body = responses_request_to_chat(body, _CHAT_CONVERSATIONS, stream=stream) if chat_mode else dict(body)
     upstream_path = _chat_upstream_path(path)
     outgoing_headers = dict(headers)
     outgoing_headers["Content-Type"] = "application/json"
