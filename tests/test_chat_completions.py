@@ -127,6 +127,13 @@ def test_assistant_tool_calls_are_kept_when_content_is_empty():
     assert result["messages"][0]["tool_calls"][0]["id"] == "call_1"
 
 
+def test_stream_request_enables_usage_reporting():
+    result = responses_request_to_chat({"model": "m", "stream": True, "input": "Hello"})
+
+    assert result["stream"] is True
+    assert result["stream_options"] == {"include_usage": True}
+
+
 def test_empty_assistant_history_is_removed_before_follow_up():
     store = ChatConversationStore()
     store.store(
