@@ -52,6 +52,7 @@ def _make_settings(**overrides) -> Settings:
         upstream_base_url="https://openrouter.ai/api/v1",
         provider_env_file="openrouter.env",
         api_key="key",
+        use_chat_completions=False,
         model="m",
         plan_mode_model="pm",
         plan_mode_trigger="max",

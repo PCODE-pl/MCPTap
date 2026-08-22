@@ -244,6 +244,7 @@ Example:
 MCP_TAP_API_KEY=llmtr-...
 MCP_TAP_MODEL=zai/glm-5.2
 MCP_TAP_PLAN_MODE_MODEL=zai/glm-5.2
+MCP_TAP_USE_CHAT_COMPLETIONS=true
 ```
 
 ## Codex configuration
@@ -416,34 +417,35 @@ The list of issues that MCPTap addresses (at least partially): [docs/ISSUES.md](
 
 ### `proxy.env`
 
-| Variable                                        |             Default Value | Description                                                         |
-| ----------------------------------------------- | ------------------------: | ------------------------------------------------------------------- |
-| `MCP_TAP_UPSTREAM_PROVIDER`                     |                  required | `openrouter` or `requesty`.                                         |
-| `MCP_TAP_LISTEN_HOST`                           |               `127.0.0.1` | Local host/interface to bind.                                       |
-| `MCP_TAP_LISTEN_PORT`                           |                    `8787` | Local port to listen on.                                            |
-| `MCP_TAP_OPENROUTER_PROVIDER`                   |                     empty | Optional OpenRouter provider slug.                                  |
-| `MCP_TAP_OPENROUTER_DISABLE_PROVIDER_FALLBACKS` |                       `1` | Disable OpenRouter provider fallback when true.                     |
-| `MCP_TAP_PLAN_MODE_TRIGGER`                     |                     `max` | Reasoning effort value that activates plan mode model.              |
-| `MCP_TAP_PLAN_MODE_MAX_INPUT_SIZE`              |                  `300000` | Maximum accepted input size for plan mode.                          |
-| `MCP_TAP_INTERCEPT_YAML`                        |                     empty | MCP interception YAML or `@/path/to/file.yaml`.                     |
-| `MCP_TAP_INTERCEPT_MAX_ITERATIONS`              |                       `8` | Maximum hidden tool-call loop iterations.                           |
-| `MCP_TAP_INTERCEPT_TOOL_TIMEOUT`                |                     `120` | Timeout for one MCP tool call, in seconds.                          |
-| `MCP_TAP_PER_MODEL_YAML`                        |                     empty | Per-model instruction YAML or `@/path/to/file.yaml`.                |
-| `MCP_TAP_USE_TOOL_HOOK`                         |                     empty | Path to a Python hook script run before client tool calls.          |
-| `MCP_TAP_USE_TOOL_HOOK_TIMEOUT`                 |                      `30` | Timeout for the hook script, in seconds.                            |
-| `MCP_TAP_USE_TOOL_HOOK_SYNTHETIC_TOOL`          |                `get_goal` | Synthetic tool name to inject before the hook. Empty = direct mode. |
-| `MCP_TAP_PER_SESSION_DIR`                       | `/tmp/mcptap/per_session` | Directory for per-session control files.                            |
-| `MCP_TAP_LOG_LEVEL`                             |                    `INFO` | Python logging level.                                               |
-| `MCP_TAP_LOG_FILE`                              |                     empty | Optional communication log file path.                               |
-| `LOG_FILE_REDACT_HEADERS`                       |                       `0` | Redact sensitive headers in communication logs when true.           |
+| Variable | Default Value | Description |
+| --- | ---: | --- |
+| `MCP_TAP_UPSTREAM_PROVIDER` | required | `openrouter`, `requesty`, `meta`, `nano-gpt`, or `llmtr`. |
+| `MCP_TAP_LISTEN_HOST` | `127.0.0.1` | Local host/interface to bind. |
+| `MCP_TAP_LISTEN_PORT` | `8787` | Local port to listen on. |
+| `MCP_TAP_OPENROUTER_PROVIDER` | empty | Optional OpenRouter provider slug. |
+| `MCP_TAP_OPENROUTER_DISABLE_PROVIDER_FALLBACKS` | `1` | Disable OpenRouter provider fallback when true. |
+| `MCP_TAP_PLAN_MODE_TRIGGER` | `max` | Reasoning effort value that activates plan mode model. |
+| `MCP_TAP_PLAN_MODE_MAX_INPUT_SIZE` | `300000` | Maximum accepted input size for plan mode. |
+| `MCP_TAP_INTERCEPT_YAML` | empty | MCP interception YAML or `@/path/to/file.yaml`. |
+| `MCP_TAP_INTERCEPT_MAX_ITERATIONS` | `8` | Maximum hidden tool-call loop iterations. |
+| `MCP_TAP_INTERCEPT_TOOL_TIMEOUT` | `120` | Timeout for one MCP tool call, in seconds. |
+| `MCP_TAP_PER_MODEL_YAML` | empty | Per-model instruction YAML or `@/path/to/file.yaml`. |
+| `MCP_TAP_USE_TOOL_HOOK` | empty | Path to a Python hook script run before client tool calls. |
+| `MCP_TAP_USE_TOOL_HOOK_TIMEOUT` | `30` | Timeout for the hook script, in seconds. |
+| `MCP_TAP_USE_TOOL_HOOK_SYNTHETIC_TOOL` | `get_goal` | Synthetic tool name to inject before the hook. Empty = direct mode. |
+| `MCP_TAP_PER_SESSION_DIR` | `/tmp/mcptap/per_session` | Directory for per-session control files. |
+| `MCP_TAP_LOG_LEVEL` | `INFO` | Python logging level. |
+| `MCP_TAP_LOG_FILE` | empty | Optional communication log file path. |
+| `LOG_FILE_REDACT_HEADERS` | `0` | Redact sensitive headers in communication logs when true. |
 
 ### `openrouter.env`, `requesty.env`, `meta.env`, `nano-gpt.env`, `llmtr.env`
 
-| Variable                  | Required | Description                                 |
-| ------------------------- | -------: | ------------------------------------------- |
-| `MCP_TAP_API_KEY`         |      yes | Upstream provider API key.                  |
-| `MCP_TAP_MODEL`           |      yes | Default forced model.                       |
-| `MCP_TAP_PLAN_MODE_MODEL` |      yes | Forced model used when plan mode is active. |
+| Variable | Required | Description |
+| --- | ---: | --- |
+| `MCP_TAP_API_KEY` | yes | Upstream provider API key. |
+| `MCP_TAP_MODEL` | yes | Default forced model. |
+| `MCP_TAP_PLAN_MODE_MODEL` | yes | Forced model used when plan mode is active. |
+| `MCP_TAP_USE_CHAT_COMPLETIONS` | no | Convert Responses requests to Chat Completions for providers/models that require it. |
 
 ### `LD_PRELOAD` file-block library
 

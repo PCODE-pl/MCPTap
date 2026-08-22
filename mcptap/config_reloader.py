@@ -1,6 +1,6 @@
 """Hot-reload of configuration files at runtime.
 
-Polls mtime of eight configuration files and triggers a selective reload
+Polls mtime of nine configuration files and triggers a selective reload
 cascade when any of them changes:
 
   proxy.env         -> reload env files + Settings + all dependent components

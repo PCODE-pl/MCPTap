@@ -2,6 +2,7 @@
 
 import contextlib
 import json
+import uuid
 from typing import Any, Dict, Optional, Tuple
 
 from aiohttp import (  # type: ignore
@@ -12,6 +13,12 @@ from aiohttp import (  # type: ignore
     web,
 )
 
+from mcptap.chat_completions import (
+    ChatConversationStore,
+    chat_sse_to_responses,
+    convert_chat_response,
+    responses_request_to_chat,
+)
 from mcptap.encrypted_replay import (
     ReplayItemRemoval,
     filter_encrypted_replay_items,
@@ -20,6 +27,34 @@ from mcptap.encrypted_replay import (
 from mcptap.http_utils import filtered_headers, log_communication
 from mcptap.responses import response_json_from_raw
 from mcptap.settings import LOGGER, settings
+
+_CHAT_CONVERSATIONS = ChatConversationStore()
+
+
+def _uses_chat_completions(path: str) -> bool:
+    return settings.use_chat_completions and path.rstrip("/").endswith("/responses")
+
+
+def _chat_upstream_path(path: str) -> str:
+    if not _uses_chat_completions(path):
+        return path
+    normalized = path
+    for prefix in ("/api/v1", "/v1"):
+        if normalized == prefix:
+            normalized = ""
+            break
+        if normalized.startswith(prefix + "/"):
+            normalized = normalized[len(prefix) :]
+            break
+    return normalized[: -len("responses")] + "chat/completions"
+
+
+def _parse_json_object(raw: bytes) -> Optional[Dict[str, Any]]:
+    try:
+        candidate = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return None
+    return candidate if isinstance(candidate, dict) else None
 
 
 async def post_upstream_buffered(
@@ -31,11 +66,13 @@ async def post_upstream_buffered(
 ) -> Tuple[int, Dict[str, str], bytes, Optional[Dict[str, Any]]]:
     """Post to upstream and buffer the complete response.
 
-    For stream=true we preserve the exact upstream SSE bytes for the client,
-    but also parse response.completed so the proxy can resolve hidden MCP tool
-    calls before deciding whether to replay that stream.
+    For stream=true the upstream SSE is buffered and converted to a
+    Responses-compatible SSE stream so the proxy can resolve hidden MCP tool
+    calls before returning the response to the client.
     """
-    request_body = dict(body)
+    chat_mode = _uses_chat_completions(path)
+    request_body = responses_request_to_chat(body, _CHAT_CONVERSATIONS) if chat_mode else dict(body)
+    upstream_path = _chat_upstream_path(path)
     outgoing_headers = dict(headers)
     outgoing_headers["Content-Type"] = "application/json"
     if stream:
@@ -47,7 +84,7 @@ async def post_upstream_buffered(
         outgoing_headers.pop("Accept", None)
         outgoing_headers["Accept"] = "application/json"
 
-    url = settings.upstream_base_url + path
+    url = settings.upstream_base_url + upstream_path
     data = json.dumps(request_body, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
     log_communication("upstream_request", "POST", url, outgoing_headers, data)
     async with session.post(
@@ -62,7 +99,21 @@ async def post_upstream_buffered(
 
     # Parse the body for all status codes, not just < 400, so that error
     # responses (429, 500, etc.) are also available for logging and inspection.
-    body_json = response_json_from_raw(raw, stream)
+    if chat_mode and resp.status < 400:
+        chat_result = chat_sse_to_responses(raw) if stream else _parse_json_object(raw)
+        if isinstance(chat_result, dict) and "error" not in chat_result:
+            response_id = f"resp_{uuid.uuid4().hex[:24]}"
+            raw, response_json = convert_chat_response(raw, stream, response_id=response_id)
+            if response_json is None:
+                response_json = {}
+            body_json = response_json
+            stored_chat_body = {key: value for key, value in chat_result.items() if key != "sse"}
+            _CHAT_CONVERSATIONS.store_response(response_id, request_body["messages"], stored_chat_body)
+            response_headers["Content-Type"] = "text/event-stream" if stream else "application/json"
+        else:
+            body_json = response_json_from_raw(raw, stream)
+    else:
+        body_json = response_json_from_raw(raw, stream)
     return resp.status, response_headers, raw, body_json
 
 
@@ -190,6 +241,26 @@ async def forward_rewritten(
     Returns a ``(StreamResponse, bytes)`` tuple where the second element is the
     full response body, enabling logging of error responses (429, 500, etc.).
     """
+    if _uses_chat_completions(request.path):
+        try:
+            status, response_headers, raw, _body_json = await post_upstream_buffered(
+                session,
+                request.path,
+                request_headers,
+                payload,
+                bool(payload.get("stream")),
+            )
+        except (ClientError, OSError) as exc:
+            LOGGER.exception("Upstream request failed: %s", exc)
+            error_body = {
+                "error": {
+                    "message": "OpenRouter proxy could not reach the upstream API",
+                    "type": "proxy_upstream_error",
+                }
+            }
+            return web.json_response(error_body, status=502), json.dumps(error_body).encode("utf-8")
+        return await emit_buffered_response(request, status, response_headers, raw), raw
+
     body = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
     outgoing_headers = dict(request_headers)
     outgoing_headers["Content-Type"] = "application/json"
