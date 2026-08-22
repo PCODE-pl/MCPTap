@@ -47,6 +47,7 @@ def test_nano_gpt_provider_loads_settings_and_credentials(tmp_path, monkeypatch)
         "MCP_TAP_MODEL",
         "MCP_TAP_PLAN_MODE_MODEL",
         "MCP_TAP_UPSTREAM_PROVIDER",
+        "MCP_TAP_USE_CHAT_COMPLETIONS",
     ):
         monkeypatch.delenv(key, raising=False)
 
@@ -68,12 +69,14 @@ def test_llmtr_provider_loads_settings_and_credentials(tmp_path, monkeypatch):
     )
     (config_dir / "llmtr.env").write_text(
         "MCP_TAP_API_KEY=llmtr-test\nMCP_TAP_MODEL=zai/glm-5.2\nMCP_TAP_PLAN_MODE_MODEL=zai/glm-5.2\n"
+        "MCP_TAP_USE_CHAT_COMPLETIONS=true\n"
     )
     for key in (
         "MCP_TAP_API_KEY",
         "MCP_TAP_MODEL",
         "MCP_TAP_PLAN_MODE_MODEL",
         "MCP_TAP_UPSTREAM_PROVIDER",
+        "MCP_TAP_USE_CHAT_COMPLETIONS",
     ):
         monkeypatch.delenv(key, raising=False)
 
@@ -84,9 +87,16 @@ def test_llmtr_provider_loads_settings_and_credentials(tmp_path, monkeypatch):
         assert settings.upstream_base_url == "https://llmtr.com/v1"
         assert settings.provider_env_file == "llmtr.env"
         assert settings.api_key == "llmtr-test"
+        assert settings.use_chat_completions is True
         assert get_provider_api_key("LLMTR") == "llmtr-test"
 
 
 def test_get_provider_api_key_rejects_unknown_provider():
     with pytest.raises(ValueError, match="Unsupported provider"):
         get_provider_api_key("unknown")
+
+
+def test_chat_completions_mode_defaults_to_disabled(monkeypatch):
+    monkeypatch.delenv("MCP_TAP_USE_CHAT_COMPLETIONS", raising=False)
+
+    assert _build_settings().use_chat_completions is False

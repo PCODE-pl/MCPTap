@@ -164,6 +164,21 @@ which MCPTap passes through unchanged. Authentication uses a Bearer token
 (`Authorization: Bearer llmtr-...`). No per-provider payload rewriting is
 needed; LLMTR accepts the standard OpenAI-compatible tool schemas.
 
+### Responses compatibility mode
+
+Some LLMTR models, including `meta/muse-spark-1.2-contributor`, are exposed
+only through Chat Completions. Enable the adapter in `llmtr.env`:
+
+```env
+MCP_TAP_USE_CHAT_COMPLETIONS=true
+```
+
+Codex continues to use `/v1/responses`. MCPTap converts requests to
+`/v1/chat/completions`, preserves function tool calls and conversation history,
+then converts the response back to Responses format. Chat Completions streaming
+is buffered and returned as Responses-compatible SSE. Responses-only built-in
+tools are not converted; disable them for models that do not support them.
+
 ## 5. MCP tool interception
 
 MCPTap can expose selected MCP tools to the model as normal function tools.

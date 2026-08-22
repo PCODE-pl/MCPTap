@@ -72,6 +72,7 @@ async def health(_request: web.Request) -> web.Response:
             "forced_model": settings.model,
             "forced_provider": settings.openrouter_provider or None,
             "provider_fallbacks_disabled": settings.openrouter_disable_provider_fallbacks,
+            "use_chat_completions": settings.use_chat_completions,
             "mcp_intercept": intercept_info,
             "per_model_config": per_model_config,
             "use_tool_hook": {
@@ -244,7 +245,7 @@ async def proxy(request: web.Request) -> web.StreamResponse:
                 log_store,
                 request_body=payload,
                 response_raw=response_raw,
-                response_body_json=None,
+                response_body_json=response_json_from_raw(response_raw, client_wanted_stream),
                 session_id=request.headers.get("session-id", "").strip() or "default",
                 model=forced_model,
                 provider=settings.openrouter_provider or settings.upstream_provider,

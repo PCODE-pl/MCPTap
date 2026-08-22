@@ -90,6 +90,7 @@ _PROVIDER_ENV_KEYS = [
     "MCP_TAP_OPENROUTER_DISABLE_PROVIDER_FALLBACKS",
     "MCP_TAP_CREDITS_URL",
     "MCP_TAP_CREDITS_API_KEY",
+    "MCP_TAP_USE_CHAT_COMPLETIONS",
 ]
 
 
@@ -106,6 +107,7 @@ class Settings:
     upstream_base_url: str
     provider_env_file: str
     api_key: str
+    use_chat_completions: bool
 
     # Model forcing
     model: str
@@ -252,6 +254,13 @@ def _build_settings() -> Settings:
     credits_api_key = (os.environ.get("MCP_TAP_CREDITS_API_KEY") or "").strip()
     credits_check_interval = int(os.environ.get("MCP_TAP_CREDITS_CHECK_INTERVAL", "300"))
     credits_discrepancy_threshold = float(os.environ.get("MCP_TAP_CREDITS_DISCREPANCY_THRESHOLD", "0.01"))
+    use_chat_completions = os.environ.get("MCP_TAP_USE_CHAT_COMPLETIONS", "0").lower() not in {
+        "0",
+        "false",
+        "no",
+        "off",
+        "",
+    }
 
     telegram_bot_token = (os.environ.get("MCPTAP_TELEGRAM_BOT_TOKEN") or "").strip()
     telegram_chat_id = (os.environ.get("MCPTAP_TELEGRAM_CHAT_ID") or "").strip()
@@ -267,6 +276,7 @@ def _build_settings() -> Settings:
         upstream_base_url=upstream_base_url,
         provider_env_file=provider_env_file,
         api_key=api_key,
+        use_chat_completions=use_chat_completions,
         model=model,
         plan_mode_model=plan_mode_model,
         plan_mode_trigger=(os.environ.get("MCP_TAP_PLAN_MODE_TRIGGER") or "max").strip(),
