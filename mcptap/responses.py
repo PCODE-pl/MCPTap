@@ -22,12 +22,16 @@ def iter_function_calls(response_body: Dict[str, Any]) -> Iterator[Tuple[Dict[st
         if not isinstance(item, dict):
             continue
         if item.get("type") != "function_call":
-            continue
+            if item.get("type") != "custom_tool_call":
+                continue
+            arguments = json.dumps({"input": item.get("input", "")}, ensure_ascii=False)
+        else:
+            arguments = item.get("arguments") or "{}"
         yield (
             item,
             item.get("call_id") or "",
             item.get("name") or "",
-            item.get("arguments") or "{}",
+            arguments,
         )
 
 

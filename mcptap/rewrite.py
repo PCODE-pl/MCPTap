@@ -1,5 +1,7 @@
 """Payload rewriting — model forcing, tool injection, and per-model instructions."""
 
+import copy
+import json
 import logging
 from typing import Any, Dict, Optional, Set, Tuple
 
@@ -186,6 +188,83 @@ _BUILTIN_RESPONSES_TOOL_TYPES = {
     "tool_search",
 }
 
+_MUSE_SPARK_MODELS = {
+    "meta/muse-spark-1.2",
+    "meta/muse-spark-1.2-contributor",
+}
+
+_MUSE_SPARK_CUSTOM_TOOL_PARAMETERS = {
+    "type": "object",
+    "properties": {"input": {"type": "string"}},
+    "required": ["input"],
+    "additionalProperties": False,
+}
+
+
+def _muse_spark_model_name(model: str) -> str:
+    return model.split(":", 1)[0]
+
+
+def is_muse_spark_model(model: str) -> bool:
+    return _muse_spark_model_name(model) in _MUSE_SPARK_MODELS
+
+
+def convert_muse_custom_input_items(payload: Dict[str, Any], model: str) -> None:
+    """Convert Codex custom tool input items to function-call items."""
+    if not is_muse_spark_model(model):
+        return
+
+    input_items = payload.get("input")
+    if not isinstance(input_items, list):
+        return
+
+    converted_items = []
+    for item in input_items:
+        if not isinstance(item, dict):
+            converted_items.append(item)
+            continue
+        item_type = item.get("type")
+        if item_type == "custom_tool_call" and item.get("name") == "apply_patch":
+            converted_item = dict(item)
+            converted_item["type"] = "function_call"
+            converted_item["arguments"] = json.dumps({"input": item.get("input", "")}, ensure_ascii=False)
+            converted_item.pop("input", None)
+            converted_items.append(converted_item)
+        elif item_type == "custom_tool_call_output":
+            converted_item = dict(item)
+            converted_item["type"] = "function_call_output"
+            converted_items.append(converted_item)
+        else:
+            converted_items.append(item)
+    payload["input"] = converted_items
+
+
+def convert_muse_function_response(body: Dict[str, Any], model: str) -> Dict[str, Any]:
+    """Convert Muse function calls back to Codex custom tool calls."""
+    if not is_muse_spark_model(model):
+        return body
+
+    converted = copy.deepcopy(body)
+    output = converted.get("output")
+    if not isinstance(output, list):
+        return converted
+
+    for item in output:
+        if not isinstance(item, dict) or item.get("type") != "function_call":
+            continue
+        if item.get("name") != "apply_patch":
+            continue
+        try:
+            arguments = json.loads(item.get("arguments", ""))
+        except (TypeError, json.JSONDecodeError):
+            continue
+        if not isinstance(arguments, dict) or not isinstance(arguments.get("input"), str):
+            continue
+        item["type"] = "custom_tool_call"
+        item["input"] = arguments["input"]
+        item.pop("arguments", None)
+    return converted
+
 
 def _get_per_model_config(model: str, per_model_config: Dict[str, Dict[str, Any]]) -> Optional[Dict[str, Any]]:
     config = per_model_config.get(model)
@@ -279,6 +358,34 @@ def _disable_per_model_builtin_tools(
     LOGGER.debug("Disabled Responses built-in tools for model=%s", model)
 
 
+def _disable_muse_spark_custom_tools(
+    payload: Dict[str, Any],
+    model: str,
+) -> None:
+    """Convert custom tools to JSON-schema function tools for Muse Spark."""
+    if not is_muse_spark_model(model):
+        return
+
+    tools = payload.get("tools")
+    if not isinstance(tools, list):
+        return
+
+    converted_tools = []
+    for tool in tools:
+        if not isinstance(tool, dict) or tool.get("type") != "custom" or tool.get("name") != "apply_patch":
+            converted_tools.append(tool)
+            continue
+        converted_tools.append(
+            {
+                "type": "function",
+                "name": tool.get("name", ""),
+                **({"description": tool["description"]} if isinstance(tool.get("description"), str) else {}),
+                "parameters": copy.deepcopy(_MUSE_SPARK_CUSTOM_TOOL_PARAMETERS),
+            }
+        )
+    payload["tools"] = converted_tools
+
+
 def rewrite_json_payload(
     request: web.Request,
     payload: Dict[str, Any],
@@ -324,6 +431,8 @@ def rewrite_json_payload(
         if candidate_force_model.startswith("@"):
             tools = [tool for tool in payload["tools"] if tool["type"] in ("function", "namespace")]
             payload["tools"] = tools
+
+    _disable_muse_spark_custom_tools(payload, candidate_force_model)
 
     if PROVIDER_META == settings.upstream_provider:
         _transform_meta_tool_schemas(payload)

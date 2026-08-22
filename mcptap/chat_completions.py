@@ -443,7 +443,7 @@ def responses_body_to_chat_messages(body: Dict[str, Any]) -> List[Dict[str, Any]
     for item in body.get("output") or []:
         if not isinstance(item, dict):
             continue
-        if item.get("type") == "function_call":
+        if item.get("type") in {"function_call", "custom_tool_call"}:
             if not messages or messages[-1].get("role") != "assistant" or "tool_calls" not in messages[-1]:
                 messages.append({"role": "assistant", "content": None, "tool_calls": []})
             tool_call = {
@@ -451,7 +451,8 @@ def responses_body_to_chat_messages(body: Dict[str, Any]) -> List[Dict[str, Any]
                 "type": "function",
                 "function": {
                     "name": item.get("name", ""),
-                    "arguments": item.get("arguments", "{}"),
+                    "arguments": item.get("arguments")
+                    or json.dumps({"input": item.get("input", "")}, ensure_ascii=False),
                 },
             }
             messages[-1]["tool_calls"].append(tool_call)
@@ -498,7 +499,7 @@ def _input_to_messages(input_value: Any) -> List[Dict[str, Any]]:
         if not isinstance(item, dict):
             continue
         item_type = item.get("type")
-        if item_type == "function_call":
+        if item_type in {"function_call", "custom_tool_call"}:
             if pending_calls is None:
                 pending_calls = {"role": "assistant", "content": None, "tool_calls": []}
                 messages.append(pending_calls)
@@ -508,7 +509,11 @@ def _input_to_messages(input_value: Any) -> List[Dict[str, Any]]:
                 {
                     "id": item.get("call_id") or item.get("id") or f"call_{uuid.uuid4().hex[:24]}",
                     "type": "function",
-                    "function": {"name": item.get("name", ""), "arguments": item.get("arguments", "{}")},
+                    "function": {
+                        "name": item.get("name", ""),
+                        "arguments": item.get("arguments")
+                        or json.dumps({"input": item.get("input", "")}, ensure_ascii=False),
+                    },
                 }
             )
             continue

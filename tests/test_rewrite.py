@@ -1,10 +1,16 @@
 """Tests for provider-specific request payload rewriting."""
 
+import json
 from unittest.mock import MagicMock, patch
 
 from mcptap.mcp_intercept import MCPInterceptor
-from mcptap.rewrite import load_per_model_config, rewrite_json_payload
-from mcptap.settings import PROVIDER_META, settings
+from mcptap.rewrite import (
+    convert_muse_custom_input_items,
+    convert_muse_function_response,
+    load_per_model_config,
+    rewrite_json_payload,
+)
+from mcptap.settings import PROVIDER_META, PROVIDER_OPENROUTER, settings
 
 
 def test_per_model_disable_builtin_tools_keeps_function_tools_on_every_request():
@@ -41,6 +47,127 @@ def test_per_model_disable_builtin_tools_keeps_function_tools_on_every_request()
                 MagicMock(method="POST", path_qs="/v1/responses"), payload, MCPInterceptor(None), per_model_config
             )
             assert [tool["type"] for tool in payload["tools"]] == ["function"]
+
+
+def test_muse_spark_converts_custom_tools_for_openrouter_on_every_request():
+    with (
+        patch.object(settings, "model", "meta/muse-spark-1.2"),
+        patch.object(settings, "upstream_provider", PROVIDER_OPENROUTER),
+    ):
+        for payload in (
+            {
+                "model": "client-model",
+                "input": [],
+                "tools": [
+                    {"type": "custom", "name": "apply_patch"},
+                    {"type": "function", "name": "exec"},
+                ],
+            },
+            {
+                "model": "client-model",
+                "previous_response_id": "resp_123",
+                "input": [],
+                "tools": [{"type": "custom", "name": "apply_patch"}, {"type": "function", "name": "exec"}],
+            },
+        ):
+            rewrite_json_payload(MagicMock(method="POST", path_qs="/v1/responses"), payload, MCPInterceptor(None), {})
+            assert [tool["type"] for tool in payload["tools"]] == ["function", "function"]
+            assert payload["tools"][0]["name"] == "apply_patch"
+            assert payload["tools"][0]["parameters"] == {
+                "type": "object",
+                "properties": {"input": {"type": "string"}},
+                "required": ["input"],
+                "additionalProperties": False,
+            }
+
+
+def test_muse_spark_converts_custom_tools_for_nano_gpt():
+    with (
+        patch.object(settings, "model", "meta/muse-spark-1.2-contributor"),
+        patch.object(settings, "upstream_provider", "nano-gpt"),
+    ):
+        payload = {
+            "model": "client-model",
+            "input": [],
+            "tools": [{"type": "custom", "name": "apply_patch"}, {"type": "function", "name": "exec"}],
+        }
+
+        rewrite_json_payload(MagicMock(method="POST", path_qs="/v1/responses"), payload, MCPInterceptor(None), {})
+
+        assert [tool["type"] for tool in payload["tools"]] == ["function", "function"]
+        assert payload["tools"][0]["name"] == "apply_patch"
+
+
+def test_custom_tools_are_preserved_for_other_models():
+    with (
+        patch.object(settings, "model", "openai/gpt-5.6-luna"),
+        patch.object(settings, "upstream_provider", PROVIDER_OPENROUTER),
+    ):
+        payload = {
+            "model": "client-model",
+            "input": [],
+            "tools": [{"type": "custom", "name": "custom_tool"}],
+        }
+
+        rewrite_json_payload(MagicMock(method="POST", path_qs="/v1/responses"), payload, MCPInterceptor(None), {})
+
+        assert payload["tools"] == [{"type": "custom", "name": "custom_tool"}]
+
+
+def test_muse_custom_input_is_converted_to_function_call():
+    payload = {
+        "model": "meta/muse-spark-1.2-contributor",
+        "input": [
+            {
+                "type": "custom_tool_call",
+                "call_id": "call_1",
+                "name": "apply_patch",
+                "input": "*** Begin Patch\n*** End Patch",
+            },
+            {
+                "type": "custom_tool_call_output",
+                "call_id": "call_1",
+                "output": "Applied.",
+            },
+        ],
+    }
+
+    convert_muse_custom_input_items(payload, payload["model"])
+
+    assert payload["input"] == [
+        {
+            "type": "function_call",
+            "call_id": "call_1",
+            "name": "apply_patch",
+            "arguments": json.dumps({"input": "*** Begin Patch\n*** End Patch"}),
+        },
+        {"type": "function_call_output", "call_id": "call_1", "output": "Applied."},
+    ]
+
+
+def test_muse_function_response_is_converted_back_to_custom_tool_call():
+    body = {
+        "output": [
+            {
+                "type": "function_call",
+                "id": "fc_1",
+                "call_id": "call_1",
+                "name": "apply_patch",
+                "arguments": json.dumps({"input": "*** Begin Patch\n*** End Patch"}),
+            }
+        ]
+    }
+
+    converted = convert_muse_function_response(body, "meta/muse-spark-1.2")
+
+    assert converted["output"][0] == {
+        "type": "custom_tool_call",
+        "id": "fc_1",
+        "call_id": "call_1",
+        "name": "apply_patch",
+        "input": "*** Begin Patch\n*** End Patch",
+    }
+    assert body["output"][0]["type"] == "function_call"
 
 
 def test_meta_tool_schemas_require_all_properties_and_nullable_optional_values():

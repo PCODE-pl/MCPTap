@@ -62,6 +62,7 @@ _UPSTREAM_BASE_URLS = {
     PROVIDER_REQUESTY: "https://router.requesty.ai/v1",
     PROVIDER_META: "https://api.meta.ai/v1",
     PROVIDER_NANO_GPT: "https://nano-gpt.com/api/v1",
+    # Alternative API host: https://api.nano-gpt.com/api/v1
     PROVIDER_LLMTR: "https://llmtr.com/v1",
 }
 
