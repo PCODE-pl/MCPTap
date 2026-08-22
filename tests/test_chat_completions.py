@@ -10,6 +10,7 @@ from mcptap.chat_completions import (
     ChatConversationStore,
     chat_response_to_responses,
     chat_sse_to_responses,
+    convert_chat_response,
     responses_request_to_chat,
 )
 from mcptap.responses import response_json_from_sse
@@ -248,6 +249,16 @@ def test_chat_stream_emits_text_delta_and_content_part_events():
     assert b"response.content_part.done" in sse
     assert b'"logprobs":[]' in sse
     assert b'"phase":"commentary"' in sse
+
+
+def test_convert_chat_stream_does_not_serialize_internal_sse_bytes():
+    raw = b'data: {"id":"chatcmpl_1","model":"m","choices":[{"index":0,"delta":{"content":"Hello"},"finish_reason":null}]}\n\ndata: {"id":"chatcmpl_1","model":"m","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n'
+
+    converted_raw, converted_body = convert_chat_response(raw, stream=True, response_id="resp_1")
+
+    assert converted_body is not None
+    assert converted_body["id"] == "resp_1"
+    assert b"response.output_text.delta" in converted_raw
 
 
 def test_store_keeps_latest_response_history():
