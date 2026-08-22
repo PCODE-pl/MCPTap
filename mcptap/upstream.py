@@ -14,11 +14,11 @@ from aiohttp import (  # type: ignore
 )
 
 from mcptap.chat_completions import (
-    ChatConversationStore,
     chat_sse_to_responses,
     convert_chat_response,
     responses_request_to_chat,
 )
+from mcptap.chat_store import PersistentChatStore
 from mcptap.encrypted_replay import (
     ReplayItemRemoval,
     filter_encrypted_replay_items,
@@ -28,7 +28,7 @@ from mcptap.http_utils import filtered_headers, log_communication
 from mcptap.responses import response_json_from_raw
 from mcptap.settings import LOGGER, settings
 
-_CHAT_CONVERSATIONS = ChatConversationStore()
+_CHAT_CONVERSATIONS = PersistentChatStore()
 
 
 def _uses_chat_completions(path: str) -> bool:
