@@ -51,6 +51,26 @@ def _normalize_chat_role(role: Any) -> Any:
     return "system" if role == "developer" else role
 
 
+def _has_chat_content(content: Any) -> bool:
+    if content is None or content == "" or content == []:
+        return False
+    if isinstance(content, list):
+        return any(isinstance(part, dict) and part for part in content)
+    return True
+
+
+def _normalize_chat_message(message: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    normalized = copy.deepcopy(message)
+    normalized["role"] = _normalize_chat_role(message.get("role"))
+    tool_calls = normalized.get("tool_calls")
+    has_tool_calls = isinstance(tool_calls, list) and bool(tool_calls)
+    if normalized["role"] == "assistant" and not _has_chat_content(normalized.get("content")):
+        if not has_tool_calls:
+            return None
+        normalized["content"] = None
+    return normalized
+
+
 def responses_request_to_chat(
     payload: Dict[str, Any],
     conversation_store: Optional[ChatConversationStore] = None,
@@ -61,9 +81,11 @@ def responses_request_to_chat(
     messages: List[Dict[str, Any]] = []
     if previous_id and conversation_store is not None:
         messages = [
-            {**message, "role": _normalize_chat_role(message.get("role"))}
+            normalized
             for message in conversation_store.get(str(previous_id)) or []
             if isinstance(message, dict)
+            for normalized in [_normalize_chat_message(message)]
+            if normalized is not None
         ]
 
     instructions = payload.get("instructions")
@@ -435,15 +457,24 @@ def _input_to_messages(input_value: Any) -> List[Dict[str, Any]]:
             continue
         role = item.get("role")
         if role in {"system", "developer", "user", "assistant", "tool"}:
-            messages.append({"role": _normalize_chat_role(role), "content": _content_to_chat(item.get("content"))})
+            message = {
+                "role": _normalize_chat_role(role),
+                "content": _content_to_chat(item.get("content")),
+            }
+            if isinstance(item.get("tool_calls"), list) and item["tool_calls"]:
+                message["tool_calls"] = copy.deepcopy(item["tool_calls"])
+            normalized = _normalize_chat_message(message)
+            if normalized is not None:
+                messages.append(normalized)
             continue
         if item_type == "message":
-            messages.append(
-                {
-                    "role": _normalize_chat_role(item.get("role", "user")),
-                    "content": _content_to_chat(item.get("content")),
-                }
-            )
+            message = {
+                "role": _normalize_chat_role(item.get("role", "user")),
+                "content": _content_to_chat(item.get("content")),
+            }
+            normalized = _normalize_chat_message(message)
+            if normalized is not None:
+                messages.append(normalized)
     return messages
 
 
