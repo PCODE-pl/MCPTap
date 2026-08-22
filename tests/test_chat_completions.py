@@ -14,6 +14,7 @@ from mcptap.chat_completions import (
     responses_request_to_chat,
 )
 from mcptap.responses import response_json_from_sse
+from mcptap.rewrite import convert_muse_custom_input_items
 from mcptap.upstream import post_upstream_buffered
 
 
@@ -518,4 +519,57 @@ async def test_chat_mode_replays_previous_response_as_chat_history(monkeypatch):
             ],
         },
         {"role": "tool", "tool_call_id": "call_1", "content": "/tmp"},
+    ]
+
+
+@pytest.mark.asyncio
+async def test_chat_mode_converts_replayed_custom_tool_call_before_chat_conversion(monkeypatch):
+    received_bodies = []
+
+    async def handler(request):
+        received_bodies.append(await request.json())
+        return web.json_response(
+            {
+                "id": "chatcmpl_done",
+                "model": "meta/muse-spark-1.2",
+                "choices": [{"message": {"role": "assistant", "content": "OK"}, "finish_reason": "stop"}],
+            }
+        )
+
+    server = TestServer(web.Application())
+    server.app.router.add_post("/v1/chat/completions", handler)
+    client = TestClient(server)
+    await client.start_server()
+    try:
+        from mcptap.settings import settings
+
+        monkeypatch.setattr(settings, "use_chat_completions", True)
+        monkeypatch.setattr(settings, "upstream_base_url", str(server.make_url("/v1")))
+        monkeypatch.setattr(settings, "model", "meta/muse-spark-1.2")
+        monkeypatch.setattr(settings, "plan_mode_model", "meta/muse-spark-1.2")
+        payload = {
+            "model": "meta/muse-spark-1.2",
+            "input": [
+                {"type": "custom_tool_call", "call_id": "call_1", "name": "apply_patch", "input": "patch"},
+                {"type": "custom_tool_call_output", "call_id": "call_1", "output": "Applied"},
+            ],
+        }
+        convert_muse_custom_input_items(payload, payload["model"])
+        await post_upstream_buffered(client.session, "/responses", {}, payload, False)
+    finally:
+        await client.close()
+
+    assert received_bodies[0]["messages"] == [
+        {
+            "role": "assistant",
+            "content": None,
+            "tool_calls": [
+                {
+                    "id": "call_1",
+                    "type": "function",
+                    "function": {"name": "apply_patch", "arguments": '{"input": "patch"}'},
+                }
+            ],
+        },
+        {"role": "tool", "tool_call_id": "call_1", "content": "Applied"},
     ]

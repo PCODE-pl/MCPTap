@@ -21,12 +21,11 @@ def iter_function_calls(response_body: Dict[str, Any]) -> Iterator[Tuple[Dict[st
     for item in output:
         if not isinstance(item, dict):
             continue
-        if item.get("type") != "function_call":
-            if item.get("type") != "custom_tool_call":
-                continue
+        if item.get("type") not in {"function_call", "custom_tool_call"}:
+            continue
+        arguments = item.get("arguments")
+        if not isinstance(arguments, str):
             arguments = json.dumps({"input": item.get("input", "")}, ensure_ascii=False)
-        else:
-            arguments = item.get("arguments") or "{}"
         yield (
             item,
             item.get("call_id") or "",
@@ -219,6 +218,24 @@ def build_sse_from_response(response: Dict[str, Any]) -> bytes:
         lines.append("event: response.output_item.added")
         lines.append(f"data: {json.dumps(added_payload, ensure_ascii=False)}")
         lines.append("")
+        if item.get("type") == "custom_tool_call":
+            input_value = str(item.get("input", ""))
+            input_delta = {
+                "type": "response.custom_tool_call_input.delta",
+                "item_id": item.get("id", ""),
+                "delta": input_value,
+            }
+            lines.append("event: response.custom_tool_call_input.delta")
+            lines.append(f"data: {json.dumps(input_delta, ensure_ascii=False)}")
+            lines.append("")
+            input_done = {
+                "type": "response.custom_tool_call_input.done",
+                "item_id": item.get("id", ""),
+                "input": input_value,
+            }
+            lines.append("event: response.custom_tool_call_input.done")
+            lines.append(f"data: {json.dumps(input_done, ensure_ascii=False)}")
+            lines.append("")
         done_payload = {"type": "response.output_item.done", "item": item}
         lines.append("event: response.output_item.done")
         lines.append(f"data: {json.dumps(done_payload, ensure_ascii=False)}")
@@ -243,6 +260,7 @@ def response_json_from_sse(raw: bytes) -> Optional[Dict[str, Any]]:
     data_lines: List[str] = []
     completed: Optional[Dict[str, Any]] = None
     output_items: List[Dict[str, Any]] = []
+    custom_inputs: Dict[str, str] = {}
 
     def flush_event() -> None:
         nonlocal event_name, data_lines, completed
@@ -265,8 +283,17 @@ def response_json_from_sse(raw: bytes) -> Optional[Dict[str, Any]]:
         if payload_type == "response.completed" and isinstance(payload.get("response"), dict):
             completed = payload["response"]
             return
+        if payload_type == "response.custom_tool_call_input.done":
+            item_id = payload.get("item_id")
+            input_value = payload.get("input")
+            if isinstance(item_id, str) and isinstance(input_value, str):
+                custom_inputs[item_id] = input_value
+            return
         item = payload.get("item")
         if payload_type == "response.output_item.done" and isinstance(item, dict):
+            item_id = item.get("id")
+            if item.get("type") == "custom_tool_call" and isinstance(item_id, str) and item_id in custom_inputs:
+                item = {**item, "input": custom_inputs[item_id]}
             output_items.append(item)
 
     for raw_line in text.splitlines():
