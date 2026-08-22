@@ -74,6 +74,7 @@ def _normalize_chat_message(message: Dict[str, Any]) -> Optional[Dict[str, Any]]
 def responses_request_to_chat(
     payload: Dict[str, Any],
     conversation_store: Optional[ChatConversationStore] = None,
+    stream: Optional[bool] = None,
 ) -> Dict[str, Any]:
     """Convert a Responses request into an OpenAI Chat Completions request."""
     result: Dict[str, Any] = {"model": payload.get("model", "")}
@@ -102,13 +103,17 @@ def responses_request_to_chat(
     messages.extend(_input_to_messages(payload.get("input")))
     result["messages"] = messages
 
-    if payload.get("stream"):
-        result["stream"] = True
-        result["stream_options"] = {"include_usage": True}
+    effective_stream = stream if stream is not None else bool(payload.get("stream"))
 
     for key in _REQUEST_FIELDS:
-        if key in payload:
+        if key in payload and key != "stream":
             result[key] = copy.deepcopy(payload[key])
+
+    if effective_stream:
+        result["stream"] = True
+        result["stream_options"] = {"include_usage": True}
+    elif "stream" in payload:
+        result["stream"] = copy.deepcopy(payload["stream"])
 
     if "max_output_tokens" in payload:
         result["max_tokens"] = payload["max_output_tokens"]
