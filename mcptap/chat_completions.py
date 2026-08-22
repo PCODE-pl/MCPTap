@@ -384,6 +384,7 @@ def convert_chat_response(
         result = chat_sse_to_responses(raw)
         if "error" in result:
             return raw, result
+        result = {key: value for key, value in result.items() if key != "sse"}
         if response_id:
             result["id"] = response_id
         return _build_chat_sse_from_response(result), {key: value for key, value in result.items() if key != "sse"}
