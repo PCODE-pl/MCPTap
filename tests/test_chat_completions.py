@@ -15,7 +15,7 @@ from mcptap.chat_completions import (
 )
 from mcptap.responses import response_json_from_sse
 from mcptap.rewrite import convert_muse_custom_input_items
-from mcptap.upstream import post_upstream_buffered
+from mcptap.upstream import forward_rewritten, post_upstream_buffered
 
 
 def test_responses_request_maps_messages_tools_and_reasoning():
@@ -494,6 +494,94 @@ async def test_nano_gpt_non_muse_keeps_responses_endpoint_when_flag_is_disabled(
         await client.close()
 
     assert received_paths == ["/v1/responses"]
+
+
+@pytest.mark.asyncio
+async def test_nano_gpt_uses_payload_muse_model_for_transport_selection(monkeypatch):
+    received_paths = []
+
+    async def handler(request):
+        received_paths.append(request.path)
+        return web.json_response(
+            {
+                "id": "chatcmpl_1",
+                "model": "meta/muse-spark-1.2",
+                "choices": [{"message": {"role": "assistant", "content": "OK"}, "finish_reason": "stop"}],
+            }
+        )
+
+    server = TestServer(web.Application())
+    server.app.router.add_post("/v1/chat/completions", handler)
+    client = TestClient(server)
+    await client.start_server()
+    try:
+        from mcptap.settings import settings
+
+        monkeypatch.setattr(settings, "use_chat_completions", False)
+        monkeypatch.setattr(settings, "upstream_provider", "nano-gpt")
+        monkeypatch.setattr(settings, "model", "other/model")
+        monkeypatch.setattr(settings, "upstream_base_url", str(server.make_url("/v1")))
+        await post_upstream_buffered(
+            client.session,
+            "/responses",
+            {},
+            {"model": "meta/muse-spark-1.2", "input": "Hello"},
+            False,
+        )
+    finally:
+        await client.close()
+
+    assert received_paths == ["/v1/chat/completions"]
+
+
+@pytest.mark.asyncio
+async def test_forward_rewritten_uses_muse_chat_transport_when_flag_is_disabled(monkeypatch):
+    received_paths = []
+
+    async def upstream_handler(request):
+        received_paths.append(request.path)
+        return web.json_response(
+            {
+                "id": "chatcmpl_1",
+                "model": "meta/muse-spark-1.2",
+                "choices": [{"message": {"role": "assistant", "content": "OK"}, "finish_reason": "stop"}],
+            }
+        )
+
+    upstream_server = TestServer(web.Application())
+    upstream_server.app.router.add_post("/v1/chat/completions", upstream_handler)
+    proxy_app = web.Application()
+    upstream_client = TestClient(upstream_server)
+    await upstream_client.start_server()
+
+    async def proxy_handler(request):
+        response, _raw = await forward_rewritten(
+            request,
+            upstream_client.session,
+            str(upstream_server.make_url("/v1/responses")),
+            {},
+            {"model": "meta/muse-spark-1.2", "input": "Hello"},
+        )
+        return response
+
+    proxy_app.router.add_post("/v1/responses", proxy_handler)
+    proxy_server = TestServer(proxy_app)
+    proxy_client = TestClient(proxy_server)
+    await proxy_client.start_server()
+    try:
+        from mcptap.settings import settings
+
+        monkeypatch.setattr(settings, "use_chat_completions", False)
+        monkeypatch.setattr(settings, "upstream_provider", "nano-gpt")
+        monkeypatch.setattr(settings, "model", "other/model")
+        monkeypatch.setattr(settings, "upstream_base_url", str(upstream_server.make_url("/v1")))
+        response = await proxy_client.post("/v1/responses")
+        assert response.status == 200
+    finally:
+        await proxy_client.close()
+        await upstream_client.close()
+
+    assert received_paths == ["/v1/chat/completions"]
 
 
 @pytest.mark.asyncio
