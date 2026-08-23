@@ -25,9 +25,8 @@ from mcptap.encrypted_replay import (
     is_encrypted_replay_error,
 )
 from mcptap.http_utils import filtered_headers, log_communication
-from mcptap.responses import build_sse_from_response, response_json_from_raw
-from mcptap.rewrite import convert_muse_custom_input_items, convert_muse_function_response, is_muse_spark_model
-from mcptap.settings import LOGGER, PROVIDER_NANO_GPT, settings
+from mcptap.responses import response_json_from_raw
+from mcptap.settings import LOGGER, settings
 
 _CHAT_CONVERSATIONS = PersistentChatStore()
 
@@ -36,16 +35,8 @@ def _uses_chat_completions(path: str) -> bool:
     return settings.use_chat_completions and path.rstrip("/").endswith("/responses")
 
 
-def _uses_muse_chat_transport(path: str, model: str) -> bool:
-    return (
-        path.rstrip("/").endswith("/responses")
-        and settings.upstream_provider == PROVIDER_NANO_GPT
-        and is_muse_spark_model(model)
-    )
-
-
-def _chat_upstream_path(path: str, force_chat: bool = False) -> str:
-    if not (_uses_chat_completions(path) or force_chat):
+def _chat_upstream_path(path: str) -> str:
+    if not _uses_chat_completions(path):
         return path
     normalized = path
     for prefix in ("/api/v1", "/v1"):
@@ -79,12 +70,11 @@ async def post_upstream_buffered(
     Responses-compatible SSE stream so the proxy can resolve hidden MCP tool
     calls before returning the response to the client.
     """
-    chat_mode = _uses_chat_completions(path) or _uses_muse_chat_transport(path, str(body.get("model", "")))
+    chat_mode = _uses_chat_completions(path)
     request_body = dict(body)
-    convert_muse_custom_input_items(request_body, str(body.get("model", "")))
     if chat_mode:
         request_body = responses_request_to_chat(request_body, _CHAT_CONVERSATIONS, stream=stream)
-    upstream_path = _chat_upstream_path(path, force_chat=chat_mode)
+    upstream_path = _chat_upstream_path(path)
     outgoing_headers = dict(headers)
     outgoing_headers["Content-Type"] = "application/json"
     if stream:
@@ -118,14 +108,6 @@ async def post_upstream_buffered(
             raw, response_json = convert_chat_response(raw, stream, response_id=response_id)
             if response_json is None:
                 response_json = {}
-            original_response_json = response_json
-            response_json = convert_muse_function_response(response_json, str(body.get("model", "")))
-            if response_json != original_response_json:
-                raw = (
-                    build_sse_from_response(response_json)
-                    if stream
-                    else json.dumps(response_json, ensure_ascii=False).encode("utf-8")
-                )
             body_json = response_json
             stored_chat_body = {key: value for key, value in chat_result.items() if key != "sse"}
             _CHAT_CONVERSATIONS.store_response(response_id, request_body["messages"], stored_chat_body)
@@ -134,15 +116,6 @@ async def post_upstream_buffered(
             body_json = response_json_from_raw(raw, stream)
     else:
         body_json = response_json_from_raw(raw, stream)
-        if body_json is not None and resp.status < 400:
-            converted_body_json = convert_muse_function_response(body_json, str(body.get("model", "")))
-            if converted_body_json != body_json:
-                body_json = converted_body_json
-                raw = (
-                    build_sse_from_response(body_json)
-                    if stream
-                    else json.dumps(body_json, ensure_ascii=False).encode("utf-8")
-                )
 
     return resp.status, response_headers, raw, body_json
 
@@ -271,7 +244,7 @@ async def forward_rewritten(
     Returns a ``(StreamResponse, bytes)`` tuple where the second element is the
     full response body, enabling logging of error responses (429, 500, etc.).
     """
-    if _uses_chat_completions(request.path) or _uses_muse_chat_transport(request.path, str(payload.get("model", ""))):
+    if _uses_chat_completions(request.path):
         try:
             status, response_headers, raw, _body_json = await post_upstream_buffered(
                 session,

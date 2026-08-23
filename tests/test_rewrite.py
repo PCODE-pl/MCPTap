@@ -1,15 +1,9 @@
-"""Tests for provider-specific request payload rewriting."""
+"""Tests for request payload rewriting."""
 
-import json
 from unittest.mock import MagicMock, patch
 
 from mcptap.mcp_intercept import MCPInterceptor
-from mcptap.rewrite import (
-    convert_muse_custom_input_items,
-    convert_muse_function_response,
-    load_per_model_config,
-    rewrite_json_payload,
-)
+from mcptap.rewrite import load_per_model_config, rewrite_json_payload
 from mcptap.settings import PROVIDER_META, PROVIDER_OPENROUTER, settings
 
 
@@ -18,13 +12,14 @@ def test_per_model_disable_builtin_tools_keeps_function_tools_on_every_request()
         patch.object(
             settings,
             "per_model_yaml",
-            "muse/spark:\n  disable_builtin_tools: true\n",
+            "model/with-limited-tools:\n  disable_builtin_tools: true\n  disable_custom_tools: true\n",
         ),
-        patch.object(settings, "model", "muse/spark"),
+        patch.object(settings, "model", "model/with-limited-tools"),
         patch.object(settings, "upstream_provider", "requesty"),
     ):
         per_model_config = load_per_model_config()
-        assert per_model_config["muse/spark"]["disable_builtin_tools"] is True
+        assert per_model_config["model/with-limited-tools"]["disable_builtin_tools"] is True
+        assert per_model_config["model/with-limited-tools"]["disable_custom_tools"] is True
 
         for payload in (
             {
@@ -33,6 +28,7 @@ def test_per_model_disable_builtin_tools_keeps_function_tools_on_every_request()
                 "tools": [
                     {"type": "web_search_preview"},
                     {"type": "file_search"},
+                    {"type": "custom", "name": "apply_patch"},
                     {"type": "function", "name": "exec", "parameters": {"type": "object"}},
                 ],
             },
@@ -40,101 +36,17 @@ def test_per_model_disable_builtin_tools_keeps_function_tools_on_every_request()
                 "model": "client-model",
                 "previous_response_id": "resp_123",
                 "input": [],
-                "tools": [{"type": "code_interpreter"}, {"type": "function", "name": "exec"}],
+                "tools": [
+                    {"type": "code_interpreter"},
+                    {"type": "custom", "name": "apply_patch"},
+                    {"type": "function", "name": "exec"},
+                ],
             },
         ):
             rewrite_json_payload(
                 MagicMock(method="POST", path_qs="/v1/responses"), payload, MCPInterceptor(None), per_model_config
             )
             assert [tool["type"] for tool in payload["tools"]] == ["function"]
-
-
-def test_muse_spark_converts_custom_tools_for_openrouter_on_every_request():
-    with (
-        patch.object(settings, "model", "meta/muse-spark-1.2"),
-        patch.object(settings, "upstream_provider", PROVIDER_OPENROUTER),
-    ):
-        for payload in (
-            {
-                "model": "client-model",
-                "input": [],
-                "tools": [
-                    {"type": "custom", "name": "apply_patch"},
-                    {"type": "function", "name": "exec"},
-                ],
-            },
-            {
-                "model": "client-model",
-                "previous_response_id": "resp_123",
-                "input": [],
-                "tools": [{"type": "custom", "name": "apply_patch"}, {"type": "function", "name": "exec"}],
-            },
-        ):
-            rewrite_json_payload(MagicMock(method="POST", path_qs="/v1/responses"), payload, MCPInterceptor(None), {})
-            assert [tool["type"] for tool in payload["tools"]] == ["function", "function"]
-            assert payload["tools"][0]["name"] == "apply_patch"
-            assert payload["tools"][0]["parameters"] == {
-                "type": "object",
-                "properties": {"input": {"type": "string"}},
-                "required": ["input"],
-                "additionalProperties": False,
-            }
-
-
-def test_muse_spark_converts_custom_tools_for_nano_gpt():
-    with (
-        patch.object(settings, "model", "meta/muse-spark-1.2-contributor"),
-        patch.object(settings, "upstream_provider", "nano-gpt"),
-    ):
-        payload = {
-            "model": "client-model",
-            "input": [],
-            "tools": [{"type": "custom", "name": "apply_patch"}, {"type": "function", "name": "exec"}],
-        }
-
-        rewrite_json_payload(MagicMock(method="POST", path_qs="/v1/responses"), payload, MCPInterceptor(None), {})
-
-        assert [tool["type"] for tool in payload["tools"]] == ["function", "function"]
-        assert payload["tools"][0]["name"] == "apply_patch"
-
-
-def test_muse_spark_converts_all_custom_tools_for_nano_gpt():
-    with (
-        patch.object(settings, "model", "meta/muse-spark-1.2"),
-        patch.object(settings, "upstream_provider", "nano-gpt"),
-    ):
-        payload = {
-            "model": "client-model",
-            "input": [],
-            "tools": [
-                {"type": "custom", "name": "apply_patch"},
-                {"type": "custom", "name": "freeform_tool", "description": "Freeform input"},
-            ],
-        }
-
-        rewrite_json_payload(MagicMock(method="POST", path_qs="/v1/responses"), payload, MCPInterceptor(None), {})
-
-        assert [tool["type"] for tool in payload["tools"]] == ["function", "custom"]
-
-
-def test_muse_spark_function_response_conversion_preserves_non_tool_output():
-    body = {
-        "output": [
-            {"type": "message", "role": "assistant", "content": [{"type": "output_text", "text": "OK"}]},
-            {
-                "type": "function_call",
-                "id": "fc_1",
-                "call_id": "call_1",
-                "name": "apply_patch",
-                "arguments": json.dumps({"input": "patch"}),
-            },
-        ]
-    }
-
-    converted = convert_muse_function_response(body, "meta/muse-spark-1.2")
-
-    assert converted["output"][0] == body["output"][0]
-    assert converted["output"][1]["type"] == "custom_tool_call"
 
 
 def test_custom_tools_are_preserved_for_other_models():
@@ -153,60 +65,46 @@ def test_custom_tools_are_preserved_for_other_models():
         assert payload["tools"] == [{"type": "custom", "name": "custom_tool"}]
 
 
-def test_muse_custom_input_is_converted_to_function_call():
-    payload = {
-        "model": "meta/muse-spark-1.2-contributor",
-        "input": [
-            {
-                "type": "custom_tool_call",
-                "call_id": "call_1",
-                "name": "apply_patch",
-                "input": "*** Begin Patch\n*** End Patch",
-            },
-            {
-                "type": "custom_tool_call_output",
-                "call_id": "call_1",
-                "output": "Applied.",
-            },
-        ],
-    }
+def test_per_model_disable_custom_tools_removes_only_custom_tools():
+    with (
+        patch.object(settings, "model", "provider/model"),
+        patch.object(settings, "upstream_provider", PROVIDER_OPENROUTER),
+    ):
+        payload = {
+            "model": "client-model",
+            "input": [],
+            "tools": [
+                {"type": "custom", "name": "apply_patch"},
+                {"type": "function", "name": "exec"},
+            ],
+        }
 
-    convert_muse_custom_input_items(payload, payload["model"])
+        rewrite_json_payload(
+            MagicMock(method="POST", path_qs="/v1/responses"),
+            payload,
+            MCPInterceptor(None),
+            {"provider/model": {"disable_custom_tools": True}},
+        )
 
-    assert payload["input"] == [
-        {
-            "type": "function_call",
-            "call_id": "call_1",
-            "name": "apply_patch",
-            "arguments": json.dumps({"input": "*** Begin Patch\n*** End Patch"}),
-        },
-        {"type": "function_call_output", "call_id": "call_1", "output": "Applied."},
-    ]
+        assert payload["tools"] == [{"type": "function", "name": "exec"}]
 
 
-def test_muse_function_response_is_converted_back_to_custom_tool_call():
-    body = {
-        "output": [
-            {
-                "type": "function_call",
-                "id": "fc_1",
-                "call_id": "call_1",
-                "name": "apply_patch",
-                "arguments": json.dumps({"input": "*** Begin Patch\n*** End Patch"}),
-            }
-        ]
-    }
+def test_per_model_disable_custom_tools_matches_model_suffix():
+    with patch.object(settings, "model", "provider/model:floor"):
+        payload = {
+            "model": "client-model",
+            "input": [],
+            "tools": [{"type": "custom", "name": "apply_patch"}],
+        }
 
-    converted = convert_muse_function_response(body, "meta/muse-spark-1.2")
+        rewrite_json_payload(
+            MagicMock(method="POST", path_qs="/v1/responses"),
+            payload,
+            MCPInterceptor(None),
+            {"provider/model": {"disable_custom_tools": True}},
+        )
 
-    assert converted["output"][0] == {
-        "type": "custom_tool_call",
-        "id": "fc_1",
-        "call_id": "call_1",
-        "name": "apply_patch",
-        "input": "*** Begin Patch\n*** End Patch",
-    }
-    assert body["output"][0]["type"] == "function_call"
+        assert payload["tools"] == []
 
 
 def test_meta_tool_schemas_require_all_properties_and_nullable_optional_values():

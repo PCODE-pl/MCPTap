@@ -166,18 +166,11 @@ needed; LLMTR accepts the standard OpenAI-compatible tool schemas.
 
 ### Responses compatibility mode
 
-Some LLMTR models, including `meta/muse-spark-1.2-contributor`, are exposed
-only through Chat Completions. Enable the adapter in `llmtr.env`:
-
-```env
-MCP_TAP_USE_CHAT_COMPLETIONS=true
-```
-
-Codex continues to use `/v1/responses`. MCPTap converts requests to
-`/v1/chat/completions`, preserves function tool calls and conversation history,
-then converts the response back to Responses format. Chat Completions streaming
-is buffered and returned as Responses-compatible SSE. Responses-only built-in
-tools are not converted; disable them for models that do not support them.
+Codex continues to use `/v1/responses`. When `MCP_TAP_USE_CHAT_COMPLETIONS=true`,
+MCPTap converts requests to `/v1/chat/completions`, preserves function tool
+calls and conversation history, then converts the response back to Responses
+format. Chat Completions streaming is buffered and returned as
+Responses-compatible SSE.
 
 ## 5. MCP tool interception
 
@@ -297,8 +290,6 @@ policy/free-fallback-to-paid:
   instructions: |
     Keep answers compact unless the user explicitly asks for detail.
 
-muse/spark:
-  disable_builtin_tools: true
 ```
 
 Notes:
@@ -308,8 +299,7 @@ Notes:
 * OpenRouter presets such as `@preset/name` are supported,
 * Requesty policies such as `policy/name` are supported,
 * `disable_builtin_tools: true` removes Responses built-in tool types for that model while preserving function tools,
-* Muse Spark 1.2 models convert Codex's free-form `apply_patch` tool to a
-  function tool for providers that do not accept Responses `custom` tools,
+* `disable_custom_tools: true` removes Responses custom tools for that model while preserving function tools,
 * instructions are injected only on the first request, not on follow-up requests using `previous_response_id`.
 
 ## 7. Tool-call hook
