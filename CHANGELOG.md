@@ -19,15 +19,11 @@
 
 ### Fixed
 
-- **NanoGPT Muse Spark transport** — automatically use the Chat Completions
-  adapter for both Muse Spark model IDs, even when
-  `MCP_TAP_USE_CHAT_COMPLETIONS=false`; other NanoGPT models keep the native
-  Responses path.
+- Removed model-specific compatibility overrides. Chat and Responses transport
+selection is controlled only by the provider setting.
 
-- **Muse Spark custom tools through Codex** — Responses requests for
-  `meta/muse-spark-1.2` and its contributor tier convert Codex's free-form
-  `apply_patch` tool to a JSON-schema function tool for NanoGPT and OpenRouter,
-  then restore the Responses `custom_tool_call` shape in the response.
+- **Per-model custom tools** — `disable_custom_tools: true` removes unsupported
+  Responses custom tools while preserving function tools.
 
 - **Meta unsupported tools** — custom, `tool_search`, `computer_use_preview`, `image_generation`, and `code_interpreter` tool types are dropped (unsupported on the Meta endpoint) and `web_search` is rewritten to `web_search_preview` (covered by `test_meta_drops_unsupported_tool_types_and_rewrites_web_search`).
 

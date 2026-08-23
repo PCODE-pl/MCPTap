@@ -14,13 +14,12 @@ from mcptap.chat_completions import (
     responses_request_to_chat,
 )
 from mcptap.responses import response_json_from_sse
-from mcptap.rewrite import convert_muse_custom_input_items
-from mcptap.upstream import forward_rewritten, post_upstream_buffered
+from mcptap.upstream import post_upstream_buffered
 
 
 def test_responses_request_maps_messages_tools_and_reasoning():
     payload = {
-        "model": "meta/muse-spark-1.2-contributor",
+        "model": "provider/model",
         "instructions": "You are a coding assistant.",
         "input": [
             {"role": "user", "content": [{"type": "input_text", "text": "Inspect this code."}]},
@@ -180,7 +179,7 @@ def test_empty_assistant_history_is_removed_before_follow_up():
 def test_chat_text_response_maps_to_responses_message_and_usage():
     body = {
         "id": "chatcmpl_123",
-        "model": "meta/muse-spark-1.2-contributor",
+        "model": "provider/model",
         "choices": [
             {
                 "index": 0,
@@ -204,7 +203,7 @@ def test_chat_text_response_maps_to_responses_message_and_usage():
 def test_chat_tool_response_maps_to_responses_function_call():
     body = {
         "id": "chatcmpl_123",
-        "model": "meta/muse-spark-1.2-contributor",
+        "model": "provider/model",
         "choices": [
             {
                 "message": {
@@ -425,47 +424,7 @@ async def test_buffered_upstream_uses_chat_endpoint_and_returns_responses_body(m
 
 
 @pytest.mark.asyncio
-async def test_nano_gpt_muse_spark_uses_chat_endpoint_when_flag_is_disabled(monkeypatch):
-    received_paths = []
-
-    async def handler(request):
-        received_paths.append(request.path)
-        return web.json_response(
-            {
-                "id": "chatcmpl_1",
-                "model": "meta/muse-spark-1.2",
-                "choices": [{"message": {"role": "assistant", "content": "OK"}, "finish_reason": "stop"}],
-            }
-        )
-
-    server = TestServer(web.Application())
-    server.app.router.add_post("/v1/chat/completions", handler)
-    server.app.router.add_post("/v1/responses", handler)
-    client = TestClient(server)
-    await client.start_server()
-    try:
-        from mcptap.settings import settings
-
-        monkeypatch.setattr(settings, "use_chat_completions", False)
-        monkeypatch.setattr(settings, "upstream_provider", "nano-gpt")
-        monkeypatch.setattr(settings, "upstream_base_url", str(server.make_url("/v1")))
-        for model in ("meta/muse-spark-1.2", "meta/muse-spark-1.2-contributor"):
-            monkeypatch.setattr(settings, "model", model)
-            await post_upstream_buffered(
-                client.session,
-                "/responses",
-                {},
-                {"model": model, "input": "Hello"},
-                False,
-            )
-    finally:
-        await client.close()
-
-    assert received_paths == ["/v1/chat/completions", "/v1/chat/completions"]
-
-
-@pytest.mark.asyncio
-async def test_nano_gpt_non_muse_keeps_responses_endpoint_when_flag_is_disabled(monkeypatch):
+async def test_responses_endpoint_is_used_when_chat_adapter_is_disabled(monkeypatch):
     received_paths = []
 
     async def handler(request):
@@ -494,94 +453,6 @@ async def test_nano_gpt_non_muse_keeps_responses_endpoint_when_flag_is_disabled(
         await client.close()
 
     assert received_paths == ["/v1/responses"]
-
-
-@pytest.mark.asyncio
-async def test_nano_gpt_uses_payload_muse_model_for_transport_selection(monkeypatch):
-    received_paths = []
-
-    async def handler(request):
-        received_paths.append(request.path)
-        return web.json_response(
-            {
-                "id": "chatcmpl_1",
-                "model": "meta/muse-spark-1.2",
-                "choices": [{"message": {"role": "assistant", "content": "OK"}, "finish_reason": "stop"}],
-            }
-        )
-
-    server = TestServer(web.Application())
-    server.app.router.add_post("/v1/chat/completions", handler)
-    client = TestClient(server)
-    await client.start_server()
-    try:
-        from mcptap.settings import settings
-
-        monkeypatch.setattr(settings, "use_chat_completions", False)
-        monkeypatch.setattr(settings, "upstream_provider", "nano-gpt")
-        monkeypatch.setattr(settings, "model", "other/model")
-        monkeypatch.setattr(settings, "upstream_base_url", str(server.make_url("/v1")))
-        await post_upstream_buffered(
-            client.session,
-            "/responses",
-            {},
-            {"model": "meta/muse-spark-1.2", "input": "Hello"},
-            False,
-        )
-    finally:
-        await client.close()
-
-    assert received_paths == ["/v1/chat/completions"]
-
-
-@pytest.mark.asyncio
-async def test_forward_rewritten_uses_muse_chat_transport_when_flag_is_disabled(monkeypatch):
-    received_paths = []
-
-    async def upstream_handler(request):
-        received_paths.append(request.path)
-        return web.json_response(
-            {
-                "id": "chatcmpl_1",
-                "model": "meta/muse-spark-1.2",
-                "choices": [{"message": {"role": "assistant", "content": "OK"}, "finish_reason": "stop"}],
-            }
-        )
-
-    upstream_server = TestServer(web.Application())
-    upstream_server.app.router.add_post("/v1/chat/completions", upstream_handler)
-    proxy_app = web.Application()
-    upstream_client = TestClient(upstream_server)
-    await upstream_client.start_server()
-
-    async def proxy_handler(request):
-        response, _raw = await forward_rewritten(
-            request,
-            upstream_client.session,
-            str(upstream_server.make_url("/v1/responses")),
-            {},
-            {"model": "meta/muse-spark-1.2", "input": "Hello"},
-        )
-        return response
-
-    proxy_app.router.add_post("/v1/responses", proxy_handler)
-    proxy_server = TestServer(proxy_app)
-    proxy_client = TestClient(proxy_server)
-    await proxy_client.start_server()
-    try:
-        from mcptap.settings import settings
-
-        monkeypatch.setattr(settings, "use_chat_completions", False)
-        monkeypatch.setattr(settings, "upstream_provider", "nano-gpt")
-        monkeypatch.setattr(settings, "model", "other/model")
-        monkeypatch.setattr(settings, "upstream_base_url", str(upstream_server.make_url("/v1")))
-        response = await proxy_client.post("/v1/responses")
-        assert response.status == 200
-    finally:
-        await proxy_client.close()
-        await upstream_client.close()
-
-    assert received_paths == ["/v1/chat/completions"]
 
 
 @pytest.mark.asyncio
@@ -683,7 +554,7 @@ async def test_chat_mode_replays_previous_response_as_chat_history(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_chat_mode_converts_replayed_custom_tool_call_before_chat_conversion(monkeypatch):
+async def test_chat_mode_replays_function_tool_call_before_chat_conversion(monkeypatch):
     received_bodies = []
 
     async def handler(request):
@@ -691,7 +562,7 @@ async def test_chat_mode_converts_replayed_custom_tool_call_before_chat_conversi
         return web.json_response(
             {
                 "id": "chatcmpl_done",
-                "model": "meta/muse-spark-1.2",
+                "model": "provider/model",
                 "choices": [{"message": {"role": "assistant", "content": "OK"}, "finish_reason": "stop"}],
             }
         )
@@ -705,16 +576,20 @@ async def test_chat_mode_converts_replayed_custom_tool_call_before_chat_conversi
 
         monkeypatch.setattr(settings, "use_chat_completions", True)
         monkeypatch.setattr(settings, "upstream_base_url", str(server.make_url("/v1")))
-        monkeypatch.setattr(settings, "model", "meta/muse-spark-1.2")
-        monkeypatch.setattr(settings, "plan_mode_model", "meta/muse-spark-1.2")
+        monkeypatch.setattr(settings, "model", "any/model")
+        monkeypatch.setattr(settings, "plan_mode_model", "any/model")
         payload = {
-            "model": "meta/muse-spark-1.2",
+            "model": "any/model",
             "input": [
-                {"type": "custom_tool_call", "call_id": "call_1", "name": "apply_patch", "input": "patch"},
-                {"type": "custom_tool_call_output", "call_id": "call_1", "output": "Applied"},
+                {
+                    "type": "function_call",
+                    "call_id": "call_1",
+                    "name": "apply_patch",
+                    "arguments": '{"input": "patch"}',
+                },
+                {"type": "function_call_output", "call_id": "call_1", "output": "Applied"},
             ],
         }
-        convert_muse_custom_input_items(payload, payload["model"])
         await post_upstream_buffered(client.session, "/responses", {}, payload, False)
     finally:
         await client.close()

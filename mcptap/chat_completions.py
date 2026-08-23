@@ -49,7 +49,7 @@ _REQUEST_FIELDS = {
     "user",
 }
 
-# Keep Chat payload under LLMTR's context limit (muse-spark 196k).
+# Keep Chat payload under the provider's context limit.
 # 120k tokens ≈ 480k chars leaves headroom for completion + tools.
 CHAT_MAX_CHARS = 480_000
 
