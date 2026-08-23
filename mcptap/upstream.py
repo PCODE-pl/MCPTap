@@ -33,15 +33,19 @@ _CHAT_CONVERSATIONS = PersistentChatStore()
 
 
 def _uses_chat_completions(path: str) -> bool:
-    if not path.rstrip("/").endswith("/responses"):
-        return False
-    return settings.use_chat_completions or (
-        settings.upstream_provider == PROVIDER_NANO_GPT and is_muse_spark_model(settings.model)
+    return settings.use_chat_completions and path.rstrip("/").endswith("/responses")
+
+
+def _uses_muse_chat_transport(path: str, model: str) -> bool:
+    return (
+        path.rstrip("/").endswith("/responses")
+        and settings.upstream_provider == PROVIDER_NANO_GPT
+        and is_muse_spark_model(model)
     )
 
 
-def _chat_upstream_path(path: str) -> str:
-    if not _uses_chat_completions(path):
+def _chat_upstream_path(path: str, force_chat: bool = False) -> str:
+    if not (_uses_chat_completions(path) or force_chat):
         return path
     normalized = path
     for prefix in ("/api/v1", "/v1"):
@@ -75,12 +79,12 @@ async def post_upstream_buffered(
     Responses-compatible SSE stream so the proxy can resolve hidden MCP tool
     calls before returning the response to the client.
     """
-    chat_mode = _uses_chat_completions(path)
+    chat_mode = _uses_chat_completions(path) or _uses_muse_chat_transport(path, str(body.get("model", "")))
     request_body = dict(body)
     convert_muse_custom_input_items(request_body, str(body.get("model", "")))
     if chat_mode:
         request_body = responses_request_to_chat(request_body, _CHAT_CONVERSATIONS, stream=stream)
-    upstream_path = _chat_upstream_path(path)
+    upstream_path = _chat_upstream_path(path, force_chat=chat_mode)
     outgoing_headers = dict(headers)
     outgoing_headers["Content-Type"] = "application/json"
     if stream:
@@ -267,7 +271,7 @@ async def forward_rewritten(
     Returns a ``(StreamResponse, bytes)`` tuple where the second element is the
     full response body, enabling logging of error responses (429, 500, etc.).
     """
-    if _uses_chat_completions(request.path):
+    if _uses_chat_completions(request.path) or _uses_muse_chat_transport(request.path, str(payload.get("model", ""))):
         try:
             status, response_headers, raw, _body_json = await post_upstream_buffered(
                 session,
