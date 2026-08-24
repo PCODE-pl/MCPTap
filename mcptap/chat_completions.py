@@ -281,7 +281,7 @@ def _build_chat_sse_from_response(response: Dict[str, Any]) -> bytes:
         added_item["status"] = "in_progress"
         if item.get("type") == "message":
             added_item["content"] = []
-            added_item["phase"] = "commentary"
+            added_item["phase"] = item.get("phase", "final_answer")
         elif item.get("type") == "function_call":
             added_item["arguments"] = ""
         append_event("response.output_item.added", output_index=output_index, item=added_item)
@@ -625,7 +625,7 @@ def _chat_message_to_response_item(message: Dict[str, Any], content: str) -> Dic
         "id": f"msg_{uuid.uuid4().hex[:24]}",
         "status": "completed",
         "role": "assistant",
-        "phase": "commentary",
+        "phase": "final_answer",
         "content": [{"type": "output_text", "text": content, "annotations": []}],
     }
     if isinstance(message.get("reasoning_content"), str):

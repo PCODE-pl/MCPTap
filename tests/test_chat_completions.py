@@ -197,6 +197,7 @@ def test_chat_text_response_maps_to_responses_message_and_usage():
     assert result["status"] == "completed"
     assert result["output"][0]["type"] == "message"
     assert result["output"][0]["content"] == [{"type": "output_text", "text": "Done.", "annotations": []}]
+    assert result["output"][0]["phase"] == "final_answer"
     assert result["usage"] == {"input_tokens": 10, "output_tokens": 4, "total_tokens": 14}
 
 
@@ -335,7 +336,7 @@ def test_chat_stream_emits_text_delta_and_content_part_events():
     assert b"response.output_text.done" in sse
     assert b"response.content_part.done" in sse
     assert b'"logprobs":[]' in sse
-    assert b'"phase":"commentary"' in sse
+    assert b'"phase":"final_answer"' in sse
 
 
 def test_convert_chat_stream_does_not_serialize_internal_sse_bytes():
