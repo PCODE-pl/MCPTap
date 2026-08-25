@@ -49,3 +49,7 @@ async def test_serve_pareto_page_returns_html():
         assert "contentSize" in body
         assert "max-height: calc(100vh - 24px)" in body
         assert "getBoundingClientRect" in body
+        assert "type: 'inside'" in body
+        assert "xAxisIndex: 'all'" in body
+        assert "yAxisIndex: 'all'" in body
+        assert "itemGap: 10" in body
