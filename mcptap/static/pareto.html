@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MCPTap Pareto</title>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <script src="https://unpkg.com/naive-ui/dist/index.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+  <style>
+    html, body { margin: 0; padding: 0; height: 100%; background: #101014; }
+    #app { height: 100vh; display: flex; flex-direction: column; color: #f5f5f5; }
+    .toolbar { padding: 10px 14px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .chart-container { flex: 1; min-height: 420px; padding: 0 8px 8px; }
+    #chart { width: 100%; height: 100%; min-height: 420px; }
+    .hint { font-size: 12px; opacity: .65; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <n-config-provider :theme="darkTheme">
+    <n-layout style="height: 100vh">
+      <n-layout-header bordered class="toolbar">
+        <strong>MCPTap Pareto</strong>
+        <n-select
+          v-model:value="selectedProviders"
+          multiple
+          filterable
+          tag
+          clearable
+          :options="providerOptions"
+          placeholder="Filter providers"
+          style="min-width: 360px; max-width: 720px"
+          size="small"
+          @update:value="renderChart"
+        />
+        <n-button size="small" :loading="loading" @click="loadData">Refresh</n-button>
+        <span class="hint">{{ pointCount }} points · {{ modelCount }} models</span>
+        <span class="hint" style="margin-left: auto" v-if="error">{{ error }}</span>
+      </n-layout-header>
+      <n-layout-content class="chart-container">
+        <div id="chart"></div>
+      </n-layout-content>
+    </n-layout>
+  </n-config-provider>
+</div>
+
+<script>
+const { createApp, ref, computed, onMounted, onBeforeUnmount } = Vue;
+
+// The token mix and quality weights are intentionally fixed until the scoring model is tuned.
+const COST_INPUT_TOKENS = 1000000;
+const COST_OUTPUT_TOKENS = 1000000;
+const QUALITY_WEIGHTS = {
+  accuracy: 1,
+  uptime_last_5m: 0.5,
+  uptime_last_15m: 0.5,
+  uptime_last_30m: 0.75,
+  uptime_last_1h: 1,
+  uptime_last_1d: 1.5,
+  latency_last_30m: 0.75,
+  latency_last_1h: 1,
+  latency_last_1d: 1,
+  throughput_last_30m: 0.75,
+  throughput_last_1h: 1,
+  throughput_last_1d: 1,
+};
+const DEFAULT_PROVIDERS = ['llmtr', 'meta', 'nano-gpt', 'openrouter', 'requesty'];
+
+const app = createApp({
+  setup() {
+    const { darkTheme, NConfigProvider, NLayout, NLayoutHeader, NLayoutContent,
+      NSelect, NButton } = naive;
+    const rawData = ref({});
+    const selectedProviders = ref([...DEFAULT_PROVIDERS]);
+    const loading = ref(false);
+    const error = ref('');
+    const pointCount = ref(0);
+    const modelCount = ref(0);
+    const chart = ref(null);
+
+    const providerOptions = computed(() => {
+      const providers = new Set();
+      for (const item of Object.values(rawData.value)) {
+        for (const provider of Object.keys(item.providers || {})) providers.add(provider);
+      }
+      return [...providers].sort().map(value => ({ label: value, value }));
+    });
+
+    function numeric(value) {
+      return typeof value === 'number' && Number.isFinite(value) ? value : null;
+    }
+
+    function collectOffers() {
+      const offers = [];
+      for (const [canonicalModel, item] of Object.entries(rawData.value)) {
+        for (const [provider, aliases] of Object.entries(item.providers || {})) {
+          if (!selectedProviders.value.includes(provider)) continue;
+          for (const [alias, offer] of Object.entries(aliases || {})) {
+            const input = numeric(offer.cost?.input);
+            const output = numeric(offer.cost?.output);
+            if (input === null || output === null) continue;
+            offers.push({ canonicalModel, provider, alias, item, offer, input, output });
+          }
+        }
+      }
+      return offers;
+    }
+
+    function qualityScore(offer, maxima) {
+      const components = [];
+      const accuracy = numeric(offer.item.accuracy);
+      if (accuracy !== null) components.push([QUALITY_WEIGHTS.accuracy, accuracy / 100]);
+      const stats = offer.offer.stats || {};
+      for (const [key, weight] of Object.entries(QUALITY_WEIGHTS)) {
+        if (key === 'accuracy') continue;
+        const value = numeric(stats[key]);
+        if (value === null || !weight) continue;
+        let normalized;
+        if (key.startsWith('uptime_')) {
+          normalized = value / 100;
+        } else if (key.startsWith('latency_')) {
+          const max = maxima[key];
+          normalized = max > 0 ? 1 - value / max : 1;
+        } else {
+          const max = maxima[key];
+          normalized = max > 0 ? value / max : 0;
+        }
+        components.push([weight, Math.max(0, Math.min(1, normalized))]);
+      }
+      const weightSum = components.reduce((sum, [weight]) => sum + weight, 0);
+      return weightSum ? components.reduce((sum, [weight, value]) => sum + weight * value, 0) / weightSum : null;
+    }
+
+    function buildPoints() {
+      const offers = collectOffers();
+      const maxima = {};
+      for (const key of Object.keys(QUALITY_WEIGHTS)) {
+        if (key === 'accuracy' || !key.startsWith('latency_') && !key.startsWith('throughput_')) continue;
+        maxima[key] = Math.max(0, ...offers.map(offer => numeric(offer.offer.stats?.[key]) ?? 0));
+      }
+      return offers.map(offer => {
+        const quality = qualityScore(offer, maxima);
+        if (quality === null) return null;
+        const weightedCost = (COST_INPUT_TOKENS * offer.input + COST_OUTPUT_TOKENS * offer.output) /
+          (COST_INPUT_TOKENS + COST_OUTPUT_TOKENS);
+        return {
+          value: [weightedCost, quality * 100],
+          name: offer.canonicalModel,
+          provider: offer.provider,
+          alias: offer.alias,
+          accuracy: offer.item.accuracy,
+          stats: offer.offer.stats || {},
+          cost: offer.offer.cost,
+          isThinking: offer.offer.is_thinking,
+        };
+      }).filter(Boolean);
+    }
+
+    function renderChart() {
+      if (!chart.value) return;
+      const points = buildPoints();
+      pointCount.value = points.length;
+      modelCount.value = new Set(points.map(point => point.name)).size;
+      const providers = [...new Set(points.map(point => point.provider))];
+      const series = providers.map(provider => ({
+        name: provider,
+        type: 'scatter',
+        symbolSize: 10,
+        data: points.filter(point => point.provider === provider),
+        emphasis: { focus: 'series', scale: 1.6 },
+      }));
+      chart.value.setOption({
+        animation: false,
+        backgroundColor: 'transparent',
+        color: ['#63b3ed', '#f6ad55', '#68d391', '#fc8181', '#b794f4', '#4fd1c5', '#f687b3'],
+        legend: { type: 'scroll', textStyle: { color: '#ddd' }, top: 8 },
+        grid: { left: 72, right: 32, top: 52, bottom: 66 },
+        tooltip: {
+          trigger: 'item',
+          formatter(params) {
+            const point = params.data;
+            const stats = Object.entries(point.stats || {}).map(([key, value]) => `${key}: ${value}`).join('<br>');
+            return `<b>${point.name}</b><br>Provider: ${point.provider}<br>Alias: ${point.alias}` +
+              `<br>Weighted cost: $${point.value[0].toFixed(4)}/M tokens` +
+              `<br>Quality: ${point.value[1].toFixed(2)}<br>Accuracy: ${point.accuracy ?? '—'}` +
+              `<br>Input: $${point.cost.input} · Output: $${point.cost.output}/M` +
+              (point.isThinking ? '<br>Thinking: yes' : '') + (stats ? `<br><br>${stats}` : '');
+          },
+        },
+        toolbox: { feature: { saveAsImage: {}, restore: {}, dataZoom: {} }, right: 12 },
+        xAxis: { name: 'Weighted cost ($/M tokens)', nameLocation: 'middle', nameGap: 38, type: 'value', scale: true, axisLabel: { color: '#aaa' }, nameTextStyle: { color: '#ccc' }, splitLine: { lineStyle: { color: '#28282f' } } },
+        yAxis: { name: 'Quality', nameLocation: 'middle', nameGap: 48, type: 'value', min: 0, max: 100, axisLabel: { color: '#aaa' }, nameTextStyle: { color: '#ccc' }, splitLine: { lineStyle: { color: '#28282f' } } },
+        series,
+      }, true);
+    }
+
+    async function loadData() {
+      loading.value = true;
+      error.value = '';
+      try {
+        const response = await fetch('/api/pareto', { cache: 'no-store' });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        rawData.value = await response.json();
+        renderChart();
+      } catch (err) {
+        error.value = `Failed to load Pareto data: ${err.message}`;
+      } finally {
+        loading.value = false;
+      }
+    }
+
+    function resizeChart() { if (chart.value) chart.value.resize(); }
+
+    onMounted(async () => {
+      chart.value = echarts.init(document.getElementById('chart'), 'dark');
+      window.addEventListener('resize', resizeChart);
+      await loadData();
+    });
+    onBeforeUnmount(() => {
+      window.removeEventListener('resize', resizeChart);
+      if (chart.value) chart.value.dispose();
+    });
+
+    return { darkTheme, NConfigProvider, NLayout, NLayoutHeader, NLayoutContent, NSelect, NButton,
+      selectedProviders, providerOptions, loading, error, pointCount, modelCount, loadData, renderChart };
+  },
+});
+app.use(naive);
+app.mount('#app');
+</script>
+</body>
+</html>

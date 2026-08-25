@@ -434,11 +434,14 @@ def build_app() -> web.Application:
     app.on_cleanup.append(_close_client_session)
     app.on_cleanup.append(_close_log_store)
     from mcptap.log_api import handle_log_detail, handle_logs_list, serve_logs_page
+    from mcptap.pareto_api import handle_pareto_data, serve_pareto_page
 
     app.router.add_get("/health", health)
     app.router.add_get("/api/logs", handle_logs_list)
     app.router.add_get("/api/logs/{log_id}", handle_log_detail)
     app.router.add_get("/ui/logs", serve_logs_page)
+    app.router.add_get("/api/pareto", handle_pareto_data)
+    app.router.add_get("/ui/pareto", serve_pareto_page)
     app.router.add_route("*", "/{tail:.*}", proxy)
     return app
 
