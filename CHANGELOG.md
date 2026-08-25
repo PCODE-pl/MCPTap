@@ -1,6 +1,38 @@
 <!-- markdownlint-disable MD024 -->
 # Changelog
 
+## [2.9.1]
+
+### Added
+
+- **LLMTR upstream provider** — added the `llmtr` provider, `llmtr.env` template, hot-reload support, setup integration, and documentation for the `https://llmtr.com/v1` OpenAI-compatible gateway.
+
+- **Responses-to-Chat Completions adapter** — added optional `MCP_TAP_USE_CHAT_COMPLETIONS` support for providers and models exposed through `/v1/chat/completions`, preserving function calls, reasoning metadata, conversation history, usage reporting, and Responses-compatible JSON/SSE output.
+
+- **Persistent Chat history** — added SQLite-backed, gzip-compressed `PersistentChatStore` histories with a 15-minute TTL, 200-row limit, 20 MB total limit, 512 KB per-entry limit, and LRU/expiry cleanup. Added 24 tests across `tests/test_chat_completions.py` and `tests/test_chat_store.py`.
+
+### Changed
+
+- **Chat payload size control** — Chat histories are truncated to approximately 120k tokens while preserving system instructions and recent turns, preventing oversized compaction payloads from exceeding upstream context windows.
+
+- **Per-model tool compatibility** — added `disable_custom_tools: true`, which removes unsupported Responses custom tools while preserving function tools. Custom-tool handling now also supports `custom_tool_call` items in Responses parsing and SSE generation.
+
+- **Provider configuration** — generalized provider environment files and upstream URLs, normalized provider names, and moved NanoGPT to `https://nano-gpt.com/api/v1`. The new LLMTR configuration is hot-reloaded together with the other provider settings.
+
+### Fixed
+
+- **Chat streaming compatibility** — completed Responses-compatible SSE conversion for Chat Completions, including response lifecycle events, text and function-call deltas, commentary metadata, logprobs, and final usage, preventing client reconnects and duplicate answers.
+
+- **Chat request normalization** — mapped Responses `developer` messages to the Chat `system` role, omitted empty assistant messages, preserved assistant tool calls, and avoided duplicate instructions in follow-up histories.
+
+- **NanoGPT Muse routing** — routed Muse Spark requests through the Chat transport when required and selected the transport based on the payload model.
+
+- **Adapted response completion** — marked converted assistant answers as final so clients accept them as completed responses.
+
+### Full Changelog
+
+[https://github.com/PCODE-pl/MCPTap/compare/v2.9.0...v2.9.1](https://github.com/PCODE-pl/MCPTap/compare/v2.9.0...v2.9.1)
+
 ## [2.9.0]
 
 ### Added
