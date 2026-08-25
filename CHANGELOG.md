@@ -1,7 +1,7 @@
 <!-- markdownlint-disable MD024 -->
 # Changelog
 
-## [2.9.1]
+## [2.10.0]
 
 ### Added
 
@@ -31,7 +31,7 @@
 
 ### Full Changelog
 
-[https://github.com/PCODE-pl/MCPTap/compare/v2.9.0...v2.9.1](https://github.com/PCODE-pl/MCPTap/compare/v2.9.0...v2.9.1)
+[https://github.com/PCODE-pl/MCPTap/compare/v2.9.0...v2.10.0]
 
 ## [2.9.0]
 
