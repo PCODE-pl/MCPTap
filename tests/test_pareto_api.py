@@ -50,6 +50,10 @@ async def test_serve_pareto_page_returns_html():
         assert "max-height: calc(100vh - 24px)" in body
         assert "getBoundingClientRect" in body
         assert "type: 'inside'" in body
-        assert "xAxisIndex: 'all'" in body
-        assert "yAxisIndex: 'all'" in body
+        assert "xAxisIndex: 0" in body
+        assert "yAxisIndex: 0" in body
+        assert "zoomOnMouseWheel: true" in body
+        assert "moveOnMouseMove: true" in body
         assert "itemGap: 10" in body
+        assert "xAxisIndex: 'all'" not in body
+        assert "yAxisIndex: 'all'" not in body
