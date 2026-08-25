@@ -204,11 +204,19 @@ const app = createApp({
           },
         },
         dataZoom: [
-          { type: 'inside', xAxisIndex: 'all', yAxisIndex: 'all', filterMode: 'none' },
+          {
+            type: 'inside',
+            xAxisIndex: 0,
+            yAxisIndex: 0,
+            filterMode: 'none',
+            zoomOnMouseWheel: true,
+            moveOnMouseMove: true,
+            moveOnMouseWheel: true,
+          },
         ],
         toolbox: {
           itemGap: 10,
-          feature: { dataZoom: { xAxisIndex: 'all', yAxisIndex: 'all' }, restore: {}, saveAsImage: {} },
+          feature: { dataZoom: { xAxisIndex: 0, yAxisIndex: 0 }, restore: {}, saveAsImage: {} },
           right: 12,
         },
         xAxis: { name: 'Weighted cost ($/M tokens)', nameLocation: 'middle', nameGap: 38, type: 'value', scale: true, axisLabel: { color: '#aaa' }, nameTextStyle: { color: '#ccc' }, splitLine: { lineStyle: { color: '#28282f' } } },
