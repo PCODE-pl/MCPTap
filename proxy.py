@@ -19,6 +19,7 @@ from mcptap.mcp_intercept import (
     load_intercept_config,
     serialize_mcp_result,
 )
+from mcptap.pareto_api import handle_pareto_data, serve_pareto_page
 from mcptap.responses import (
     apply_tool_call_updates,
     build_hook_error_response,
@@ -111,6 +112,8 @@ __all__ = [
     "handle_log_detail",
     "handle_logs_list",
     "serve_logs_page",
+    "handle_pareto_data",
+    "serve_pareto_page",
 ]
 
 if __name__ == "__main__":
