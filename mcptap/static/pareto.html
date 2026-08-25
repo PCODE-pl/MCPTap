@@ -11,8 +11,9 @@
     html, body { margin: 0; padding: 0; height: 100%; background: #101014; }
     #app { height: 100vh; display: flex; flex-direction: column; color: #f5f5f5; }
     .toolbar { padding: 10px 14px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-    .chart-container { flex: 1; min-height: 420px; padding: 0 8px 8px; }
+    .chart-container { position: relative; flex: 1; min-height: 420px; padding: 0 8px 8px; }
     #chart { width: 100%; height: 100%; min-height: 420px; }
+    .zoom-selection { position: absolute; z-index: 2; border: 1px solid #63b3ed; background: rgba(99, 179, 237, .2); pointer-events: none; }
     .hint { font-size: 12px; opacity: .65; }
   </style>
 </head>
@@ -40,6 +41,7 @@
       </n-layout-header>
       <n-layout-content class="chart-container">
         <div id="chart"></div>
+        <div v-if="zoomSelectionStyle" class="zoom-selection" :style="zoomSelectionStyle"></div>
       </n-layout-content>
     </n-layout>
   </n-config-provider>
@@ -78,6 +80,11 @@ const app = createApp({
     const pointCount = ref(0);
     const modelCount = ref(0);
     const chart = ref(null);
+    const areaZoomActive = ref(false);
+    const selectionStart = ref(null);
+    const zoomSelectionStyle = ref(null);
+    let baseRange = { xMin: 0, xMax: 1, yMin: 0, yMax: 100 };
+    let viewRange = { ...baseRange };
 
     const providerOptions = computed(() => {
       const providers = new Set();
@@ -89,6 +96,101 @@ const app = createApp({
 
     function numeric(value) {
       return typeof value === 'number' && Number.isFinite(value) ? value : null;
+    }
+
+    function pointerPosition(params) {
+      const event = params.event || params;
+      return [
+        numeric(params.zrX) ?? numeric(event.zrX) ?? numeric(event.offsetX),
+        numeric(params.zrY) ?? numeric(event.zrY) ?? numeric(event.offsetY),
+      ];
+    }
+
+    function isInPlot([x, y]) {
+      return x >= 72 && x <= chart.value.getWidth() - 32 &&
+        y >= 52 && y <= chart.value.getHeight() - 66;
+    }
+
+    function setZoomRange(range) {
+      viewRange = { ...range };
+      chart.value.setOption({
+        xAxis: { min: range.xMin, max: range.xMax },
+        yAxis: { min: range.yMin, max: range.yMax },
+      });
+    }
+
+    function resetZoom() {
+      areaZoomActive.value = false;
+      selectionStart.value = null;
+      zoomSelectionStyle.value = null;
+      setZoomRange(baseRange);
+    }
+
+    function toggleAreaZoom() {
+      areaZoomActive.value = !areaZoomActive.value;
+      selectionStart.value = null;
+      zoomSelectionStyle.value = null;
+    }
+
+    function handleChartWheel(params) {
+      const pixel = pointerPosition(params);
+      if (!isInPlot(pixel)) return;
+      const event = params.event || params;
+      const delta = numeric(params.wheelDelta) ?? numeric(event.wheelDelta) ??
+        -(numeric(event.deltaY) ?? numeric(event.detail) ?? 0);
+      if (!delta) return;
+      event.preventDefault?.();
+      const anchor = chart.value.convertFromPixel({ xAxisIndex: 0, yAxisIndex: 0 }, pixel);
+      if (!Array.isArray(anchor)) return;
+      const factor = delta > 0 ? 0.8 : 1.25;
+      setZoomRange({
+        xMin: anchor[0] - (anchor[0] - viewRange.xMin) * factor,
+        xMax: anchor[0] + (viewRange.xMax - anchor[0]) * factor,
+        yMin: anchor[1] - (anchor[1] - viewRange.yMin) * factor,
+        yMax: anchor[1] + (viewRange.yMax - anchor[1]) * factor,
+      });
+    }
+
+    function handleChartMouseDown(params) {
+      if (!areaZoomActive.value) return;
+      const pixel = pointerPosition(params);
+      if (!isInPlot(pixel)) return;
+      selectionStart.value = pixel;
+      updateZoomSelection(pixel, pixel);
+    }
+
+    function handleChartMouseMove(params) {
+      if (!selectionStart.value) return;
+      updateZoomSelection(selectionStart.value, pointerPosition(params));
+    }
+
+    function handleChartMouseUp(params) {
+      if (!selectionStart.value) return;
+      const start = selectionStart.value;
+      const end = pointerPosition(params);
+      selectionStart.value = null;
+      zoomSelectionStyle.value = null;
+      if (Math.abs(end[0] - start[0]) < 8 || Math.abs(end[1] - start[1]) < 8) return;
+      const first = chart.value.convertFromPixel({ xAxisIndex: 0, yAxisIndex: 0 }, start);
+      const last = chart.value.convertFromPixel({ xAxisIndex: 0, yAxisIndex: 0 }, end);
+      setZoomRange({
+        xMin: Math.min(first[0], last[0]), xMax: Math.max(first[0], last[0]),
+        yMin: Math.min(first[1], last[1]), yMax: Math.max(first[1], last[1]),
+      });
+      areaZoomActive.value = false;
+    }
+
+    function updateZoomSelection(start, end) {
+      const chartRect = chart.value.getDom().getBoundingClientRect();
+      const containerRect = chart.value.getDom().parentElement.getBoundingClientRect();
+      const left = Math.min(start[0], end[0]);
+      const top = Math.min(start[1], end[1]);
+      zoomSelectionStyle.value = {
+        left: `${chartRect.left - containerRect.left + left}px`,
+        top: `${chartRect.top - containerRect.top + top}px`,
+        width: `${Math.abs(end[0] - start[0])}px`,
+        height: `${Math.abs(end[1] - start[1])}px`,
+      };
     }
 
     function collectOffers() {
@@ -162,6 +264,12 @@ const app = createApp({
       const points = buildPoints();
       pointCount.value = points.length;
       modelCount.value = new Set(points.map(point => point.name)).size;
+      const xValues = points.map(point => point.value[0]);
+      const xMin = Math.min(...xValues, 0);
+      const xMax = Math.max(...xValues, 1);
+      const xPadding = Math.max((xMax - xMin) * 0.04, 0.01);
+      baseRange = { xMin: Math.max(0, xMin - xPadding), xMax: xMax + xPadding, yMin: 0, yMax: 100 };
+      viewRange = { ...baseRange };
       const providers = [...new Set(points.map(point => point.provider))];
       const series = providers.map(provider => ({
         name: provider,
@@ -203,26 +311,29 @@ const app = createApp({
               (point.isThinking ? '<br>Thinking: yes' : '') + (stats ? `<br><br>${stats}` : '');
           },
         },
-        dataZoom: [
-          {
-            type: 'inside',
-            xAxisIndex: 0,
-            yAxisIndex: 0,
-            filterMode: 'none',
-            zoomOnMouseWheel: true,
-            moveOnMouseMove: true,
-            moveOnMouseWheel: true,
-          },
-        ],
         toolbox: {
           itemGap: 10,
-          feature: { dataZoom: { xAxisIndex: 0, yAxisIndex: 0 }, restore: {}, saveAsImage: {} },
+          feature: {
+            myZoom: {
+              show: true,
+              title: 'Select zoom area',
+              icon: 'path://M2 2h8v2H5.4l4.3 4.3-1.4 1.4L4 5.4V10H2z',
+              onclick() { toggleAreaZoom(); },
+            },
+            myReset: {
+              show: true,
+              title: 'Reset zoom',
+              icon: 'path://M10 2A8 8 0 1 0 18 10h-2a6 6 0 1 1-6-6v3l4-4-4-4v3z',
+              onclick() { resetZoom(); },
+            },
+            saveAsImage: {},
+          },
           right: 12,
         },
         xAxis: { name: 'Weighted cost ($/M tokens)', nameLocation: 'middle', nameGap: 38, type: 'value', scale: true, axisLabel: { color: '#aaa' }, nameTextStyle: { color: '#ccc' }, splitLine: { lineStyle: { color: '#28282f' } } },
         yAxis: { name: 'Quality', nameLocation: 'middle', nameGap: 48, type: 'value', min: 0, max: 100, axisLabel: { color: '#aaa' }, nameTextStyle: { color: '#ccc' }, splitLine: { lineStyle: { color: '#28282f' } } },
         series,
-      }, true);
+      }, { notMerge: true, lazyUpdate: true });
     }
 
     async function loadData() {
@@ -244,16 +355,29 @@ const app = createApp({
 
     onMounted(async () => {
       chart.value = echarts.init(document.getElementById('chart'), 'dark');
+      const zr = chart.value.getZr();
+      zr.on('mousewheel', handleChartWheel);
+      zr.on('mousedown', handleChartMouseDown);
+      zr.on('mousemove', handleChartMouseMove);
+      zr.on('mouseup', handleChartMouseUp);
       window.addEventListener('resize', resizeChart);
       await loadData();
     });
     onBeforeUnmount(() => {
       window.removeEventListener('resize', resizeChart);
-      if (chart.value) chart.value.dispose();
+      if (chart.value) {
+        const zr = chart.value.getZr();
+        zr.off('mousewheel', handleChartWheel);
+        zr.off('mousedown', handleChartMouseDown);
+        zr.off('mousemove', handleChartMouseMove);
+        zr.off('mouseup', handleChartMouseUp);
+        chart.value.dispose();
+      }
     });
 
     return { darkTheme, NConfigProvider, NLayout, NLayoutHeader, NLayoutContent, NSelect, NButton,
-      selectedProviders, providerOptions, loading, error, pointCount, modelCount, loadData, renderChart };
+      selectedProviders, providerOptions, loading, error, pointCount, modelCount,
+      zoomSelectionStyle, loadData, renderChart };
   },
 });
 app.use(naive);
