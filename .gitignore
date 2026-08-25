@@ -8,3 +8,4 @@
 get_download_count.sh
 
 __pycache__
+/data/pareto.json
