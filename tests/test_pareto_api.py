@@ -71,3 +71,5 @@ async def test_serve_pareto_page_returns_html():
         assert "data-zoom-active" in body
         assert 'data-testid="pareto-chart-diagnostics"' in body
         assert 'v-if="diagnosticsVisible"' in body
+        assert "lazyUpdate: false" in body
+        assert "lazyUpdate: true" not in body

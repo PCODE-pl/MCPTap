@@ -134,6 +134,7 @@ const app = createApp({
     const renderer = ref('unknown');
     const renderError = ref('');
     const chart = ref(null);
+    let renderCheckFrame = null;
     const areaZoomActive = ref(false);
     const selectionStart = ref(null);
     const zoomSelectionStyle = ref(null);
@@ -154,9 +155,13 @@ const app = createApp({
 
     function verifyCanvasDiagnostics() {
       updateCanvasDiagnostics();
-      if (chartState.value === 'ready' && canvasCount.value === 0) {
+      const expectedRenderer = renderer.value;
+      const hasExpectedSurface = expectedRenderer === 'svg'
+        ? Boolean(chart.value?.getDom().querySelector('svg'))
+        : canvasCount.value > 0;
+      if (chartState.value === 'ready' && !hasExpectedSurface) {
         chartState.value = 'error';
-        renderError.value = 'Chart renderer produced no canvas';
+        renderError.value = `Chart renderer produced no ${expectedRenderer} surface`;
       }
     }
 
@@ -196,7 +201,7 @@ const app = createApp({
       chart.value.setOption({
         xAxis: { min: range.xMin, max: range.xMax },
         yAxis: { min: range.yMin, max: range.yMax },
-      });
+      }, { lazyUpdate: false });
       updateCanvasDiagnostics();
     }
 
@@ -407,10 +412,15 @@ const app = createApp({
           xAxis: { name: 'Weighted cost ($/M tokens)', nameLocation: 'middle', nameGap: 38, type: 'value', scale: true, axisLabel: { color: '#aaa' }, nameTextStyle: { color: '#ccc' }, splitLine: { lineStyle: { color: '#28282f' } } },
           yAxis: { name: 'Quality', nameLocation: 'middle', nameGap: 48, type: 'value', min: 0, max: 100, axisLabel: { color: '#aaa' }, nameTextStyle: { color: '#ccc' }, splitLine: { lineStyle: { color: '#28282f' } } },
           series,
-        }, { notMerge: true, lazyUpdate: true });
+        }, { notMerge: true, lazyUpdate: false });
         updateCanvasDiagnostics();
         chartState.value = 'ready';
-        requestAnimationFrame(() => requestAnimationFrame(verifyCanvasDiagnostics));
+        renderCheckFrame = requestAnimationFrame(() => {
+          renderCheckFrame = requestAnimationFrame(() => {
+            renderCheckFrame = null;
+            verifyCanvasDiagnostics();
+          });
+        });
       } catch (err) {
         setRenderError(err);
         throw err;
@@ -449,6 +459,10 @@ const app = createApp({
       await loadData();
     });
     onBeforeUnmount(() => {
+      if (renderCheckFrame !== null) {
+        cancelAnimationFrame(renderCheckFrame);
+        renderCheckFrame = null;
+      }
       window.removeEventListener('resize', resizeChart);
       if (chart.value) {
         const zr = chart.value.getZr();
