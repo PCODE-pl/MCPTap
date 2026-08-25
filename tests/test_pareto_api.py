@@ -49,11 +49,13 @@ async def test_serve_pareto_page_returns_html():
         assert "contentSize" in body
         assert "max-height: calc(100vh - 24px)" in body
         assert "getBoundingClientRect" in body
-        assert "type: 'inside'" in body
-        assert "xAxisIndex: 0" in body
-        assert "yAxisIndex: 0" in body
-        assert "zoomOnMouseWheel: true" in body
-        assert "moveOnMouseMove: true" in body
+        assert "myZoom" in body
+        assert "zoomOnMouseWheel" not in body
+        assert "getZr()" in body
+        assert "convertFromPixel" in body
+        assert "wheelDelta" in body
         assert "itemGap: 10" in body
-        assert "xAxisIndex: 'all'" not in body
-        assert "yAxisIndex: 'all'" not in body
+        assert "feature: { dataZoom" not in body
+        assert "notMerge: true" in body
+        assert "title: 'Select zoom area'" in body
+        assert "icon: 'path://" in body
