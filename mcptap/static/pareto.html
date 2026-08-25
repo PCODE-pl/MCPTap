@@ -14,16 +14,23 @@
     .chart-container { position: relative; flex: 1; min-height: 420px; padding: 0 8px 8px; }
     #chart { width: 100%; height: 100%; min-height: 420px; }
     .zoom-selection { position: absolute; z-index: 2; border: 1px solid #63b3ed; background: rgba(99, 179, 237, .2); pointer-events: none; }
+    .chart-controls { display: flex; align-items: center; gap: 6px; }
+    .chart-control { border: 1px solid rgba(255, 255, 255, .2); border-radius: 3px; padding: 4px 9px; color: #ddd; background: #25252c; cursor: pointer; font: inherit; font-size: 12px; }
+    .chart-control:hover, .chart-control[aria-pressed="true"] { border-color: #63b3ed; background: #303b4a; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
     .hint { font-size: 12px; opacity: .65; }
   </style>
 </head>
 <body>
-<div id="app">
+<main id="app" data-testid="pareto-page" aria-labelledby="pareto-title">
   <n-config-provider :theme="darkTheme">
-    <n-layout style="height: 100vh">
-      <n-layout-header bordered class="toolbar">
-        <strong>MCPTap Pareto</strong>
+    <n-layout style="height: 100vh" aria-label="MCPTap Pareto model comparison">
+      <n-layout-header bordered class="toolbar" role="banner" data-testid="pareto-toolbar" aria-label="Pareto controls">
+        <h1 id="pareto-title" data-testid="pareto-title">MCPTap Pareto</h1>
+        <div data-testid="provider-filter" role="group" aria-label="Filter chart by provider">
+        <label for="provider-filter-select" class="sr-only">Filter providers</label>
         <n-select
+          id="provider-filter-select"
           v-model:value="selectedProviders"
           multiple
           filterable
@@ -31,21 +38,31 @@
           clearable
           :options="providerOptions"
           placeholder="Filter providers"
+          aria-label="Filter providers"
+          data-testid="provider-filter-select"
           style="min-width: 360px; max-width: 720px"
           size="small"
           @update:value="renderChart"
         />
-        <n-button size="small" :loading="loading" @click="loadData">Refresh</n-button>
-        <span class="hint">{{ pointCount }} points · {{ modelCount }} models</span>
-        <span class="hint" style="margin-left: auto" v-if="error">{{ error }}</span>
+        </div>
+        <button type="button" class="chart-control" data-testid="pareto-refresh" aria-label="Refresh Pareto data" :aria-busy="loading" @click="loadData">Refresh</button>
+        <div class="chart-controls" data-testid="pareto-chart-controls" role="toolbar" aria-label="Chart controls">
+          <button type="button" class="chart-control" data-testid="pareto-zoom-area" aria-label="Select zoom area" aria-controls="chart" :aria-pressed="areaZoomActive" @click="toggleAreaZoom">Zoom area</button>
+          <button type="button" class="chart-control" data-testid="pareto-zoom-reset" aria-label="Reset chart zoom" aria-controls="chart" @click="resetZoom">Reset zoom</button>
+          <button type="button" class="chart-control" data-testid="pareto-save-image" aria-label="Save chart image" aria-controls="chart" @click="saveChartImage">Save image</button>
+        </div>
+        <output class="hint" data-testid="pareto-summary" aria-live="polite">{{ pointCount }} points · {{ modelCount }} models</output>
+        <p class="hint" style="margin-left: auto" data-testid="pareto-error" role="alert" v-if="error">{{ error }}</p>
       </n-layout-header>
-      <n-layout-content class="chart-container">
-        <div id="chart"></div>
-        <div v-if="zoomSelectionStyle" class="zoom-selection" :style="zoomSelectionStyle"></div>
+      <n-layout-content class="chart-container" role="region" data-testid="pareto-chart-region" aria-labelledby="pareto-chart-title" :aria-busy="loading">
+        <h2 id="pareto-chart-title" class="sr-only">Pareto scatter chart</h2>
+        <div id="chart" data-testid="pareto-chart" role="img" aria-label="Pareto scatter chart showing weighted cost and quality" aria-describedby="pareto-chart-status"></div>
+        <p id="pareto-chart-status" class="sr-only" data-testid="pareto-chart-status" aria-live="polite">{{ loading ? 'Loading chart data.' : error || (areaZoomActive ? 'Zoom area selection is active.' : `${pointCount} points and ${modelCount} models are shown.`) }}</p>
+        <div v-if="zoomSelectionStyle" class="zoom-selection" data-testid="pareto-zoom-selection" role="region" aria-label="Selected zoom area" :style="zoomSelectionStyle"></div>
       </n-layout-content>
     </n-layout>
   </n-config-provider>
-</div>
+</main>
 
 <script>
 const { createApp, ref, computed, onMounted, onBeforeUnmount } = Vue;
@@ -72,7 +89,7 @@ const DEFAULT_PROVIDERS = ['llmtr', 'meta', 'nano-gpt', 'openrouter', 'requesty'
 const app = createApp({
   setup() {
     const { darkTheme, NConfigProvider, NLayout, NLayoutHeader, NLayoutContent,
-      NSelect, NButton } = naive;
+      NSelect } = naive;
     const rawData = ref({});
     const selectedProviders = ref([...DEFAULT_PROVIDERS]);
     const loading = ref(false);
@@ -130,6 +147,14 @@ const app = createApp({
       areaZoomActive.value = !areaZoomActive.value;
       selectionStart.value = null;
       zoomSelectionStyle.value = null;
+    }
+
+    function saveChartImage() {
+      if (!chart.value) return;
+      const link = document.createElement('a');
+      link.download = 'mcptap-pareto.png';
+      link.href = chart.value.getDataURL({ pixelRatio: 2, backgroundColor: '#101014' });
+      link.click();
     }
 
     function handleChartWheel(params) {
@@ -311,25 +336,6 @@ const app = createApp({
               (point.isThinking ? '<br>Thinking: yes' : '') + (stats ? `<br><br>${stats}` : '');
           },
         },
-        toolbox: {
-          itemGap: 10,
-          feature: {
-            myZoom: {
-              show: true,
-              title: 'Select zoom area',
-              icon: 'path://M2 2h8v2H5.4l4.3 4.3-1.4 1.4L4 5.4V10H2z',
-              onclick() { toggleAreaZoom(); },
-            },
-            myReset: {
-              show: true,
-              title: 'Reset zoom',
-              icon: 'path://M10 2A8 8 0 1 0 18 10h-2a6 6 0 1 1-6-6v3l4-4-4-4v3z',
-              onclick() { resetZoom(); },
-            },
-            saveAsImage: {},
-          },
-          right: 12,
-        },
         xAxis: { name: 'Weighted cost ($/M tokens)', nameLocation: 'middle', nameGap: 38, type: 'value', scale: true, axisLabel: { color: '#aaa' }, nameTextStyle: { color: '#ccc' }, splitLine: { lineStyle: { color: '#28282f' } } },
         yAxis: { name: 'Quality', nameLocation: 'middle', nameGap: 48, type: 'value', min: 0, max: 100, axisLabel: { color: '#aaa' }, nameTextStyle: { color: '#ccc' }, splitLine: { lineStyle: { color: '#28282f' } } },
         series,
@@ -375,9 +381,10 @@ const app = createApp({
       }
     });
 
-    return { darkTheme, NConfigProvider, NLayout, NLayoutHeader, NLayoutContent, NSelect, NButton,
+    return { darkTheme, NConfigProvider, NLayout, NLayoutHeader, NLayoutContent, NSelect,
       selectedProviders, providerOptions, loading, error, pointCount, modelCount,
-      zoomSelectionStyle, loadData, renderChart };
+      areaZoomActive, zoomSelectionStyle, loadData, renderChart, toggleAreaZoom, resetZoom,
+      saveChartImage };
   },
 });
 app.use(naive);

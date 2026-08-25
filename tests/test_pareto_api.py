@@ -49,13 +49,15 @@ async def test_serve_pareto_page_returns_html():
         assert "contentSize" in body
         assert "max-height: calc(100vh - 24px)" in body
         assert "getBoundingClientRect" in body
-        assert "myZoom" in body
         assert "zoomOnMouseWheel" not in body
         assert "getZr()" in body
         assert "convertFromPixel" in body
         assert "wheelDelta" in body
-        assert "itemGap: 10" in body
-        assert "feature: { dataZoom" not in body
         assert "notMerge: true" in body
-        assert "title: 'Select zoom area'" in body
-        assert "icon: 'path://" in body
+        assert 'data-testid="pareto-page"' in body
+        assert 'data-testid="pareto-chart"' in body
+        assert 'data-testid="pareto-zoom-area"' in body
+        assert 'data-testid="pareto-zoom-reset"' in body
+        assert 'data-testid="pareto-save-image"' in body
+        assert 'role="toolbar"' in body
+        assert 'aria-label="Pareto scatter chart showing weighted cost and quality"' in body
