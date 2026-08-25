@@ -61,3 +61,13 @@ async def test_serve_pareto_page_returns_html():
         assert 'data-testid="pareto-save-image"' in body
         assert 'role="toolbar"' in body
         assert 'aria-label="Pareto scatter chart showing weighted cost and quality"' in body
+        assert "new URLSearchParams(window.location.search).get('e2llm') === '2'" in body
+        assert "data-chart-state" in body
+        assert "data-renderer" in body
+        assert "data-canvas-count" in body
+        assert "data-series-count" in body
+        assert "data-x-min" in body
+        assert "data-x-max" in body
+        assert "data-zoom-active" in body
+        assert 'data-testid="pareto-chart-diagnostics"' in body
+        assert 'v-if="diagnosticsVisible"' in body

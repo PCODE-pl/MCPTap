@@ -19,6 +19,8 @@
     .chart-control:hover, .chart-control[aria-pressed="true"] { border-color: #63b3ed; background: #303b4a; }
     .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
     .hint { font-size: 12px; opacity: .65; }
+    .chart-diagnostics { position: absolute; z-index: 3; left: 16px; right: 16px; bottom: 16px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px 12px; padding: 8px 12px; border: 1px solid #28282f; background: rgba(16, 16, 20, .94); color: #bbb; font: 12px/1.4 monospace; }
+    .chart-diagnostics strong { color: #eee; font-weight: 600; }
   </style>
 </head>
 <body>
@@ -56,8 +58,37 @@
       </n-layout-header>
       <n-layout-content class="chart-container" role="region" data-testid="pareto-chart-region" aria-labelledby="pareto-chart-title" :aria-busy="loading">
         <h2 id="pareto-chart-title" class="sr-only">Pareto scatter chart</h2>
-        <div id="chart" data-testid="pareto-chart" role="img" aria-label="Pareto scatter chart showing weighted cost and quality" aria-describedby="pareto-chart-status"></div>
-        <p id="pareto-chart-status" class="sr-only" data-testid="pareto-chart-status" aria-live="polite">{{ loading ? 'Loading chart data.' : error || (areaZoomActive ? 'Zoom area selection is active.' : `${pointCount} points and ${modelCount} models are shown.`) }}</p>
+        <div
+          id="chart"
+          data-testid="pareto-chart"
+          role="img"
+          aria-label="Pareto scatter chart showing weighted cost and quality"
+          aria-describedby="pareto-chart-status"
+          :data-chart-state="chartState"
+          :data-renderer="renderer"
+          :data-render-error="renderError || undefined"
+          :data-point-count="pointCount"
+          :data-model-count="modelCount"
+          :data-series-count="seriesCount"
+          :data-canvas-count="canvasCount"
+          :data-x-min="formatDiagnosticNumber(viewRange.xMin)"
+          :data-x-max="formatDiagnosticNumber(viewRange.xMax)"
+          :data-y-min="formatDiagnosticNumber(viewRange.yMin)"
+          :data-y-max="formatDiagnosticNumber(viewRange.yMax)"
+          :data-zoom-active="areaZoomActive"
+        ></div>
+        <section v-if="diagnosticsVisible" class="chart-diagnostics" data-testid="pareto-chart-diagnostics" aria-label="Pareto chart diagnostics">
+          <span>state=<strong data-testid="pareto-render-state">{{ chartState }}</strong></span>
+          <span>renderer=<strong data-testid="pareto-renderer">{{ renderer }}</strong></span>
+          <span>canvas=<strong data-testid="pareto-canvas-count">{{ canvasCount }}</strong></span>
+          <span>series=<strong data-testid="pareto-series-count">{{ seriesCount }}</strong></span>
+          <span>points=<strong data-testid="pareto-diagnostic-point-count">{{ pointCount }}</strong></span>
+          <span>models=<strong data-testid="pareto-diagnostic-model-count">{{ modelCount }}</strong></span>
+          <span>x=<strong data-testid="pareto-x-range">{{ formatRange(viewRange.xMin, viewRange.xMax) }}</strong></span>
+          <span>y=<strong data-testid="pareto-y-range">{{ formatRange(viewRange.yMin, viewRange.yMax) }}</strong></span>
+          <span v-if="renderError" data-testid="pareto-render-error">error=<strong>{{ renderError }}</strong></span>
+        </section>
+        <p id="pareto-chart-status" class="sr-only" data-testid="pareto-chart-status" aria-live="polite">{{ loading ? 'Loading chart data.' : error || renderError || (areaZoomActive ? 'Zoom area selection is active.' : `${pointCount} points and ${modelCount} models are shown.`) }}</p>
         <div v-if="zoomSelectionStyle" class="zoom-selection" data-testid="pareto-zoom-selection" role="region" aria-label="Selected zoom area" :style="zoomSelectionStyle"></div>
       </n-layout-content>
     </n-layout>
@@ -94,14 +125,46 @@ const app = createApp({
     const selectedProviders = ref([...DEFAULT_PROVIDERS]);
     const loading = ref(false);
     const error = ref('');
+    const diagnosticsVisible = new URLSearchParams(window.location.search).get('e2llm') === '2';
     const pointCount = ref(0);
     const modelCount = ref(0);
+    const seriesCount = ref(0);
+    const canvasCount = ref(0);
+    const chartState = ref('initializing');
+    const renderer = ref('unknown');
+    const renderError = ref('');
     const chart = ref(null);
     const areaZoomActive = ref(false);
     const selectionStart = ref(null);
     const zoomSelectionStyle = ref(null);
     let baseRange = { xMin: 0, xMax: 1, yMin: 0, yMax: 100 };
-    let viewRange = { ...baseRange };
+    const viewRange = ref({ ...baseRange });
+
+    function formatDiagnosticNumber(value) {
+      return numeric(value) === null ? '—' : Number(value).toFixed(4).replace(/0+$/, '').replace(/\.$/, '');
+    }
+
+    function formatRange(min, max) {
+      return `${formatDiagnosticNumber(min)}..${formatDiagnosticNumber(max)}`;
+    }
+
+    function updateCanvasDiagnostics() {
+      canvasCount.value = chart.value?.getDom().querySelectorAll('canvas').length || 0;
+    }
+
+    function verifyCanvasDiagnostics() {
+      updateCanvasDiagnostics();
+      if (chartState.value === 'ready' && canvasCount.value === 0) {
+        chartState.value = 'error';
+        renderError.value = 'Chart renderer produced no canvas';
+      }
+    }
+
+    function setRenderError(err) {
+      renderError.value = err instanceof Error ? err.message : String(err);
+      chartState.value = 'error';
+      updateCanvasDiagnostics();
+    }
 
     const providerOptions = computed(() => {
       const providers = new Set();
@@ -129,11 +192,12 @@ const app = createApp({
     }
 
     function setZoomRange(range) {
-      viewRange = { ...range };
+      viewRange.value = { ...range };
       chart.value.setOption({
         xAxis: { min: range.xMin, max: range.xMax },
         yAxis: { min: range.yMin, max: range.yMax },
       });
+      updateCanvasDiagnostics();
     }
 
     function resetZoom() {
@@ -169,10 +233,10 @@ const app = createApp({
       if (!Array.isArray(anchor)) return;
       const factor = delta > 0 ? 0.8 : 1.25;
       setZoomRange({
-        xMin: anchor[0] - (anchor[0] - viewRange.xMin) * factor,
-        xMax: anchor[0] + (viewRange.xMax - anchor[0]) * factor,
-        yMin: anchor[1] - (anchor[1] - viewRange.yMin) * factor,
-        yMax: anchor[1] + (viewRange.yMax - anchor[1]) * factor,
+        xMin: anchor[0] - (anchor[0] - viewRange.value.xMin) * factor,
+        xMax: anchor[0] + (viewRange.value.xMax - anchor[0]) * factor,
+        yMin: anchor[1] - (anchor[1] - viewRange.value.yMin) * factor,
+        yMax: anchor[1] + (viewRange.value.yMax - anchor[1]) * factor,
       });
     }
 
@@ -287,6 +351,8 @@ const app = createApp({
     function renderChart() {
       if (!chart.value) return;
       const points = buildPoints();
+      chartState.value = 'rendering';
+      renderError.value = '';
       pointCount.value = points.length;
       modelCount.value = new Set(points.map(point => point.name)).size;
       const xValues = points.map(point => point.value[0]);
@@ -294,7 +360,7 @@ const app = createApp({
       const xMax = Math.max(...xValues, 1);
       const xPadding = Math.max((xMax - xMin) * 0.04, 0.01);
       baseRange = { xMin: Math.max(0, xMin - xPadding), xMax: xMax + xPadding, yMin: 0, yMax: 100 };
-      viewRange = { ...baseRange };
+      viewRange.value = { ...baseRange };
       const providers = [...new Set(points.map(point => point.provider))];
       const series = providers.map(provider => ({
         name: provider,
@@ -303,13 +369,15 @@ const app = createApp({
         data: points.filter(point => point.provider === provider),
         emphasis: { focus: 'series', scale: 1.6 },
       }));
-      chart.value.setOption({
-        animation: false,
-        backgroundColor: 'transparent',
-        color: ['#63b3ed', '#f6ad55', '#68d391', '#fc8181', '#b794f4', '#4fd1c5', '#f687b3'],
-        legend: { type: 'scroll', textStyle: { color: '#ddd' }, top: 8 },
-        grid: { left: 72, right: 32, top: 52, bottom: 66 },
-        tooltip: {
+      seriesCount.value = series.length;
+      try {
+        chart.value.setOption({
+          animation: false,
+          backgroundColor: 'transparent',
+          color: ['#63b3ed', '#f6ad55', '#68d391', '#fc8181', '#b794f4', '#4fd1c5', '#f687b3'],
+          legend: { type: 'scroll', textStyle: { color: '#ddd' }, top: 8 },
+          grid: { left: 72, right: 32, top: 52, bottom: 66 },
+          tooltip: {
           trigger: 'item',
           confine: true,
           extraCssText: 'max-height: calc(100vh - 24px); overflow-y: auto;',
@@ -336,15 +404,24 @@ const app = createApp({
               (point.isThinking ? '<br>Thinking: yes' : '') + (stats ? `<br><br>${stats}` : '');
           },
         },
-        xAxis: { name: 'Weighted cost ($/M tokens)', nameLocation: 'middle', nameGap: 38, type: 'value', scale: true, axisLabel: { color: '#aaa' }, nameTextStyle: { color: '#ccc' }, splitLine: { lineStyle: { color: '#28282f' } } },
-        yAxis: { name: 'Quality', nameLocation: 'middle', nameGap: 48, type: 'value', min: 0, max: 100, axisLabel: { color: '#aaa' }, nameTextStyle: { color: '#ccc' }, splitLine: { lineStyle: { color: '#28282f' } } },
-        series,
-      }, { notMerge: true, lazyUpdate: true });
+          xAxis: { name: 'Weighted cost ($/M tokens)', nameLocation: 'middle', nameGap: 38, type: 'value', scale: true, axisLabel: { color: '#aaa' }, nameTextStyle: { color: '#ccc' }, splitLine: { lineStyle: { color: '#28282f' } } },
+          yAxis: { name: 'Quality', nameLocation: 'middle', nameGap: 48, type: 'value', min: 0, max: 100, axisLabel: { color: '#aaa' }, nameTextStyle: { color: '#ccc' }, splitLine: { lineStyle: { color: '#28282f' } } },
+          series,
+        }, { notMerge: true, lazyUpdate: true });
+        updateCanvasDiagnostics();
+        chartState.value = 'ready';
+        requestAnimationFrame(() => requestAnimationFrame(verifyCanvasDiagnostics));
+      } catch (err) {
+        setRenderError(err);
+        throw err;
+      }
     }
 
     async function loadData() {
       loading.value = true;
       error.value = '';
+      chartState.value = 'loading';
+      renderError.value = '';
       try {
         const response = await fetch('/api/pareto', { cache: 'no-store' });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -352,6 +429,7 @@ const app = createApp({
         renderChart();
       } catch (err) {
         error.value = `Failed to load Pareto data: ${err.message}`;
+        setRenderError(err);
       } finally {
         loading.value = false;
       }
@@ -361,6 +439,7 @@ const app = createApp({
 
     onMounted(async () => {
       chart.value = echarts.init(document.getElementById('chart'), 'dark');
+      renderer.value = chart.value.getZr().painter.getType?.() || 'unknown';
       const zr = chart.value.getZr();
       zr.on('mousewheel', handleChartWheel);
       zr.on('mousedown', handleChartMouseDown);
@@ -382,7 +461,9 @@ const app = createApp({
     });
 
     return { darkTheme, NConfigProvider, NLayout, NLayoutHeader, NLayoutContent, NSelect,
-      selectedProviders, providerOptions, loading, error, pointCount, modelCount,
+      selectedProviders, providerOptions, loading, error, diagnosticsVisible, pointCount, modelCount,
+      seriesCount, canvasCount, chartState, renderer, renderError, viewRange,
+      formatDiagnosticNumber, formatRange,
       areaZoomActive, zoomSelectionStyle, loadData, renderChart, toggleAreaZoom, resetZoom,
       saveChartImage };
   },
