@@ -28,6 +28,7 @@ from mcptap.http_utils import filtered_headers, upstream_path
 from mcptap.log_retention import LogRetentionTask
 from mcptap.log_store import LogStore, record_from_response
 from mcptap.mcp_intercept import MCPInterceptor, load_intercept_config
+from mcptap.pareto_data import ParetoDataTask
 from mcptap.response_flow import handle_responses_with_intercept
 from mcptap.responses import response_json_from_raw
 from mcptap.rewrite import load_per_model_config, rewrite_json_payload
@@ -359,6 +360,18 @@ async def _stop_log_retention(app: web.Application) -> None:
         await task.stop()
 
 
+async def _start_pareto_data(app: web.Application) -> None:
+    task = ParetoDataTask()
+    app["pareto_data"] = task
+    task.start()
+
+
+async def _stop_pareto_data(app: web.Application) -> None:
+    task: Optional[ParetoDataTask] = app.get("pareto_data")
+    if task is not None:
+        await task.stop()
+
+
 async def _start_credits_checker(app: web.Application) -> None:
     checker: Optional[CreditsCheckerTask] = app.get("credits_checker")
     if checker is not None:
@@ -410,9 +423,11 @@ def build_app() -> web.Application:
     app.on_startup.append(_start_mcp_intercept)
     app.on_startup.append(_start_config_reloader)
     app.on_startup.append(_start_log_retention)
+    app.on_startup.append(_start_pareto_data)
     app.on_startup.append(_start_credits_checker)
     app.on_cleanup.append(_remove_pid_file)
     app.on_cleanup.append(_stop_log_retention)
+    app.on_cleanup.append(_stop_pareto_data)
     app.on_cleanup.append(_stop_credits_checker)
     app.on_cleanup.append(_stop_config_reloader)
     app.on_cleanup.append(_stop_mcp_intercept)
