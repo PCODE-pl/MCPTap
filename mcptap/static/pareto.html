@@ -178,6 +178,21 @@ const app = createApp({
         grid: { left: 72, right: 32, top: 52, bottom: 66 },
         tooltip: {
           trigger: 'item',
+          confine: true,
+          extraCssText: 'max-height: calc(100vh - 24px); overflow-y: auto;',
+          position(point, params, dom, rect, size) {
+            const padding = 12;
+            const chartRect = chart.value.getDom().getBoundingClientRect();
+            const width = size.contentSize[0];
+            const height = size.contentSize[1];
+            const absolutePoint = [chartRect.left + point[0] + 14, chartRect.top + point[1] + 14];
+            const left = Math.max(padding, Math.min(absolutePoint[0], window.innerWidth - width - padding));
+            const top = Math.max(padding, Math.min(absolutePoint[1], window.innerHeight - height - padding));
+            return [
+              left - chartRect.left,
+              top - chartRect.top,
+            ];
+          },
           formatter(params) {
             const point = params.data;
             const stats = Object.entries(point.stats || {}).map(([key, value]) => `${key}: ${value}`).join('<br>');
