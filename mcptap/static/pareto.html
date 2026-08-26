@@ -274,7 +274,11 @@ const app = createApp({
     }
 
     function setZoomRange(range) {
-      const boundedRange = { ...range, xMin: Math.max(0, range.xMin), yMin: Math.max(0, range.yMin) };
+      const boundedRange = {
+        ...range,
+        xMin: Math.max(0, range.xMin),
+        yMin: Math.max(baseRange.yMin, range.yMin),
+      };
       viewRange.value = { ...boundedRange };
       chart.value.setOption({
         xAxis: { min: boundedRange.xMin, max: boundedRange.xMax },
@@ -500,7 +504,12 @@ const app = createApp({
         yMin: Math.max(0, yMinValue - yPadding),
         yMax: yMaxValue + yPadding,
       };
-      viewRange.value = preservedRange || previousViewRange || { ...baseRange };
+      const nextViewRange = preservedRange || previousViewRange || { ...baseRange };
+      viewRange.value = {
+        ...nextViewRange,
+        xMin: Math.max(0, nextViewRange.xMin),
+        yMin: Math.max(baseRange.yMin, nextViewRange.yMin),
+      };
       const providers = [...new Set(points.map(point => point.provider))];
       const series = providers.map(provider => ({
         name: provider,
