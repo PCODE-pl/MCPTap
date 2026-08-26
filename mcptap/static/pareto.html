@@ -180,6 +180,7 @@ const app = createApp({
     const renderer = ref('unknown');
     const renderError = ref('');
     const chart = ref(null);
+    let renderedPoints = [];
     let renderCheckFrame = null;
     const qualitySliderDefinitions = QUALITY_SLIDER_DEFINITIONS;
     const qualityControls = Vue.reactive({ ...DEFAULT_QUALITY_CONTROLS });
@@ -413,11 +414,34 @@ const app = createApp({
       }).filter(Boolean);
     }
 
+    function preserveViewportForVisiblePoints(previousPoints, nextPoints, range) {
+      if (!previousPoints || !nextPoints.length) return null;
+      const visiblePointKeys = new Set(previousPoints
+        .filter(point => point.value[0] >= range.xMin && point.value[0] <= range.xMax &&
+          point.value[1] >= range.yMin && point.value[1] <= range.yMax)
+        .map(point => `${point.provider}:${point.name}:${point.alias}`));
+      const points = nextPoints.filter(point => visiblePointKeys.has(`${point.provider}:${point.name}:${point.alias}`));
+      if (!points.length) return null;
+      const xValues = points.map(point => point.value[0]);
+      const yValues = points.map(point => point.value[1]);
+      const previousVisiblePoints = previousPoints.filter(point => visiblePointKeys.has(`${point.provider}:${point.name}:${point.alias}`));
+      const previousXValues = previousVisiblePoints.map(point => point.value[0]);
+      const previousYValues = previousVisiblePoints.map(point => point.value[1]);
+      return {
+        xMin: Math.min(...xValues) - (Math.min(...previousXValues) - range.xMin),
+        xMax: Math.max(...xValues) + (range.xMax - Math.max(...previousXValues)),
+        yMin: Math.max(0, Math.min(...yValues) - (Math.min(...previousYValues) - range.yMin)),
+        yMax: Math.min(100, Math.max(...yValues) + (range.yMax - Math.max(...previousYValues))),
+      };
+    }
+
     function renderChart(preserveViewport = false) {
       if (!chart.value) return;
       const previousViewRange = preserveViewport ? { ...viewRange.value } : null;
+      const previousPoints = preserveViewport ? renderedPoints : null;
       updateQualityWeights();
       const points = buildPoints();
+      const preservedRange = preserveViewportForVisiblePoints(previousPoints, points, previousViewRange);
       chartState.value = 'rendering';
       renderError.value = '';
       pointCount.value = points.length;
@@ -427,7 +451,7 @@ const app = createApp({
       const xMax = Math.max(...xValues, 1);
       const xPadding = Math.max((xMax - xMin) * 0.04, 0.01);
       baseRange = { xMin: Math.max(0, xMin - xPadding), xMax: xMax + xPadding, yMin: 0, yMax: 100 };
-      viewRange.value = previousViewRange || { ...baseRange };
+      viewRange.value = preservedRange || previousViewRange || { ...baseRange };
       const providers = [...new Set(points.map(point => point.provider))];
       const series = providers.map(provider => ({
         name: provider,
@@ -475,6 +499,7 @@ const app = createApp({
           yAxis: { name: 'Quality', nameLocation: 'middle', nameGap: 48, type: 'value', min: viewRange.value.yMin, max: viewRange.value.yMax, axisLabel: { color: '#aaa' }, nameTextStyle: { color: '#ccc' }, splitLine: { lineStyle: { color: '#28282f' } } },
           series,
         }, { notMerge: true, lazyUpdate: false });
+        renderedPoints = points;
         updateCanvasDiagnostics();
         chartState.value = 'ready';
         renderCheckFrame = requestAnimationFrame(() => {
