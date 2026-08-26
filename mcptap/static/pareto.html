@@ -24,11 +24,11 @@
   </style>
 </head>
 <body>
-<main id="app" data-testid="pareto-page" aria-labelledby="pareto-title">
+<main id="app" data-testid="pareto-page">
   <n-config-provider :theme="darkTheme">
     <n-layout style="height: 100vh" aria-label="MCPTap Pareto model comparison">
       <n-layout-header bordered class="toolbar" role="banner" data-testid="pareto-toolbar" aria-label="Pareto controls">
-        <h1 id="pareto-title" data-testid="pareto-title">MCPTap Pareto</h1>
+        <h1 data-testid="pareto-title">MCPTap Pareto</h1>
         <div data-testid="provider-filter" role="group" aria-label="Filter chart by provider">
         <label for="provider-filter-select" class="sr-only">Filter providers</label>
         <n-select
