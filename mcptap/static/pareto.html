@@ -58,6 +58,24 @@
           @update:value="renderChart"
         />
         </div>
+        <div data-testid="model-filter" role="group" aria-label="Filter chart by model">
+        <label for="model-filter-select" class="sr-only">Filter models</label>
+        <n-select
+          id="model-filter-select"
+          v-model:value="selectedModels"
+          multiple
+          filterable
+          tag
+          clearable
+          :options="modelOptions"
+          placeholder="Filter models"
+          aria-label="Filter models"
+          data-testid="model-filter-select"
+          style="min-width: 360px; max-width: 720px"
+          size="small"
+          @update:value="renderChart"
+        />
+        </div>
         <button type="button" class="chart-control" data-testid="pareto-refresh" aria-label="Refresh Pareto data" :aria-busy="loading" @click="loadData">Refresh</button>
         <div class="chart-controls" data-testid="pareto-chart-controls" role="toolbar" aria-label="Chart controls">
           <button type="button" class="chart-control" data-testid="pareto-zoom-reset" aria-label="Reset chart zoom" aria-controls="chart" @click="resetZoom">Reset zoom</button>
@@ -151,7 +169,18 @@ const QUALITY_WEIGHT_KEYS = {
   latency: ['latency_last_30m', 'latency_last_1h', 'latency_last_1d'],
   throughput: ['throughput_last_30m', 'throughput_last_1h', 'throughput_last_1d'],
 };
-const DEFAULT_PROVIDERS = ['llmtr', 'meta', 'nano-gpt', 'openrouter', 'requesty'];
+const DEFAULT_PROVIDERS = [
+  'llmtr',
+  'meta',
+  'nano-gpt',
+  'openrouter',
+  'requesty',
+  'kenari',
+  'unorouter',
+  'runinfra',
+  'nvidia',
+  'opencode',
+];
 
 function debounce(callback, delay) {
   let timeoutId;
@@ -169,6 +198,7 @@ const app = createApp({
       NSelect, NSlider } = naive;
     const rawData = ref({});
     const selectedProviders = ref([...DEFAULT_PROVIDERS]);
+    const selectedModels = ref([]);
     const loading = ref(false);
     const error = ref('');
     const diagnosticsVisible = new URLSearchParams(window.location.search).get('e2llm') === '2';
@@ -228,6 +258,11 @@ const app = createApp({
         for (const provider of Object.keys(item.providers || {})) providers.add(provider);
       }
       return [...providers].sort().map(value => ({ label: value, value }));
+    });
+
+    const modelOptions = computed(() => {
+      const models = Object.keys(rawData.value || {});
+      return [...models].sort().map(value => ({ label: value, value }));
     });
 
     function interpolateWeights(start, end, count) {
@@ -399,7 +434,10 @@ const app = createApp({
     function collectOffers() {
       const offers = [];
       const hasProviderFilter = selectedProviders.value.length > 0;
+      const hasModelFilter = selectedModels.value.length > 0;
+      const selectedModelsSet = hasModelFilter ? new Set(selectedModels.value) : null;
       for (const [canonicalModel, item] of Object.entries(rawData.value)) {
+        if (selectedModelsSet && !selectedModelsSet.has(canonicalModel)) continue;
         for (const [provider, aliases] of Object.entries(item.providers || {})) {
           if (hasProviderFilter && !selectedProviders.value.includes(provider)) continue;
           for (const [alias, offer] of Object.entries(aliases || {})) {
@@ -640,7 +678,7 @@ const app = createApp({
     });
 
     return { darkTheme, NConfigProvider, NLayout, NLayoutHeader, NLayoutContent, NSelect, NSlider,
-      selectedProviders, providerOptions, loading, error, diagnosticsVisible, pointCount, modelCount,
+      selectedProviders, selectedModels, providerOptions, modelOptions, loading, error, diagnosticsVisible, pointCount, modelCount,
       seriesCount, canvasCount, chartState, renderer, renderError, viewRange,
       formatDiagnosticNumber, formatRange,
       areaZoomActive, zoomSelectionStyle, loadData, renderChart, resetZoom,
