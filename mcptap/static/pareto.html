@@ -51,7 +51,6 @@
         <div class="chart-controls" data-testid="pareto-chart-controls" role="toolbar" aria-label="Chart controls">
           <button type="button" class="chart-control" data-testid="pareto-zoom-area" aria-label="Select zoom area" aria-controls="chart" :aria-pressed="areaZoomActive" @click="toggleAreaZoom">Zoom area</button>
           <button type="button" class="chart-control" data-testid="pareto-zoom-reset" aria-label="Reset chart zoom" aria-controls="chart" @click="resetZoom">Reset zoom</button>
-          <button type="button" class="chart-control" data-testid="pareto-save-image" aria-label="Save chart image" aria-controls="chart" @click="saveChartImage">Save image</button>
         </div>
         <output class="hint" data-testid="pareto-summary" aria-live="polite">{{ pointCount }} points · {{ modelCount }} models</output>
         <p class="hint" style="margin-left: auto" data-testid="pareto-error" role="alert" v-if="error">{{ error }}</p>
@@ -218,13 +217,6 @@ const app = createApp({
       zoomSelectionStyle.value = null;
     }
 
-    function saveChartImage() {
-      if (!chart.value) return;
-      const link = document.createElement('a');
-      link.download = 'mcptap-pareto.png';
-      link.href = chart.value.getDataURL({ pixelRatio: 2, backgroundColor: '#101014' });
-      link.click();
-    }
 
     function handleChartWheel(params) {
       const pixel = pointerPosition(params);
@@ -479,7 +471,7 @@ const app = createApp({
       seriesCount, canvasCount, chartState, renderer, renderError, viewRange,
       formatDiagnosticNumber, formatRange,
       areaZoomActive, zoomSelectionStyle, loadData, renderChart, toggleAreaZoom, resetZoom,
-      saveChartImage };
+    };
   },
 });
 app.use(naive);
