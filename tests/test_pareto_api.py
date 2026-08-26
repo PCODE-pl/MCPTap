@@ -55,8 +55,7 @@ async def test_serve_pareto_page_returns_html():
         assert "wheelDelta" in body
         assert "notMerge: true" in body
         assert 'data-testid="pareto-page"' in body
-        assert "<h1 id=" not in body
-        assert 'aria-labelledby="pareto-title"' not in body
+        assert "<h1" not in body
         assert 'data-testid="pareto-chart"' in body
         assert 'data-testid="pareto-zoom-area"' in body
         assert 'data-testid="pareto-zoom-reset"' in body
