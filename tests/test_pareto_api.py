@@ -57,7 +57,9 @@ async def test_serve_pareto_page_returns_html():
         assert 'data-testid="pareto-page"' in body
         assert "<h1" not in body
         assert 'data-testid="pareto-chart"' in body
-        assert 'data-testid="pareto-zoom-area"' in body
+        assert 'data-testid="pareto-zoom-area"' not in body
+        assert "const areaZoomActive = ref(true);" in body
+        assert "areaZoomActive.value = false" not in body
         assert 'data-testid="pareto-zoom-reset"' in body
         assert 'data-testid="pareto-save-image"' not in body
         assert "saveChartImage" not in body

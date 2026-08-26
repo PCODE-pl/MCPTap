@@ -48,7 +48,6 @@
         </div>
         <button type="button" class="chart-control" data-testid="pareto-refresh" aria-label="Refresh Pareto data" :aria-busy="loading" @click="loadData">Refresh</button>
         <div class="chart-controls" data-testid="pareto-chart-controls" role="toolbar" aria-label="Chart controls">
-          <button type="button" class="chart-control" data-testid="pareto-zoom-area" aria-label="Select zoom area" aria-controls="chart" :aria-pressed="areaZoomActive" @click="toggleAreaZoom">Zoom area</button>
           <button type="button" class="chart-control" data-testid="pareto-zoom-reset" aria-label="Reset chart zoom" aria-controls="chart" @click="resetZoom">Reset zoom</button>
         </div>
         <output class="hint" data-testid="pareto-summary" aria-live="polite">{{ pointCount }} points · {{ modelCount }} models</output>
@@ -133,7 +132,7 @@ const app = createApp({
     const renderError = ref('');
     const chart = ref(null);
     let renderCheckFrame = null;
-    const areaZoomActive = ref(false);
+    const areaZoomActive = ref(true);
     const selectionStart = ref(null);
     const zoomSelectionStyle = ref(null);
     let baseRange = { xMin: 0, xMax: 1, yMin: 0, yMax: 100 };
@@ -204,18 +203,10 @@ const app = createApp({
     }
 
     function resetZoom() {
-      areaZoomActive.value = false;
       selectionStart.value = null;
       zoomSelectionStyle.value = null;
       setZoomRange(baseRange);
     }
-
-    function toggleAreaZoom() {
-      areaZoomActive.value = !areaZoomActive.value;
-      selectionStart.value = null;
-      zoomSelectionStyle.value = null;
-    }
-
 
     function handleChartWheel(params) {
       const pixel = pointerPosition(params);
@@ -262,7 +253,6 @@ const app = createApp({
         xMin: Math.min(first[0], last[0]), xMax: Math.max(first[0], last[0]),
         yMin: Math.min(first[1], last[1]), yMax: Math.max(first[1], last[1]),
       });
-      areaZoomActive.value = false;
     }
 
     function updateZoomSelection(start, end) {
@@ -469,7 +459,7 @@ const app = createApp({
       selectedProviders, providerOptions, loading, error, diagnosticsVisible, pointCount, modelCount,
       seriesCount, canvasCount, chartState, renderer, renderError, viewRange,
       formatDiagnosticNumber, formatRange,
-      areaZoomActive, zoomSelectionStyle, loadData, renderChart, toggleAreaZoom, resetZoom,
+      areaZoomActive, zoomSelectionStyle, loadData, renderChart, resetZoom,
     };
   },
 });
