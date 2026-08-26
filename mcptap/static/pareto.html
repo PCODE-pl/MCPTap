@@ -298,10 +298,17 @@ const app = createApp({
       const factor = delta > 0 ? 0.8 : 1.25;
       const nextXMin = anchor[0] - (anchor[0] - viewRange.value.xMin) * factor;
       const nextXMax = anchor[0] + (viewRange.value.xMax - anchor[0]) * factor;
+      let zeroPriceXMin = null;
+      if (delta > 0 && renderedPoints.some(point => point.value[0] === 0)) {
+        zeroPriceXMin = -Math.max((baseRange.xMax - baseRange.xMin) * 0.004, 0.0001);
+      }
+      const nextXMinWithZeroPrice = zeroPriceXMin === null
+        ? nextXMin
+        : Math.min(nextXMin, zeroPriceXMin);
       const nextYMin = anchor[1] - (anchor[1] - viewRange.value.yMin) * factor;
       const nextYMax = anchor[1] + (viewRange.value.yMax - anchor[1]) * factor;
       setZoomRange({
-        xMin: Math.max(baseRange.xMin, nextXMin),
+        xMin: Math.max(baseRange.xMin, nextXMinWithZeroPrice),
         xMax: Math.min(baseRange.xMax, nextXMax),
         yMin: Math.max(baseRange.yMin, nextYMin),
         yMax: Math.min(baseRange.yMax, nextYMax),

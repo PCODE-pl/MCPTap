@@ -59,8 +59,12 @@ async def test_serve_pareto_page_returns_html():
         assert "Math.min(baseRange.yMax, nextYMax)" in body
         assert "const nextXMin = anchor[0] - (anchor[0] - viewRange.value.xMin) * factor;" in body
         assert "const nextXMax = anchor[0] + (viewRange.value.xMax - anchor[0]) * factor;" in body
-        assert "xMin: Math.max(baseRange.xMin, nextXMin)" in body
+        assert "xMin: Math.max(baseRange.xMin, nextXMinWithZeroPrice)" in body
         assert "xMax: Math.min(baseRange.xMax, nextXMax)" in body
+        assert "let zeroPriceXMin = null;" in body
+        assert "const nextXMinWithZeroPrice = zeroPriceXMin === null" in body
+        assert "xMin: Math.max(baseRange.xMin, nextXMinWithZeroPrice)" in body
+        assert "zeroPriceXMin = -Math.max" in body
         assert "notMerge: true" in body
         assert 'data-testid="pareto-page"' in body
         assert 'data-testid="pareto-content-layout"' in body
