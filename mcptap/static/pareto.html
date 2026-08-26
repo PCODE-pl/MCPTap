@@ -515,7 +515,15 @@ const app = createApp({
         xMin: Math.max(0, nextViewRange.xMin),
         yMin: Math.max(baseRange.yMin, nextViewRange.yMin),
       };
-      const providers = [...new Set(points.map(point => point.provider))];
+      const providerModelCounts = new Map();
+      for (const point of points) {
+        if (!providerModelCounts.has(point.provider)) providerModelCounts.set(point.provider, new Set());
+        providerModelCounts.get(point.provider).add(point.name);
+      }
+      const providers = [...providerModelCounts.keys()].sort((left, right) => {
+        const countDifference = providerModelCounts.get(right).size - providerModelCounts.get(left).size;
+        return countDifference || left.localeCompare(right);
+      });
       const series = providers.map(provider => ({
         name: provider,
         type: 'scatter',
