@@ -259,16 +259,12 @@ const app = createApp({
 
     function pointerPosition(params) {
       const event = params.event || params;
-      const nativeEvent = event.event || event;
-      const chartRect = chart.value?.getDom().getBoundingClientRect();
-      const clientX = numeric(nativeEvent.clientX) ?? numeric(event.clientX);
-      const clientY = numeric(nativeEvent.clientY) ?? numeric(event.clientY);
-      if (chartRect && clientX !== null && clientY !== null) {
-        return [clientX - chartRect.left, clientY - chartRect.top];
-      }
+      const internalX = numeric(params.zrX) ?? numeric(event.zrX);
+      const internalY = numeric(params.zrY) ?? numeric(event.zrY);
+      if (internalX !== null && internalY !== null) return [internalX, internalY];
       return [
-        numeric(params.zrX) ?? numeric(event.zrX) ?? numeric(event.offsetX),
-        numeric(params.zrY) ?? numeric(event.zrY) ?? numeric(event.offsetY),
+        numeric(event.offsetX),
+        numeric(event.offsetY),
       ];
     }
 
@@ -299,9 +295,9 @@ const app = createApp({
       const clampToBase = factor > 1;
       let nextMin = anchor - targetWidth * anchorRatio;
       let nextMax = nextMin + targetWidth;
-      if (limits.forceMin !== null && nextMin > limits.forceMin) {
+      if (limits.forceMin !== null && nextMin > limits.forceMin && anchorRatio > 0) {
         nextMin = limits.forceMin;
-        nextMax = nextMin + (anchor - nextMin) * (1 - anchorRatio) / anchorRatio;
+        nextMax = nextMin + (anchor - nextMin) / anchorRatio;
       }
       if (clampToBase && limits.min !== null && nextMin < limits.min) {
         nextMin = limits.min;
@@ -337,13 +333,19 @@ const app = createApp({
         max: baseRange.xMax,
         forceMin: zeroPriceXMin,
       });
-      const nextYMin = anchor[1] - (anchor[1] - viewRange.value.yMin) * factor;
-      const nextYMax = anchor[1] + (viewRange.value.yMax - anchor[1]) * factor;
+      const nextYRange = zoomRangeAroundAnchor(anchor[1], {
+        min: viewRange.value.yMin,
+        max: viewRange.value.yMax,
+      }, factor, {
+        min: baseRange.yMin,
+        max: baseRange.yMax,
+        forceMin: null,
+      });
       setZoomRange({
         xMin: nextXRange.min,
         xMax: nextXRange.max,
-        yMin: Math.max(baseRange.yMin, nextYMin),
-        yMax: Math.min(baseRange.yMax, nextYMax),
+        yMin: nextYRange.min,
+        yMax: nextYRange.max,
       });
     }
 

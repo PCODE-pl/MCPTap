@@ -53,23 +53,22 @@ async def test_serve_pareto_page_returns_html():
         assert "getZr()" in body
         assert "convertFromPixel" in body
         assert "wheelDelta" in body
-        assert "const nextYMin" in body
-        assert "const nextYMax" in body
-        assert "Math.max(baseRange.yMin, nextYMin)" in body
-        assert "Math.min(baseRange.yMax, nextYMax)" in body
-        assert "const nativeEvent = event.event || event;" in body
-        assert "const chartRect = chart.value?.getDom().getBoundingClientRect();" in body
-        assert "const clientX = numeric(nativeEvent.clientX) ?? numeric(event.clientX);" in body
-        assert "return [clientX - chartRect.left, clientY - chartRect.top];" in body
         assert "function zoomRangeAroundAnchor(anchor, currentRange, factor, limits)" in body
         assert "const anchorRatio = Math.min(1, Math.max(0, (anchor - currentRange.min) / currentWidth));" in body
         assert "const targetWidth = currentWidth * factor;" in body
-        assert "if (limits.forceMin !== null && nextMin > limits.forceMin) {" in body
-        assert "nextMax = nextMin + (anchor - nextMin) * (1 - anchorRatio) / anchorRatio;" in body
+        assert "if (limits.forceMin !== null && nextMin > limits.forceMin && anchorRatio > 0) {" in body
+        assert "nextMax = nextMin + (anchor - nextMin) / anchorRatio;" in body
         assert "const clampToBase = factor > 1;" in body
         assert "if (clampToBase && limits.min !== null && nextMin < limits.min)" in body
         assert "if (clampToBase && limits.max !== null && nextMax > limits.max)" in body
+        assert "const anchor = chart.value.convertFromPixel({ xAxisIndex: 0, yAxisIndex: 0 }, pixel);" in body
+        assert "const internalX = numeric(params.zrX) ?? numeric(event.zrX);" in body
+        assert "if (internalX !== null && internalY !== null) return [internalX, internalY];" in body
+        assert "const nextYRange = zoomRangeAroundAnchor(anchor[1], {" in body
+        assert "yMin: nextYRange.min" in body
+        assert "yMax: nextYRange.max" in body
         assert "const nextXRange = zoomRangeAroundAnchor(anchor[0], {" in body
+        assert "}, factor, {" in body
         assert "xMin: nextXRange.min" in body
         assert "xMax: nextXRange.max" in body
         assert "let zeroPriceXMin = null;" in body
