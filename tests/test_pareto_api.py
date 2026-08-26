@@ -74,6 +74,13 @@ async def test_serve_pareto_page_returns_html():
         assert "const nextXRange = zoomRangeAroundAnchor(anchor[0], {" in body
         assert "forceMin: null," in body
         assert "zeroPriceXMin" not in body
+        assert "let legendVisibility = {};" in body
+        assert "function handleLegendSelectChanged(params)" in body
+        assert "legendVisibility = { ...params.selected };" in body
+        assert "const legendSelection = providers.reduce(" in body
+        assert "[provider]: legendVisibility[provider] !== false" in body
+        assert "chart.value.on('legendselectchanged', handleLegendSelectChanged);" in body
+        assert "chart.value.off('legendselectchanged', handleLegendSelectChanged);" in body
 
         assert "notMerge: true" in body
         assert 'data-testid="pareto-page"' in body
