@@ -76,6 +76,11 @@ async def test_serve_pareto_page_returns_html():
         assert "const nextXRange = zoomRangeAroundAnchor(anchor[0], {" in body
         assert "forceMin: null," in body
         assert "zeroPriceXMin" not in body
+        assert "const providerModelCounts = new Map();" in body
+        assert "providerModelCounts.get(point.provider).add(point.name);" in body
+        assert "const providers = [...providerModelCounts.keys()].sort((left, right) => {" in body
+        assert "providerModelCounts.get(right).size - providerModelCounts.get(left).size" in body
+        assert "return countDifference || left.localeCompare(right);" in body
         assert "let legendVisibility = {};" in body
         assert "function handleLegendSelectChanged(params)" in body
         assert "legendVisibility = { ...params.selected };" in body
