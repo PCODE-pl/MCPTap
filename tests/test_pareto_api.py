@@ -57,6 +57,10 @@ async def test_serve_pareto_page_returns_html():
         assert "const nextYMax" in body
         assert "Math.max(baseRange.yMin, nextYMin)" in body
         assert "Math.min(baseRange.yMax, nextYMax)" in body
+        assert "const nativeEvent = event.event || event;" in body
+        assert "const chartRect = chart.value?.getDom().getBoundingClientRect();" in body
+        assert "const clientX = numeric(nativeEvent.clientX) ?? numeric(event.clientX);" in body
+        assert "return [clientX - chartRect.left, clientY - chartRect.top];" in body
         assert "function zoomRangeAroundAnchor(anchor, currentRange, factor, limits)" in body
         assert "const anchorRatio = Math.min(1, Math.max(0, (anchor - currentRange.min) / currentWidth));" in body
         assert "const targetWidth = currentWidth * factor;" in body
