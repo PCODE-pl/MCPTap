@@ -181,6 +181,7 @@ const app = createApp({
     const renderError = ref('');
     const chart = ref(null);
     let renderedPoints = [];
+    let legendVisibility = {};
     let renderCheckFrame = null;
     const qualitySliderDefinitions = QUALITY_SLIDER_DEFINITIONS;
     const qualityControls = Vue.reactive({ ...DEFAULT_QUALITY_CONTROLS });
@@ -251,6 +252,10 @@ const app = createApp({
     function handleQualityChange() {
       updateQualityWeights();
       scheduleRenderChart(true);
+    }
+
+    function handleLegendSelectChanged(params) {
+      legendVisibility = { ...params.selected };
     }
 
     function numeric(value) {
@@ -518,13 +523,17 @@ const app = createApp({
         data: points.filter(point => point.provider === provider),
         emphasis: { focus: 'series', scale: 1.6 },
       }));
+      const legendSelection = providers.reduce(
+        (selection, provider) => ({ ...selection, [provider]: legendVisibility[provider] !== false }),
+        {},
+      );
       seriesCount.value = series.length;
       try {
         chart.value.setOption({
           animation: false,
           backgroundColor: 'transparent',
           color: ['#63b3ed', '#f6ad55', '#68d391', '#fc8181', '#b794f4', '#4fd1c5', '#f687b3'],
-          legend: { type: 'scroll', textStyle: { color: '#ddd' }, top: 8 },
+          legend: { type: 'scroll', selected: legendSelection, textStyle: { color: '#ddd' }, top: 8 },
           grid: { left: 72, right: 32, top: 52, bottom: 66 },
           tooltip: {
           trigger: 'item',
@@ -594,6 +603,7 @@ const app = createApp({
 
     onMounted(async () => {
       chart.value = echarts.init(document.getElementById('chart'), 'dark');
+      chart.value.on('legendselectchanged', handleLegendSelectChanged);
       renderer.value = chart.value.getZr().painter.getType?.() || 'unknown';
       const zr = chart.value.getZr();
       zr.on('mousewheel', handleChartWheel);
@@ -612,6 +622,7 @@ const app = createApp({
       window.removeEventListener('resize', resizeChart);
       if (chart.value) {
         const zr = chart.value.getZr();
+        chart.value.off('legendselectchanged', handleLegendSelectChanged);
         zr.off('mousewheel', handleChartWheel);
         zr.off('mousedown', handleChartMouseDown);
         zr.off('mousemove', handleChartMouseMove);
