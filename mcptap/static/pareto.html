@@ -285,6 +285,13 @@ const app = createApp({
       setZoomRange(baseRange);
     }
 
+    function preserveZoomAnchor(anchor, currentRange, nextMin, nextMax) {
+      const anchorRatio = (anchor - currentRange.min) / (currentRange.max - currentRange.min);
+      if (!(anchorRatio > 0 && anchorRatio < 1)) return { min: nextMin, max: nextMax };
+      nextMax = nextMin + (anchor - nextMin) * (1 - anchorRatio) / anchorRatio;
+      return { min: nextMin, max: nextMax };
+    }
+
     function handleChartWheel(params) {
       const pixel = pointerPosition(params);
       if (!isInPlot(pixel)) return;
@@ -305,11 +312,12 @@ const app = createApp({
       const nextXMinWithZeroPrice = zeroPriceXMin === null
         ? nextXMin
         : Math.min(nextXMin, zeroPriceXMin);
+      const anchoredXRange = preserveZoomAnchor(anchor[0], { min: viewRange.value.xMin, max: viewRange.value.xMax }, nextXMinWithZeroPrice, nextXMax);
       const nextYMin = anchor[1] - (anchor[1] - viewRange.value.yMin) * factor;
       const nextYMax = anchor[1] + (viewRange.value.yMax - anchor[1]) * factor;
       setZoomRange({
-        xMin: Math.max(baseRange.xMin, nextXMinWithZeroPrice),
-        xMax: Math.min(baseRange.xMax, nextXMax),
+        xMin: Math.max(baseRange.xMin, anchoredXRange.min),
+        xMax: Math.min(baseRange.xMax, anchoredXRange.max),
         yMin: Math.max(baseRange.yMin, nextYMin),
         yMax: Math.min(baseRange.yMax, nextYMax),
       });

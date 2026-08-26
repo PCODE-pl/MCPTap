@@ -59,12 +59,20 @@ async def test_serve_pareto_page_returns_html():
         assert "Math.min(baseRange.yMax, nextYMax)" in body
         assert "const nextXMin = anchor[0] - (anchor[0] - viewRange.value.xMin) * factor;" in body
         assert "const nextXMax = anchor[0] + (viewRange.value.xMax - anchor[0]) * factor;" in body
-        assert "xMin: Math.max(baseRange.xMin, nextXMinWithZeroPrice)" in body
-        assert "xMax: Math.min(baseRange.xMax, nextXMax)" in body
+        assert "xMin: Math.max(baseRange.xMin, anchoredXRange.min)" in body
+        assert "xMax: Math.min(baseRange.xMax, anchoredXRange.max)" in body
         assert "let zeroPriceXMin = null;" in body
         assert "const nextXMinWithZeroPrice = zeroPriceXMin === null" in body
-        assert "xMin: Math.max(baseRange.xMin, nextXMinWithZeroPrice)" in body
         assert "zeroPriceXMin = -Math.max" in body
+        assert "function preserveZoomAnchor(anchor, currentRange, nextMin, nextMax)" in body
+        assert "const anchorRatio = (anchor - currentRange.min) / (currentRange.max - currentRange.min);" in body
+        assert "nextMax = nextMin + (anchor - nextMin) * (1 - anchorRatio) / anchorRatio;" in body
+        assert (
+            "const anchoredXRange = preserveZoomAnchor(anchor[0], { min: viewRange.value.xMin, max: viewRange.value.xMax }, nextXMinWithZeroPrice, nextXMax);"
+            in body
+        )
+        assert "xMin: Math.max(baseRange.xMin, anchoredXRange.min)" in body
+        assert "xMax: Math.min(baseRange.xMax, anchoredXRange.max)" in body
         assert "notMerge: true" in body
         assert 'data-testid="pareto-page"' in body
         assert 'data-testid="pareto-content-layout"' in body
