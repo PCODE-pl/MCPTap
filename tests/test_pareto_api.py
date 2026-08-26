@@ -66,6 +66,9 @@ async def test_serve_pareto_page_returns_html():
         assert "const targetWidth = currentWidth * factor;" in body
         assert "if (limits.forceMin !== null && nextMin > limits.forceMin) {" in body
         assert "nextMax = nextMin + (anchor - nextMin) * (1 - anchorRatio) / anchorRatio;" in body
+        assert "const clampToBase = factor > 1;" in body
+        assert "if (clampToBase && limits.min !== null && nextMin < limits.min)" in body
+        assert "if (clampToBase && limits.max !== null && nextMax > limits.max)" in body
         assert "const nextXRange = zoomRangeAroundAnchor(anchor[0], {" in body
         assert "xMin: nextXRange.min" in body
         assert "xMax: nextXRange.max" in body

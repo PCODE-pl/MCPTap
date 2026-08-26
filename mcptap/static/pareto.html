@@ -296,17 +296,18 @@ const app = createApp({
       const currentWidth = currentRange.max - currentRange.min;
       const anchorRatio = Math.min(1, Math.max(0, (anchor - currentRange.min) / currentWidth));
       const targetWidth = currentWidth * factor;
+      const clampToBase = factor > 1;
       let nextMin = anchor - targetWidth * anchorRatio;
       let nextMax = nextMin + targetWidth;
       if (limits.forceMin !== null && nextMin > limits.forceMin) {
         nextMin = limits.forceMin;
         nextMax = nextMin + (anchor - nextMin) * (1 - anchorRatio) / anchorRatio;
       }
-      if (limits.min !== null && nextMin < limits.min) {
+      if (clampToBase && limits.min !== null && nextMin < limits.min) {
         nextMin = limits.min;
         nextMax = nextMin + targetWidth;
       }
-      if (limits.max !== null && nextMax > limits.max) {
+      if (clampToBase && limits.max !== null && nextMax > limits.max) {
         nextMax = limits.max;
         nextMin = nextMax - targetWidth;
       }
