@@ -285,10 +285,21 @@ const app = createApp({
       setZoomRange(baseRange);
     }
 
-    function preserveZoomAnchor(anchor, currentRange, nextMin, nextMax) {
-      const anchorRatio = (anchor - currentRange.min) / (currentRange.max - currentRange.min);
-      if (!(anchorRatio > 0 && anchorRatio < 1)) return { min: nextMin, max: nextMax };
-      nextMax = nextMin + (anchor - nextMin) * (1 - anchorRatio) / anchorRatio;
+    function zoomRangeAroundAnchor(anchor, currentRange, factor, limits) {
+      const currentWidth = currentRange.max - currentRange.min;
+      const anchorRatio = Math.min(1, Math.max(0, (anchor - currentRange.min) / currentWidth));
+      const targetWidth = currentWidth * factor;
+      let nextMin = anchor - targetWidth * anchorRatio;
+      let nextMax = nextMin + targetWidth;
+      if (limits.forceMin !== null) nextMin = Math.min(nextMin, limits.forceMin);
+      if (limits.min !== null && nextMin < limits.min) {
+        nextMin = limits.min;
+        nextMax = nextMin + targetWidth;
+      }
+      if (limits.max !== null && nextMax > limits.max) {
+        nextMax = limits.max;
+        nextMin = nextMax - targetWidth;
+      }
       return { min: nextMin, max: nextMax };
     }
 
@@ -303,21 +314,23 @@ const app = createApp({
       const anchor = chart.value.convertFromPixel({ xAxisIndex: 0, yAxisIndex: 0 }, pixel);
       if (!Array.isArray(anchor)) return;
       const factor = delta > 0 ? 0.8 : 1.25;
-      const nextXMin = anchor[0] - (anchor[0] - viewRange.value.xMin) * factor;
-      const nextXMax = anchor[0] + (viewRange.value.xMax - anchor[0]) * factor;
       let zeroPriceXMin = null;
       if (delta > 0 && renderedPoints.some(point => point.value[0] === 0)) {
         zeroPriceXMin = -Math.max((baseRange.xMax - baseRange.xMin) * 0.004, 0.0001);
       }
-      const nextXMinWithZeroPrice = zeroPriceXMin === null
-        ? nextXMin
-        : Math.min(nextXMin, zeroPriceXMin);
-      const anchoredXRange = preserveZoomAnchor(anchor[0], { min: viewRange.value.xMin, max: viewRange.value.xMax }, nextXMinWithZeroPrice, nextXMax);
+      const nextXRange = zoomRangeAroundAnchor(anchor[0], {
+        min: viewRange.value.xMin,
+        max: viewRange.value.xMax,
+      }, factor, {
+        min: baseRange.xMin,
+        max: baseRange.xMax,
+        forceMin: zeroPriceXMin,
+      });
       const nextYMin = anchor[1] - (anchor[1] - viewRange.value.yMin) * factor;
       const nextYMax = anchor[1] + (viewRange.value.yMax - anchor[1]) * factor;
       setZoomRange({
-        xMin: Math.max(baseRange.xMin, anchoredXRange.min),
-        xMax: Math.min(baseRange.xMax, anchoredXRange.max),
+        xMin: nextXRange.min,
+        xMax: nextXRange.max,
         yMin: Math.max(baseRange.yMin, nextYMin),
         yMax: Math.min(baseRange.yMax, nextYMax),
       });
