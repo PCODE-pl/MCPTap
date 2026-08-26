@@ -103,6 +103,7 @@ async def test_serve_pareto_page_returns_html():
         assert "xMin: Math.max(0, xMin" not in body
         assert "min: viewRange.value.xMin" in body
         assert "max: viewRange.value.xMax" in body
+        assert "formatter: value => Number.isInteger(value) ? value : value.toFixed(1)" in body
         assert "<h1" not in body
         assert 'data-testid="pareto-chart"' in body
         assert 'data-testid="pareto-zoom-area"' not in body

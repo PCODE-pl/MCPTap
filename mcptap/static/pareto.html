@@ -505,7 +505,7 @@ const app = createApp({
           },
         },
           xAxis: { name: 'Weighted cost ($/M tokens)', nameLocation: 'middle', nameGap: 38, type: 'value', scale: true, min: viewRange.value.xMin, max: viewRange.value.xMax, axisLabel: { color: '#aaa' }, nameTextStyle: { color: '#ccc' }, splitLine: { lineStyle: { color: '#28282f' } } },
-          yAxis: { name: 'Quality', nameLocation: 'middle', nameGap: 48, type: 'value', min: viewRange.value.yMin, max: viewRange.value.yMax, axisLabel: { color: '#aaa' }, nameTextStyle: { color: '#ccc' }, splitLine: { lineStyle: { color: '#28282f' } } },
+          yAxis: { name: 'Quality', nameLocation: 'middle', nameGap: 48, type: 'value', min: viewRange.value.yMin, max: viewRange.value.yMax, axisLabel: { color: '#aaa', formatter: value => Number.isInteger(value) ? value : value.toFixed(1) }, nameTextStyle: { color: '#ccc' }, splitLine: { lineStyle: { color: '#28282f' } } },
           series,
         }, { notMerge: true, lazyUpdate: false });
         renderedPoints = points;
