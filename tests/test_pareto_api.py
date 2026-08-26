@@ -71,8 +71,9 @@ async def test_serve_pareto_page_returns_html():
         assert "}, factor, {" in body
         assert "xMin: nextXRange.min" in body
         assert "xMax: nextXRange.max" in body
-        assert "let zeroPriceXMin = null;" in body
-        assert "zeroPriceXMin = -Math.max" in body
+        assert "const nextXRange = zoomRangeAroundAnchor(anchor[0], {" in body
+        assert "forceMin: null," in body
+        assert "zeroPriceXMin" not in body
 
         assert "notMerge: true" in body
         assert 'data-testid="pareto-page"' in body

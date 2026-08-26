@@ -321,17 +321,13 @@ const app = createApp({
       const anchor = chart.value.convertFromPixel({ xAxisIndex: 0, yAxisIndex: 0 }, pixel);
       if (!Array.isArray(anchor)) return;
       const factor = delta > 0 ? 0.8 : 1.25;
-      let zeroPriceXMin = null;
-      if (delta > 0 && renderedPoints.some(point => point.value[0] === 0)) {
-        zeroPriceXMin = -Math.max((baseRange.xMax - baseRange.xMin) * 0.004, 0.0001);
-      }
       const nextXRange = zoomRangeAroundAnchor(anchor[0], {
         min: viewRange.value.xMin,
         max: viewRange.value.xMax,
       }, factor, {
         min: baseRange.xMin,
         max: baseRange.xMax,
-        forceMin: zeroPriceXMin,
+        forceMin: null,
       });
       const nextYRange = zoomRangeAroundAnchor(anchor[1], {
         min: viewRange.value.yMin,
