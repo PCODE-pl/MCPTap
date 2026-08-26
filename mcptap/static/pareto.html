@@ -274,10 +274,11 @@ const app = createApp({
     }
 
     function setZoomRange(range) {
-      viewRange.value = { ...range };
+      const boundedRange = { ...range, xMin: Math.max(0, range.xMin), yMin: Math.max(0, range.yMin) };
+      viewRange.value = { ...boundedRange };
       chart.value.setOption({
-        xAxis: { min: range.xMin, max: range.xMax },
-        yAxis: { min: range.yMin, max: range.yMax },
+        xAxis: { min: boundedRange.xMin, max: boundedRange.xMax },
+        yAxis: { min: boundedRange.yMin, max: boundedRange.yMax },
       }, { lazyUpdate: false });
       updateCanvasDiagnostics();
     }
@@ -494,9 +495,9 @@ const app = createApp({
       const xPadding = Math.max((xMaxValue - xMinValue) * 0.04, 0.01);
       const yPadding = Math.max((yMaxValue - yMinValue) * 0.04, 0.01);
       baseRange = {
-        xMin: xMinValue - xPadding,
+        xMin: Math.max(0, xMinValue - xPadding),
         xMax: xMaxValue + xPadding,
-        yMin: yMinValue - yPadding,
+        yMin: Math.max(0, yMinValue - yPadding),
         yMax: yMaxValue + yPadding,
       };
       viewRange.value = preservedRange || previousViewRange || { ...baseRange };

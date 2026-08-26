@@ -120,9 +120,13 @@ async def test_serve_pareto_page_returns_html():
         assert "const previousViewRange = preserveViewport ? { ...viewRange.value } : null;" in body
         assert "const yValues = points.map(point => point.value[1]);" in body
         assert "const yPadding = Math.max((yMaxValue - yMinValue) * 0.04, 0.01);" in body
-        assert "xMin: xMinValue - xPadding" in body
-        assert "yMin: yMinValue - yPadding" in body
-        assert "xMin: Math.max(0, xMin" not in body
+        assert "xMin: Math.max(0, xMinValue - xPadding)" in body
+
+        assert "yMin: Math.max(0, yMinValue - yPadding)" in body
+        assert (
+            "const boundedRange = { ...range, xMin: Math.max(0, range.xMin), yMin: Math.max(0, range.yMin) };" in body
+        )
+        assert "viewRange.value = { ...boundedRange };" in body
         assert "min: viewRange.value.xMin" in body
         assert "max: viewRange.value.xMax" in body
         assert "formatter: value => Number.isInteger(value) ? value : value.toFixed(1)" in body
