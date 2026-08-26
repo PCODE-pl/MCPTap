@@ -291,7 +291,10 @@ const app = createApp({
       const targetWidth = currentWidth * factor;
       let nextMin = anchor - targetWidth * anchorRatio;
       let nextMax = nextMin + targetWidth;
-      if (limits.forceMin !== null) nextMin = Math.min(nextMin, limits.forceMin);
+      if (limits.forceMin !== null && nextMin > limits.forceMin) {
+        nextMin = limits.forceMin;
+        nextMax = nextMin + (anchor - nextMin) * (1 - anchorRatio) / anchorRatio;
+      }
       if (limits.min !== null && nextMin < limits.min) {
         nextMin = limits.min;
         nextMax = nextMin + targetWidth;
