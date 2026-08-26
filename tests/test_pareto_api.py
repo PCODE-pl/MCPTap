@@ -83,8 +83,19 @@ async def test_serve_pareto_page_returns_html():
         assert "qualityWeights.uptime" not in body
         assert "const scheduleRenderChart = debounce((preserveViewport) => renderChart(preserveViewport), 100);" in body
         assert "function renderChart(preserveViewport = false)" in body
+        assert "function preserveViewportForVisiblePoints(previousPoints, nextPoints, range)" in body
+        assert "const previousPoints = preserveViewport ? renderedPoints : null;" in body
+        assert "const visiblePointKeys = new Set" in body
+        assert "let renderedPoints = [];" in body
+        assert "renderedPoints = points;" in body
+        assert "Math.min(...previousXValues) - range.xMin" in body
+        assert "range.xMax - Math.max(...previousXValues)" in body
+        assert (
+            "const preservedRange = preserveViewportForVisiblePoints(previousPoints, points, previousViewRange);"
+            in body
+        )
+        assert "viewRange.value = preservedRange || previousViewRange || { ...baseRange };" in body
         assert "const previousViewRange = preserveViewport ? { ...viewRange.value } : null;" in body
-        assert "viewRange.value = previousViewRange || { ...baseRange };" in body
         assert "min: viewRange.value.xMin" in body
         assert "max: viewRange.value.xMax" in body
         assert "<h1" not in body
