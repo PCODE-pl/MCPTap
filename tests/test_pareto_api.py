@@ -60,7 +60,10 @@ async def test_serve_pareto_page_returns_html():
         assert "notMerge: true" in body
         assert 'data-testid="pareto-page"' in body
         assert 'data-testid="pareto-content-layout"' in body
+        assert '<div class="content-layout" data-testid="pareto-content-layout">' in body
+        assert '<n-layout-content class="content-layout"' not in body
         assert 'data-testid="quality-controls"' in body
+        assert "<h2>Quality weights</h2>" not in body
         assert "grid-template-columns: minmax(0, 1fr) 282px" in body
         assert ".content-layout { width: 100%;" in body
         assert ".chart-container { position: relative; width: 100%;" in body
