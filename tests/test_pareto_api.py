@@ -45,6 +45,8 @@ async def test_serve_pareto_page_returns_html():
         assert response.status == 200
         body = await response.text()
         assert "MCPTap Pareto" in body
+        assert "https://cdn.jsdelivr.net/npm/echarts@6.1.0/dist/echarts.min.js" in body
+        assert "https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js" not in body
         assert "weightedCost" in body
         assert "contentSize" in body
         assert "max-height: calc(100vh - 24px)" in body
