@@ -59,6 +59,23 @@ async def test_serve_pareto_page_returns_html():
         assert "Math.min(baseRange.yMax, nextYMax)" in body
         assert "notMerge: true" in body
         assert 'data-testid="pareto-page"' in body
+        assert 'data-testid="pareto-content-layout"' in body
+        assert 'data-testid="quality-controls"' in body
+        assert ':data-testid="`quality-slider-${control.key}`"' in body
+        assert "const QUALITY_SLIDER_DEFINITIONS = [" in body
+        assert "{ key: 'accuracy', label: 'Accuracy' }" in body
+        assert "{ key: 'uptime-short', label: 'Uptime short' }" in body
+        assert "{ key: 'uptime-long', label: 'Uptime long' }" in body
+        assert "{ key: 'latency-short', label: 'Latency short' }" in body
+        assert "{ key: 'latency-long', label: 'Latency long' }" in body
+        assert "{ key: 'throughput-short', label: 'Throughput short' }" in body
+        assert "{ key: 'throughput-long', label: 'Throughput long' }" in body
+        assert "const QUALITY_SLIDER_MAX = 3;" in body
+        assert "function interpolateWeights(start, end, count)" in body
+        assert "qualityWeights.accuracy = qualityControls.accuracy" in body
+        assert "qualityWeights[key] = values[index]" in body
+        assert "qualityWeights.uptime" not in body
+        assert "const scheduleRenderChart = debounce(() => renderChart(), 100);" in body
         assert "<h1" not in body
         assert 'data-testid="pareto-chart"' in body
         assert 'data-testid="pareto-zoom-area"' not in body
