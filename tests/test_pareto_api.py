@@ -130,6 +130,10 @@ async def test_serve_pareto_page_returns_html():
         assert "yMin: Math.max(baseRange.yMin, nextViewRange.yMin)" in body
         assert "min: viewRange.value.xMin" in body
         assert "max: viewRange.value.xMax" in body
+        assert (
+            "axisLabel: { color: '#aaa', formatter: value => Number.isInteger(value) ? value : value.toFixed(1) }"
+            in body
+        )
         assert "formatter: value => Number.isInteger(value) ? value : value.toFixed(1)" in body
         assert "<h1" not in body
         assert 'data-testid="pareto-chart"' in body
