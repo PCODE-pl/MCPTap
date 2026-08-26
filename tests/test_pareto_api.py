@@ -77,6 +77,10 @@ async def test_serve_pareto_page_returns_html():
         assert "{ key: 'throughput-short', label: 'Throughput short' }" in body
         assert "{ key: 'throughput-long', label: 'Throughput long' }" in body
         assert "const QUALITY_SLIDER_MAX = 3;" in body
+        assert (
+            "accuracy: 1,\n  'uptime-short': 0,\n  'uptime-long': 0,\n  'latency-short': 0,\n  'latency-long': 0,\n  'throughput-short': 0,\n  'throughput-long': 0,"
+            in body
+        )
         assert "function interpolateWeights(start, end, count)" in body
         assert "qualityWeights.accuracy = qualityControls.accuracy" in body
         assert "qualityWeights[key] = values[index]" in body
