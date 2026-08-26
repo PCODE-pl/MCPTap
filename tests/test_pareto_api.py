@@ -70,6 +70,8 @@ async def test_serve_pareto_page_returns_html():
         assert 'role="toolbar"' in body
         assert 'aria-label="Pareto scatter chart showing weighted cost and quality"' in body
         assert "new URLSearchParams(window.location.search).get('e2llm') === '2'" in body
+        assert "const hasProviderFilter = selectedProviders.value.length > 0;" in body
+        assert "if (hasProviderFilter && !selectedProviders.value.includes(provider)) continue;" in body
         assert "data-chart-state" in body
         assert "data-renderer" in body
         assert "data-canvas-count" in body
