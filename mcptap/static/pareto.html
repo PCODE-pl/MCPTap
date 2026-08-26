@@ -11,8 +11,15 @@
     html, body { margin: 0; padding: 0; height: 100%; background: #101014; }
     #app { height: 100vh; display: flex; flex-direction: column; color: #f5f5f5; }
     .toolbar { padding: 10px 14px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-    .chart-container { position: relative; flex: 1; min-height: 420px; padding: 0 8px 8px; }
+    .content-layout { flex: 1; min-height: 0; display: flex; flex-direction: row; }
+    .chart-container { position: relative; flex: 1; min-width: 0; min-height: 420px; padding: 0 8px 8px; }
     #chart { width: 100%; height: 100%; min-height: 420px; }
+    .quality-controls { flex: 0 0 250px; padding: 16px; overflow-y: auto; border-left: 1px solid #28282f; }
+    .quality-controls h2 { margin: 0 0 16px; font-size: 15px; font-weight: 600; }
+    .quality-slider { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; align-items: center; margin-bottom: 14px; }
+    .quality-slider label { font-size: 13px; }
+    .quality-slider output { color: #aaa; font: 12px monospace; }
+    .quality-slider .n-slider { grid-column: 1 / -1; }
     .zoom-selection { position: absolute; z-index: 2; border: 1px solid #63b3ed; background: rgba(99, 179, 237, .2); pointer-events: none; }
     .chart-controls { display: flex; align-items: center; gap: 6px; }
     .chart-control { border: 1px solid rgba(255, 255, 255, .2); border-radius: 3px; padding: 4px 9px; color: #ddd; background: #25252c; cursor: pointer; font: inherit; font-size: 12px; }
@@ -21,6 +28,11 @@
     .hint { font-size: 12px; opacity: .65; }
     .chart-diagnostics { position: absolute; z-index: 3; left: 16px; right: 16px; bottom: 16px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px 12px; padding: 8px 12px; border: 1px solid #28282f; background: rgba(16, 16, 20, .94); color: #bbb; font: 12px/1.4 monospace; }
     .chart-diagnostics strong { color: #eee; font-weight: 600; }
+    @media (max-width: 700px) {
+      .content-layout { flex-direction: column; overflow-y: auto; }
+      .chart-container { flex: 0 0 min(65vh, 620px); }
+      .quality-controls { flex: 0 0 auto; border-top: 1px solid #28282f; border-left: 0; }
+    }
   </style>
 </head>
 <body>
@@ -53,9 +65,10 @@
         <output class="hint" data-testid="pareto-summary" aria-live="polite">{{ pointCount }} points · {{ modelCount }} models</output>
         <p class="hint" style="margin-left: auto" data-testid="pareto-error" role="alert" v-if="error">{{ error }}</p>
       </n-layout-header>
-      <n-layout-content class="chart-container" role="region" data-testid="pareto-chart-region" aria-labelledby="pareto-chart-title" :aria-busy="loading">
-        <h2 id="pareto-chart-title" class="sr-only">Pareto scatter chart</h2>
-        <div
+      <n-layout-content class="content-layout" data-testid="pareto-content-layout">
+        <section class="chart-container" role="region" data-testid="pareto-chart-region" aria-labelledby="pareto-chart-title" :aria-busy="loading">
+          <h2 id="pareto-chart-title" class="sr-only">Pareto scatter chart</h2>
+          <div
           id="chart"
           data-testid="pareto-chart"
           role="img"
@@ -73,8 +86,8 @@
           :data-y-min="formatDiagnosticNumber(viewRange.yMin)"
           :data-y-max="formatDiagnosticNumber(viewRange.yMax)"
           :data-zoom-active="areaZoomActive"
-        ></div>
-        <section v-if="diagnosticsVisible" class="chart-diagnostics" data-testid="pareto-chart-diagnostics" aria-label="Pareto chart diagnostics">
+          ></div>
+          <section v-if="diagnosticsVisible" class="chart-diagnostics" data-testid="pareto-chart-diagnostics" aria-label="Pareto chart diagnostics">
           <span>state=<strong data-testid="pareto-render-state">{{ chartState }}</strong></span>
           <span>renderer=<strong data-testid="pareto-renderer">{{ renderer }}</strong></span>
           <span>canvas=<strong data-testid="pareto-canvas-count">{{ canvasCount }}</strong></span>
@@ -84,9 +97,26 @@
           <span>x=<strong data-testid="pareto-x-range">{{ formatRange(viewRange.xMin, viewRange.xMax) }}</strong></span>
           <span>y=<strong data-testid="pareto-y-range">{{ formatRange(viewRange.yMin, viewRange.yMax) }}</strong></span>
           <span v-if="renderError" data-testid="pareto-render-error">error=<strong>{{ renderError }}</strong></span>
+          </section>
+          <p id="pareto-chart-status" class="sr-only" data-testid="pareto-chart-status" aria-live="polite">{{ loading ? 'Loading chart data.' : error || renderError || (areaZoomActive ? 'Zoom area selection is active.' : `${pointCount} points and ${modelCount} models are shown.`) }}</p>
+          <div v-if="zoomSelectionStyle" class="zoom-selection" data-testid="pareto-zoom-selection" role="region" aria-label="Selected zoom area" :style="zoomSelectionStyle"></div>
         </section>
-        <p id="pareto-chart-status" class="sr-only" data-testid="pareto-chart-status" aria-live="polite">{{ loading ? 'Loading chart data.' : error || renderError || (areaZoomActive ? 'Zoom area selection is active.' : `${pointCount} points and ${modelCount} models are shown.`) }}</p>
-        <div v-if="zoomSelectionStyle" class="zoom-selection" data-testid="pareto-zoom-selection" role="region" aria-label="Selected zoom area" :style="zoomSelectionStyle"></div>
+        <aside class="quality-controls" data-testid="quality-controls" aria-label="Quality weights">
+          <h2>Quality weights</h2>
+          <div v-for="control in qualitySliderDefinitions" :key="control.key" class="quality-slider">
+            <label :for="`quality-slider-${control.key}`">{{ control.label }}</label>
+            <output :for="`quality-slider-${control.key}`">{{ qualityControls[control.key].toFixed(2) }}</output>
+            <n-slider
+              :id="`quality-slider-${control.key}`"
+              v-model:value="qualityControls[control.key]"
+              :min="0"
+              :max="QUALITY_SLIDER_MAX"
+              :step="0.05"
+              :data-testid="`quality-slider-${control.key}`"
+              @update:value="handleQualityChange"
+            />
+          </div>
+        </aside>
       </n-layout-content>
     </n-layout>
   </n-config-provider>
@@ -95,29 +125,49 @@
 <script>
 const { createApp, ref, computed, onMounted, onBeforeUnmount } = Vue;
 
-// The token mix and quality weights are intentionally fixed until the scoring model is tuned.
+// The token mix and quality controls are intentionally explicit for the Pareto view.
 const COST_INPUT_TOKENS = 1000000;
 const COST_OUTPUT_TOKENS = 1000000;
-const QUALITY_WEIGHTS = {
+const QUALITY_SLIDER_MAX = 3;
+const QUALITY_SLIDER_DEFINITIONS = [
+  { key: 'accuracy', label: 'Accuracy' },
+  { key: 'uptime-short', label: 'Uptime short' },
+  { key: 'uptime-long', label: 'Uptime long' },
+  { key: 'latency-short', label: 'Latency short' },
+  { key: 'latency-long', label: 'Latency long' },
+  { key: 'throughput-short', label: 'Throughput short' },
+  { key: 'throughput-long', label: 'Throughput long' },
+];
+const DEFAULT_QUALITY_CONTROLS = {
   accuracy: 1,
-  uptime_last_5m: 0.5,
-  uptime_last_15m: 0.5,
-  uptime_last_30m: 0.75,
-  uptime_last_1h: 1,
-  uptime_last_1d: 1.5,
-  latency_last_30m: 0.75,
-  latency_last_1h: 1,
-  latency_last_1d: 1,
-  throughput_last_30m: 0.75,
-  throughput_last_1h: 1,
-  throughput_last_1d: 1,
+  'uptime-short': 0.5,
+  'uptime-long': 1.5,
+  'latency-short': 0.75,
+  'latency-long': 1,
+  'throughput-short': 0.75,
+  'throughput-long': 1,
+};
+const QUALITY_WEIGHT_KEYS = {
+  uptime: ['uptime_last_5m', 'uptime_last_15m', 'uptime_last_30m', 'uptime_last_1h', 'uptime_last_1d'],
+  latency: ['latency_last_30m', 'latency_last_1h', 'latency_last_1d'],
+  throughput: ['throughput_last_30m', 'throughput_last_1h', 'throughput_last_1d'],
 };
 const DEFAULT_PROVIDERS = ['llmtr', 'meta', 'nano-gpt', 'openrouter', 'requesty'];
+
+function debounce(callback, delay) {
+  let timeoutId;
+  const debounced = (...args) => {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => callback(...args), delay);
+  };
+  debounced.cancel = () => clearTimeout(timeoutId);
+  return debounced;
+}
 
 const app = createApp({
   setup() {
     const { darkTheme, NConfigProvider, NLayout, NLayoutHeader, NLayoutContent,
-      NSelect } = naive;
+      NSelect, NSlider } = naive;
     const rawData = ref({});
     const selectedProviders = ref([...DEFAULT_PROVIDERS]);
     const loading = ref(false);
@@ -132,6 +182,9 @@ const app = createApp({
     const renderError = ref('');
     const chart = ref(null);
     let renderCheckFrame = null;
+    const qualitySliderDefinitions = QUALITY_SLIDER_DEFINITIONS;
+    const qualityControls = Vue.reactive({ ...DEFAULT_QUALITY_CONTROLS });
+    const qualityWeights = Vue.reactive({ accuracy: qualityControls.accuracy });
     const areaZoomActive = ref(true);
     const selectionStart = ref(null);
     const zoomSelectionStyle = ref(null);
@@ -175,6 +228,30 @@ const app = createApp({
       }
       return [...providers].sort().map(value => ({ label: value, value }));
     });
+
+    function interpolateWeights(start, end, count) {
+      if (count <= 1) return [start];
+      return Array.from({ length: count }, (_, index) => start + (end - start) * index / (count - 1));
+    }
+
+    function updateQualityWeights() {
+      qualityWeights.accuracy = qualityControls.accuracy;
+      for (const [family, keys] of Object.entries(QUALITY_WEIGHT_KEYS)) {
+        const values = interpolateWeights(
+          qualityControls[`${family}-short`],
+          qualityControls[`${family}-long`],
+          keys.length,
+        );
+        keys.forEach((key, index) => { qualityWeights[key] = values[index]; });
+      }
+    }
+
+    const scheduleRenderChart = debounce(() => renderChart(), 100);
+
+    function handleQualityChange() {
+      updateQualityWeights();
+      scheduleRenderChart();
+    }
 
     function numeric(value) {
       return typeof value === 'number' && Number.isFinite(value) ? value : null;
@@ -290,9 +367,9 @@ const app = createApp({
     function qualityScore(offer, maxima) {
       const components = [];
       const accuracy = numeric(offer.item.accuracy);
-      if (accuracy !== null) components.push([QUALITY_WEIGHTS.accuracy, accuracy / 100]);
+      if (accuracy !== null) components.push([qualityWeights.accuracy, accuracy / 100]);
       const stats = offer.offer.stats || {};
-      for (const [key, weight] of Object.entries(QUALITY_WEIGHTS)) {
+      for (const [key, weight] of Object.entries(qualityWeights)) {
         if (key === 'accuracy') continue;
         const value = numeric(stats[key]);
         if (value === null || !weight) continue;
@@ -315,7 +392,7 @@ const app = createApp({
     function buildPoints() {
       const offers = collectOffers();
       const maxima = {};
-      for (const key of Object.keys(QUALITY_WEIGHTS)) {
+      for (const key of Object.keys(qualityWeights)) {
         if (key === 'accuracy' || !key.startsWith('latency_') && !key.startsWith('throughput_')) continue;
         maxima[key] = Math.max(0, ...offers.map(offer => numeric(offer.offer.stats?.[key]) ?? 0));
       }
@@ -339,6 +416,7 @@ const app = createApp({
 
     function renderChart() {
       if (!chart.value) return;
+      updateQualityWeights();
       const points = buildPoints();
       chartState.value = 'rendering';
       renderError.value = '';
@@ -447,6 +525,7 @@ const app = createApp({
         cancelAnimationFrame(renderCheckFrame);
         renderCheckFrame = null;
       }
+      scheduleRenderChart.cancel();
       window.removeEventListener('resize', resizeChart);
       if (chart.value) {
         const zr = chart.value.getZr();
@@ -458,11 +537,12 @@ const app = createApp({
       }
     });
 
-    return { darkTheme, NConfigProvider, NLayout, NLayoutHeader, NLayoutContent, NSelect,
+    return { darkTheme, NConfigProvider, NLayout, NLayoutHeader, NLayoutContent, NSelect, NSlider,
       selectedProviders, providerOptions, loading, error, diagnosticsVisible, pointCount, modelCount,
       seriesCount, canvasCount, chartState, renderer, renderError, viewRange,
       formatDiagnosticNumber, formatRange,
       areaZoomActive, zoomSelectionStyle, loadData, renderChart, resetZoom,
+      QUALITY_SLIDER_MAX, qualitySliderDefinitions, qualityControls, handleQualityChange,
     };
   },
 });
