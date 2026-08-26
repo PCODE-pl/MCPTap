@@ -259,6 +259,13 @@ const app = createApp({
 
     function pointerPosition(params) {
       const event = params.event || params;
+      const nativeEvent = event.event || event;
+      const chartRect = chart.value?.getDom().getBoundingClientRect();
+      const clientX = numeric(nativeEvent.clientX) ?? numeric(event.clientX);
+      const clientY = numeric(nativeEvent.clientY) ?? numeric(event.clientY);
+      if (chartRect && clientX !== null && clientY !== null) {
+        return [clientX - chartRect.left, clientY - chartRect.top];
+      }
       return [
         numeric(params.zrX) ?? numeric(event.zrX) ?? numeric(event.offsetX),
         numeric(params.zrY) ?? numeric(event.zrY) ?? numeric(event.offsetY),
