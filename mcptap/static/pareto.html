@@ -65,7 +65,7 @@
         <output class="hint" data-testid="pareto-summary" aria-live="polite">{{ pointCount }} points · {{ modelCount }} models</output>
         <p class="hint" style="margin-left: auto" data-testid="pareto-error" role="alert" v-if="error">{{ error }}</p>
       </n-layout-header>
-      <n-layout-content class="content-layout" data-testid="pareto-content-layout">
+      <div class="content-layout" data-testid="pareto-content-layout">
         <section class="chart-container" role="region" data-testid="pareto-chart-region" aria-labelledby="pareto-chart-title" :aria-busy="loading">
           <h2 id="pareto-chart-title" class="sr-only">Pareto scatter chart</h2>
           <div
@@ -102,7 +102,6 @@
           <div v-if="zoomSelectionStyle" class="zoom-selection" data-testid="pareto-zoom-selection" role="region" aria-label="Selected zoom area" :style="zoomSelectionStyle"></div>
         </section>
         <aside class="quality-controls" data-testid="quality-controls" aria-label="Quality weights">
-          <h2>Quality weights</h2>
           <div v-for="control in qualitySliderDefinitions" :key="control.key" class="quality-slider">
             <label :for="`quality-slider-${control.key}`">{{ control.label }}</label>
             <output :for="`quality-slider-${control.key}`">{{ qualityControls[control.key].toFixed(2) }}</output>
@@ -117,7 +116,7 @@
             />
           </div>
         </aside>
-      </n-layout-content>
+      </div>
     </n-layout>
   </n-config-provider>
 </main>
