@@ -53,6 +53,10 @@ async def test_serve_pareto_page_returns_html():
         assert "getZr()" in body
         assert "convertFromPixel" in body
         assert "wheelDelta" in body
+        assert "const nextYMin" in body
+        assert "const nextYMax" in body
+        assert "Math.max(baseRange.yMin, nextYMin)" in body
+        assert "Math.min(baseRange.yMax, nextYMax)" in body
         assert "notMerge: true" in body
         assert 'data-testid="pareto-page"' in body
         assert "<h1" not in body

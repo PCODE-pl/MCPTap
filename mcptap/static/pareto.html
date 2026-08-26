@@ -219,11 +219,13 @@ const app = createApp({
       const anchor = chart.value.convertFromPixel({ xAxisIndex: 0, yAxisIndex: 0 }, pixel);
       if (!Array.isArray(anchor)) return;
       const factor = delta > 0 ? 0.8 : 1.25;
+      const nextYMin = anchor[1] - (anchor[1] - viewRange.value.yMin) * factor;
+      const nextYMax = anchor[1] + (viewRange.value.yMax - anchor[1]) * factor;
       setZoomRange({
         xMin: anchor[0] - (anchor[0] - viewRange.value.xMin) * factor,
         xMax: anchor[0] + (viewRange.value.xMax - anchor[0]) * factor,
-        yMin: anchor[1] - (anchor[1] - viewRange.value.yMin) * factor,
-        yMax: anchor[1] + (viewRange.value.yMax - anchor[1]) * factor,
+        yMin: Math.max(baseRange.yMin, nextYMin),
+        yMax: Math.min(baseRange.yMax, nextYMax),
       });
     }
 
