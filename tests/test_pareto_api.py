@@ -61,6 +61,9 @@ async def test_serve_pareto_page_returns_html():
         assert 'data-testid="pareto-page"' in body
         assert 'data-testid="pareto-content-layout"' in body
         assert 'data-testid="quality-controls"' in body
+        assert "grid-template-columns: minmax(0, 1fr) 282px" in body
+        assert ".content-layout { width: 100%;" in body
+        assert ".chart-container { position: relative; width: 100%;" in body
         assert ':data-testid="`quality-slider-${control.key}`"' in body
         assert "const QUALITY_SLIDER_DEFINITIONS = [" in body
         assert "{ key: 'accuracy', label: 'Accuracy' }" in body
