@@ -272,9 +272,10 @@ const app = createApp({
 
     function collectOffers() {
       const offers = [];
+      const hasProviderFilter = selectedProviders.value.length > 0;
       for (const [canonicalModel, item] of Object.entries(rawData.value)) {
         for (const [provider, aliases] of Object.entries(item.providers || {})) {
-          if (!selectedProviders.value.includes(provider)) continue;
+          if (hasProviderFilter && !selectedProviders.value.includes(provider)) continue;
           for (const [alias, offer] of Object.entries(aliases || {})) {
             const input = numeric(offer.cost?.input);
             const output = numeric(offer.cost?.output);
