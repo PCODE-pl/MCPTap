@@ -245,11 +245,11 @@ const app = createApp({
       }
     }
 
-    const scheduleRenderChart = debounce(() => renderChart(), 100);
+    const scheduleRenderChart = debounce((preserveViewport) => renderChart(preserveViewport), 100);
 
     function handleQualityChange() {
       updateQualityWeights();
-      scheduleRenderChart();
+      scheduleRenderChart(true);
     }
 
     function numeric(value) {
@@ -413,8 +413,9 @@ const app = createApp({
       }).filter(Boolean);
     }
 
-    function renderChart() {
+    function renderChart(preserveViewport = false) {
       if (!chart.value) return;
+      const previousViewRange = preserveViewport ? { ...viewRange.value } : null;
       updateQualityWeights();
       const points = buildPoints();
       chartState.value = 'rendering';
@@ -426,7 +427,7 @@ const app = createApp({
       const xMax = Math.max(...xValues, 1);
       const xPadding = Math.max((xMax - xMin) * 0.04, 0.01);
       baseRange = { xMin: Math.max(0, xMin - xPadding), xMax: xMax + xPadding, yMin: 0, yMax: 100 };
-      viewRange.value = { ...baseRange };
+      viewRange.value = previousViewRange || { ...baseRange };
       const providers = [...new Set(points.map(point => point.provider))];
       const series = providers.map(provider => ({
         name: provider,
@@ -470,8 +471,8 @@ const app = createApp({
               (point.isThinking ? '<br>Thinking: yes' : '') + (stats ? `<br><br>${stats}` : '');
           },
         },
-          xAxis: { name: 'Weighted cost ($/M tokens)', nameLocation: 'middle', nameGap: 38, type: 'value', scale: true, axisLabel: { color: '#aaa' }, nameTextStyle: { color: '#ccc' }, splitLine: { lineStyle: { color: '#28282f' } } },
-          yAxis: { name: 'Quality', nameLocation: 'middle', nameGap: 48, type: 'value', min: 0, max: 100, axisLabel: { color: '#aaa' }, nameTextStyle: { color: '#ccc' }, splitLine: { lineStyle: { color: '#28282f' } } },
+          xAxis: { name: 'Weighted cost ($/M tokens)', nameLocation: 'middle', nameGap: 38, type: 'value', scale: true, min: viewRange.value.xMin, max: viewRange.value.xMax, axisLabel: { color: '#aaa' }, nameTextStyle: { color: '#ccc' }, splitLine: { lineStyle: { color: '#28282f' } } },
+          yAxis: { name: 'Quality', nameLocation: 'middle', nameGap: 48, type: 'value', min: viewRange.value.yMin, max: viewRange.value.yMax, axisLabel: { color: '#aaa' }, nameTextStyle: { color: '#ccc' }, splitLine: { lineStyle: { color: '#28282f' } } },
           series,
         }, { notMerge: true, lazyUpdate: false });
         updateCanvasDiagnostics();

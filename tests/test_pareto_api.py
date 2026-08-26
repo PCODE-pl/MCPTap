@@ -81,7 +81,12 @@ async def test_serve_pareto_page_returns_html():
         assert "qualityWeights.accuracy = qualityControls.accuracy" in body
         assert "qualityWeights[key] = values[index]" in body
         assert "qualityWeights.uptime" not in body
-        assert "const scheduleRenderChart = debounce(() => renderChart(), 100);" in body
+        assert "const scheduleRenderChart = debounce((preserveViewport) => renderChart(preserveViewport), 100);" in body
+        assert "function renderChart(preserveViewport = false)" in body
+        assert "const previousViewRange = preserveViewport ? { ...viewRange.value } : null;" in body
+        assert "viewRange.value = previousViewRange || { ...baseRange };" in body
+        assert "min: viewRange.value.xMin" in body
+        assert "max: viewRange.value.xMax" in body
         assert "<h1" not in body
         assert 'data-testid="pareto-chart"' in body
         assert 'data-testid="pareto-zoom-area"' not in body
