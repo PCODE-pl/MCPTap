@@ -447,10 +447,19 @@ const app = createApp({
       pointCount.value = points.length;
       modelCount.value = new Set(points.map(point => point.name)).size;
       const xValues = points.map(point => point.value[0]);
-      const xMin = Math.min(...xValues, 0);
-      const xMax = Math.max(...xValues, 1);
-      const xPadding = Math.max((xMax - xMin) * 0.04, 0.01);
-      baseRange = { xMin: Math.max(0, xMin - xPadding), xMax: xMax + xPadding, yMin: 0, yMax: 100 };
+      const yValues = points.map(point => point.value[1]);
+      const xMinValue = Math.min(...xValues);
+      const xMaxValue = Math.max(...xValues);
+      const yMinValue = Math.min(...yValues);
+      const yMaxValue = Math.max(...yValues);
+      const xPadding = Math.max((xMaxValue - xMinValue) * 0.04, 0.01);
+      const yPadding = Math.max((yMaxValue - yMinValue) * 0.04, 0.01);
+      baseRange = {
+        xMin: xMinValue - xPadding,
+        xMax: xMaxValue + xPadding,
+        yMin: yMinValue - yPadding,
+        yMax: yMaxValue + yPadding,
+      };
       viewRange.value = preservedRange || previousViewRange || { ...baseRange };
       const providers = [...new Set(points.map(point => point.provider))];
       const series = providers.map(provider => ({
