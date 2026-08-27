@@ -299,7 +299,7 @@ const app = createApp({
       const contribLines = `Uptime: ${uptimeVal ?? '—'}<br>Throughput: ${throughputVal ?? '—'}<br>Latency: ${latencyVal ?? '—'}`;
       return `<b>${point.name}</b><br>Provider: <b>${point.provider}</b><br>Alias: <b>${point.alias}</b>` +
         `<br>In: $${fmtSig(point.cost.input)} · Out: $${fmtSig(point.cost.output)}` +
-        `<br>Weighted cost: $${fmtSig(point.value[0])}` +
+        `<br>Weighted cost: <b>$${fmtSig(point.value[0])}</b>` +
         `<br>Quality: <b>${fmtSig(point.value[1])}</b><br>Accuracy: ${fmtSig(point.accuracy)}` +
         (point.isThinking ? '<br>Thinking: yes' : '') + `<br><br>${contribLines}`;
     });
