@@ -291,7 +291,7 @@ const app = createApp({
           isWeighted = false;
         }
         if (avg === null) return null;
-        return { value: (avg * 100).toFixed(2), isWeighted };
+        return { value: (avg * 100).toFixed(debugMode ? 6 : 2), isWeighted };
       }
       const uptimeKeys = QUALITY_WEIGHT_KEYS.uptime;
       const throughputKeys = QUALITY_WEIGHT_KEYS.throughput;
