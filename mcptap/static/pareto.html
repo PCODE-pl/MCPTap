@@ -307,7 +307,7 @@ const app = createApp({
       const contribLines = [formatContrib('Uptime', uptimeVal), formatContrib('Throughput', throughputVal), formatContrib('Latency', latencyVal)].join('<br>');
       let debugBlock = '';
       if (debugMode) {
-        // Quality per new spec: avg of group averages, each group has own Σ(w·norm)/Σw logic
+        // Quality per new spec: weighted avg of group avgs, group weight = max slider in group (accuracy value / uptime max / ...)
         function weightedGroupDebug(keys) {
           const weighted = [];
           for (const key of keys) {
@@ -332,28 +332,27 @@ const app = createApp({
             else { const m = maxima[e.key] ?? 0; expr = m>0 ? `${e.v.toFixed(2)}/${m.toFixed(2)}` : '0'; }
             return `${e.w.toFixed(2)}·${e.key}(${expr})`;
           }).join(' + ');
-          return { expr: `(${exprs}) / ${sw.toFixed(2)}`, avg, sw };
+          return { expr: `(${exprs}) / ${sw.toFixed(2)}`, avg, sw, maxW: Math.max(...weighted.map(e=>e.w)) };
         }
-        const groupParts = [];
-        const groupAvgs = [];
-        if (Number(qualityWeights.accuracy ?? 0) > 0) {
+        const parts = [];
+        const weights = [];
+        const accW = Number(qualityWeights.accuracy ?? 0);
+        if (accW > 0) {
           const acc = numeric(point.accuracy);
           if (acc !== null) {
-            groupAvgs.push(acc / 100);
-            groupParts.push(`acc(${acc.toFixed(2)}/100)`);
+            parts.push(`${accW.toFixed(2)}·acc(${acc.toFixed(2)}/100)`);
+            weights.push(accW);
           }
         }
         const uptimeDbg = weightedGroupDebug(uptimeKeys);
-        if (uptimeDbg) { groupParts.push(uptimeDbg.expr); groupAvgs.push(uptimeDbg.avg); }
+        if (uptimeDbg) { parts.push(`${uptimeDbg.maxW.toFixed(2)}·${uptimeDbg.expr}`); weights.push(uptimeDbg.maxW); }
         const throughputDbg = weightedGroupDebug(throughputKeys);
-        if (throughputDbg) { groupParts.push(throughputDbg.expr); groupAvgs.push(throughputDbg.avg); }
+        if (throughputDbg) { parts.push(`${throughputDbg.maxW.toFixed(2)}·${throughputDbg.expr}`); weights.push(throughputDbg.maxW); }
         const latencyDbg = weightedGroupDebug(latencyKeys);
-        if (latencyDbg) { groupParts.push(latencyDbg.expr); groupAvgs.push(latencyDbg.avg); }
-        const activeCnt = groupParts.length;
-        const symbolic = activeCnt ? `Quality = (Σ groups)/N ×100, N=${activeCnt} — avg of ${['acc','uptime','throughput','latency'].filter((_,i)=>{
-          const flags=[Number(qualityWeights.accuracy??0)>0, !!uptimeDbg, !!throughputDbg, !!latencyDbg]; return flags[i];
-        }).join('+')} group avgs` : 'Quality = (Σ groups)/N ×100 (no active weights)';
-        const substituted = activeCnt ? `(${groupParts.join(' + ')}) / ${activeCnt} ×100 = ${Number(point.value[1]).toFixed(6)}` : 'no weighted components';
+        if (latencyDbg) { parts.push(`${latencyDbg.maxW.toFixed(2)}·${latencyDbg.expr}`); weights.push(latencyDbg.maxW); }
+        const sumW = weights.reduce((a,b)=>a+b,0);
+        const symbolic = parts.length ? `Quality = Σ(w_g·avg_g)/Σw_g ×100, w_g=max slider in group, avg_g=Σ(w·norm)/Σw` : 'Quality = Σ(w_g·avg_g)/Σw_g ×100 (no active weights)';
+        const substituted = parts.length ? `(${parts.join(' + ')}) / ${sumW.toFixed(2)} ×100 = ${Number(point.value[1]).toFixed(6)}` : 'no weighted components';
         function familyDebug(label, keys, normDef) {
           const weighted = [];
           const unweighted = [];
@@ -777,10 +776,6 @@ const app = createApp({
     function qualityScore(offer, maxima) {
       const accuracy = numeric(offer.item.accuracy);
       const stats = offer.offer.stats || {};
-      const groupAvgs = [];
-      if (Number(qualityWeights.accuracy ?? 0) > 0 && accuracy !== null) {
-        groupAvgs.push(accuracy / 100);
-      }
       function weightedGroupAvg(keys) {
         const weighted = [];
         for (const key of keys) {
@@ -800,14 +795,23 @@ const app = createApp({
         if (!sumW) return null;
         return weighted.reduce((s, [w, n]) => s + w * n, 0) / sumW;
       }
-      const hasUptime = QUALITY_WEIGHT_KEYS.uptime.some(k => Number(qualityWeights[k] ?? 0) > 0);
-      if (hasUptime) { const a = weightedGroupAvg(QUALITY_WEIGHT_KEYS.uptime); if (a !== null) groupAvgs.push(a); }
-      const hasThroughput = QUALITY_WEIGHT_KEYS.throughput.some(k => Number(qualityWeights[k] ?? 0) > 0);
-      if (hasThroughput) { const a = weightedGroupAvg(QUALITY_WEIGHT_KEYS.throughput); if (a !== null) groupAvgs.push(a); }
-      const hasLatency = QUALITY_WEIGHT_KEYS.latency.some(k => Number(qualityWeights[k] ?? 0) > 0);
-      if (hasLatency) { const a = weightedGroupAvg(QUALITY_WEIGHT_KEYS.latency); if (a !== null) groupAvgs.push(a); }
-      if (!groupAvgs.length) return null;
-      return groupAvgs.reduce((a, b) => a + b, 0) / groupAvgs.length;
+      const contributions = [];
+      const weightSumGroups = [];
+      const accW = Number(qualityWeights.accuracy ?? 0);
+      if (accW > 0 && accuracy !== null) {
+        contributions.push(accW * (accuracy / 100));
+        weightSumGroups.push(accW);
+      }
+      const upW = Math.max(0, ...QUALITY_WEIGHT_KEYS.uptime.map(k => Number(qualityWeights[k] ?? 0)));
+      if (upW > 0) { const a = weightedGroupAvg(QUALITY_WEIGHT_KEYS.uptime); if (a !== null) { contributions.push(upW * a); weightSumGroups.push(upW); } }
+      const thrW = Math.max(0, ...QUALITY_WEIGHT_KEYS.throughput.map(k => Number(qualityWeights[k] ?? 0)));
+      if (thrW > 0) { const a = weightedGroupAvg(QUALITY_WEIGHT_KEYS.throughput); if (a !== null) { contributions.push(thrW * a); weightSumGroups.push(thrW); } }
+      const latW = Math.max(0, ...QUALITY_WEIGHT_KEYS.latency.map(k => Number(qualityWeights[k] ?? 0)));
+      if (latW > 0) { const a = weightedGroupAvg(QUALITY_WEIGHT_KEYS.latency); if (a !== null) { contributions.push(latW * a); weightSumGroups.push(latW); } }
+      if (!contributions.length) return null;
+      const sumC = contributions.reduce((a, b) => a + b, 0);
+      const sumW = weightSumGroups.reduce((a, b) => a + b, 0);
+      return sumW ? sumC / sumW : null;
     }
 
     function buildPoints() {
