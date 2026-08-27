@@ -145,7 +145,7 @@
             <n-slider
               :id="`quality-slider-${control.key}`"
               v-model:value="qualityControls[control.key]"
-              :min="0"
+              :min="control.min ?? 0"
               :max="QUALITY_SLIDER_MAX"
               :step="0.05"
               :data-testid="`quality-slider-${control.key}`"
@@ -166,7 +166,7 @@ const COST_INPUT_TOKENS = 1000000;
 const COST_OUTPUT_TOKENS = 1000000;
 const QUALITY_SLIDER_MAX = 3;
 const QUALITY_SLIDER_DEFINITIONS = [
-  { key: 'accuracy', label: 'Accuracy' },
+  { key: 'accuracy', label: 'Accuracy', min: 0.05 },
   { key: 'uptime-short', label: 'Uptime short' },
   { key: 'uptime-long', label: 'Uptime long' },
   { key: 'latency-short', label: 'Latency short' },
