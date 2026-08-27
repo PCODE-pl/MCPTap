@@ -392,7 +392,7 @@ const app = createApp({
           popupAnchor = null;
         }
         popupHideTimer = null;
-      }, 220);
+      }, 900);
     }
 
     function handlePopupEnter() {
@@ -416,7 +416,7 @@ const app = createApp({
     }
 
     function handleScatterMouseOut() { hidePopup(); }
-    function handleScatterGlobalOut() { if (!popupInside) { popupVisible.value = false; popupPoints.value = []; } }
+    function handleScatterGlobalOut() { hidePopup(); }
 
     function numeric(value) {
       return typeof value === 'number' && Number.isFinite(value) ? value : null;
