@@ -298,8 +298,8 @@ const app = createApp({
       const latencyVal = familyContribution(latencyKeys);
       const contribLines = `Uptime: ${uptimeVal ?? '—'}<br>Throughput: ${throughputVal ?? '—'}<br>Latency: ${latencyVal ?? '—'}`;
       return `<b>${point.name}</b><br>Provider: <b>${point.provider}</b><br>Alias: <b>${point.alias}</b>` +
-        `<br>In: $${point.cost.input} · Out: $${point.cost.output}/M` +
-        `<br>Weighted cost: $${point.value[0].toFixed(2)}/M` +
+        `<br>In: $${fmtSig(point.cost.input)} · Out: $${fmtSig(point.cost.output)}` +
+        `<br>Weighted cost: $${fmtSig(point.value[0])}` +
         `<br>Quality: <b>${fmtSig(point.value[1])}</b><br>Accuracy: ${fmtSig(point.accuracy)}` +
         (point.isThinking ? '<br>Thinking: yes' : '') + `<br><br>${contribLines}`;
     });
@@ -379,21 +379,30 @@ const app = createApp({
       const chartDom = chart.value?.getDom();
       if (!chartDom) return { left: '0px', top: '0px' };
       const chartRect = chartDom.getBoundingClientRect();
+      const containerEl = chartDom.parentElement;
+      const containerRect = containerEl.getBoundingClientRect();
+      const containerWidth = containerRect.width;
+      const containerHeight = containerRect.height;
       const width = 360;
       const height = 220;
       const padding = 12;
-      let left = anchorPixel[0] + POPUP_GAP;
-      let top = anchorPixel[1] + POPUP_GAP;
-      left = Math.max(padding, Math.min(left, chartDom.clientWidth - width - padding));
-      top = Math.max(padding, Math.min(top, chartDom.clientHeight - height - padding));
-      // convert to absolute inside chart-container (chart is inset by grid)
-      const leftAbs = chartRect.left;
-      const containerRect = chartDom.parentElement.getBoundingClientRect();
-      // popup is positioned inside chart-container, offset by chartDom position
-      // so use chartDom's offset within container
-      const offsetLeft = chartRect.left - containerRect.left + left;
-      const offsetTop = chartRect.top - containerRect.top + top;
-      return { left: `${offsetLeft}px`, top: `${offsetTop}px` };
+      const anchorLeftInContainer = chartRect.left - containerRect.left + anchorPixel[0];
+      const anchorTopInContainer = chartRect.top - containerRect.top + anchorPixel[1];
+      let left;
+      if (anchorLeftInContainer + POPUP_GAP + width + padding <= containerWidth) {
+        left = anchorLeftInContainer + POPUP_GAP;
+      } else {
+        left = anchorLeftInContainer - POPUP_GAP - width;
+      }
+      let top;
+      if (anchorTopInContainer + POPUP_GAP + height + padding <= containerHeight) {
+        top = anchorTopInContainer + POPUP_GAP;
+      } else {
+        top = anchorTopInContainer - POPUP_GAP - height;
+      }
+      left = Math.max(padding, Math.min(left, containerWidth - width - padding));
+      top = Math.max(padding, Math.min(top, containerHeight - height - padding));
+      return { left: `${left}px`, top: `${top}px` };
     }
 
     function findOverlappingPoints(anchorDataValue) {
@@ -453,7 +462,24 @@ const app = createApp({
       }, 180);
     }
 
-    function popupNext() { if (popupPoints.value.length) popupIndex.value = (popupIndex.value + 1) % popupPoints.value.length; }
+    function popupNext() {
+      if (!popupPoints.value.length) return;
+      const popupEl = popupRef.value;
+      const oldRight = popupEl ? popupEl.getBoundingClientRect().right : null;
+      popupIndex.value = (popupIndex.value + 1) % popupPoints.value.length;
+      if (oldRight === null) return;
+      Vue.nextTick(() => {
+        const el = popupRef.value;
+        const chartDom = chart.value?.getDom();
+        if (!el || !chartDom) return;
+        const newRect = el.getBoundingClientRect();
+        const containerRect = chartDom.parentElement.getBoundingClientRect();
+        const maxLeft = containerRect.width - newRect.width - 12;
+        const desiredLeft = oldRight - containerRect.left - newRect.width;
+        const clampedLeft = Math.max(12, Math.min(desiredLeft, maxLeft));
+        popupStyle.value = { ...popupStyle.value, left: `${clampedLeft}px` };
+      });
+    }
     function popupPrev() { if (popupPoints.value.length) popupIndex.value = (popupIndex.value - 1 + popupPoints.value.length) % popupPoints.value.length; }
 
     function handleScatterMouseOver(params) {
