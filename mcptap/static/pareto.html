@@ -353,7 +353,7 @@ const app = createApp({
         const symbolic = activeCnt ? `Quality = (Σ groups)/N ×100, N=${activeCnt} — avg of ${['acc','uptime','throughput','latency'].filter((_,i)=>{
           const flags=[Number(qualityWeights.accuracy??0)>0, !!uptimeDbg, !!throughputDbg, !!latencyDbg]; return flags[i];
         }).join('+')} group avgs` : 'Quality = (Σ groups)/N ×100 (no active weights)';
-        const substituted = activeCnt ? `(${groupParts.join(' + ')}) / ${activeCnt} ×100 = ${fmtSig(point.value[1])}` : 'no weighted components';
+        const substituted = activeCnt ? `(${groupParts.join(' + ')}) / ${activeCnt} ×100 = ${Number(point.value[1]).toFixed(6)}` : 'no weighted components';
         function familyDebug(label, keys, normDef) {
           const weighted = [];
           const unweighted = [];
@@ -410,7 +410,7 @@ const app = createApp({
       return `<b>${point.name}</b><br>Provider: <b>${point.provider}</b><br>Alias: <b>${point.alias}</b>` +
         `<br>In: $${fmtSig(point.cost.input)} · Out: $${fmtSig(point.cost.output)}` +
         `<br>Weighted cost: <b>$${fmtSig(point.value[0])}</b>` +
-        `<br>Quality: <b>${fmtSig(point.value[1])}</b><br>Accuracy: ${fmtSig(point.accuracy)}` +
+        `<br>Quality: <b>${debugMode ? Number(point.value[1]).toFixed(6) : fmtSig(point.value[1])}</b><br>Accuracy: ${fmtSig(point.accuracy)}` +
         (point.isThinking ? '<br>Thinking: yes' : '') + `<br><br>${contribLines}` + debugBlock;
     });
 
