@@ -48,7 +48,7 @@ async def test_serve_pareto_page_returns_html():
         assert "https://cdn.jsdelivr.net/npm/echarts@6.1.0/dist/echarts.min.js" in body
         assert "https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js" not in body
         assert "weightedCost" in body
-        assert "contentSize" in body
+        assert "pareto-popup" in body
         assert "max-height: calc(100vh - 24px)" in body
         assert "getBoundingClientRect" in body
         assert "zoomOnMouseWheel" not in body
@@ -173,3 +173,18 @@ async def test_serve_pareto_page_returns_html():
         assert 'v-if="diagnosticsVisible"' in body
         assert "lazyUpdate: false" in body
         assert "lazyUpdate: true" not in body
+        assert "tooltip: { show: false }" in body
+        assert "chart.value.on('mouseover'" in body
+        assert "chart.value.on('mouseout'" in body
+        assert "pareto-popup" in body
+        assert 'data-testid="pareto-popup"' in body
+        assert 'data-testid="pareto-popup-nav"' in body
+        assert "popupVisible" in body
+        assert "popupPoints" in body
+        assert "popupIndex" in body
+        assert "findOverlappingPoints" in body
+        assert "handlePopupEnter" in body
+        assert "handlePopupLeave" in body
+        assert "popupNext" in body
+        assert "popupPrev" in body
+        assert "POPUP_OVERLAP_PX" in body
