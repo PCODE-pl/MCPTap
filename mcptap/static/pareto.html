@@ -307,33 +307,53 @@ const app = createApp({
       const contribLines = [formatContrib('Uptime', uptimeVal), formatContrib('Throughput', throughputVal), formatContrib('Latency', latencyVal)].join('<br>');
       let debugBlock = '';
       if (debugMode) {
-        const activeNorms = [];
-        if (Number(qualityWeights.accuracy ?? 0)) activeNorms.push('norm_acc=acc/100');
-        if (uptimeKeys.some(k => Number(qualityWeights[k] ?? 0))) activeNorms.push('norm_up=up/100');
-        if (latencyKeys.some(k => Number(qualityWeights[k] ?? 0))) activeNorms.push('norm_lat=1−lat/max');
-        if (throughputKeys.some(k => Number(qualityWeights[k] ?? 0))) activeNorms.push('norm_thr=thr/max');
-        const symbolic = activeNorms.length ? `Quality = Σ(w·norm)/Σw ×100, ${activeNorms.join(', ')}` : 'Quality = Σ(w·norm)/Σw ×100 (no active weights)';
-        const parts = [];
-        let sumW = 0;
-        const acc = numeric(point.accuracy);
-        if (acc !== null) {
-          const w = Number(qualityWeights.accuracy ?? 0);
-          if (w) { parts.push(`${w.toFixed(2)}·acc(${acc.toFixed(2)}/100)`); sumW += w; }
+        // Quality per new spec: avg of group averages, each group has own Σ(w·norm)/Σw logic
+        function weightedGroupDebug(keys) {
+          const weighted = [];
+          for (const key of keys) {
+            const w = Number(qualityWeights[key] ?? 0);
+            if (!w) continue;
+            const v = numeric(point.stats ? point.stats[key] : undefined);
+            if (v === null) continue;
+            let norm;
+            if (key.startsWith('uptime_')) norm = v / 100;
+            else if (key.startsWith('latency_')) { const m = maxima[key] ?? 0; norm = m > 0 ? 1 - v / m : 1; }
+            else { const m = maxima[key] ?? 0; norm = m > 0 ? v / m : 0; }
+            norm = Math.max(0, Math.min(1, norm));
+            weighted.push({ w, norm, v, key });
+          }
+          if (!weighted.length) return null;
+          const sw = weighted.reduce((s, e) => s + e.w, 0);
+          const avg = weighted.reduce((s, e) => s + e.w * e.norm, 0) / sw;
+          const exprs = weighted.map(e => {
+            let expr;
+            if (e.key.startsWith('uptime_')) expr = `${e.v.toFixed(2)}/100`;
+            else if (e.key.startsWith('latency_')) { const m = maxima[e.key] ?? 0; expr = m>0 ? `(1−${e.v.toFixed(2)}/${m.toFixed(2)})` : '1'; }
+            else { const m = maxima[e.key] ?? 0; expr = m>0 ? `${e.v.toFixed(2)}/${m.toFixed(2)}` : '0'; }
+            return `${e.w.toFixed(2)}·${e.key}(${expr})`;
+          }).join(' + ');
+          return { expr: `(${exprs}) / ${sw.toFixed(2)}`, avg, sw };
         }
-        for (const k of [...uptimeKeys, ...latencyKeys, ...throughputKeys]) {
-          const w = Number(qualityWeights[k] ?? 0);
-          if (!w) continue;
-          const v = numeric(point.stats ? point.stats[k] : undefined);
-          if (v === null) continue;
-          let expr;
-          if (k.startsWith('uptime_')) expr = `${v.toFixed(2)}/100`;
-          else if (k.startsWith('latency_')) { const m = maxima[k] ?? 0; expr = m>0 ? `(1−${v.toFixed(2)}/${m.toFixed(2)})` : '1'; }
-          else if (k.startsWith('throughput_')) { const m = maxima[k] ?? 0; expr = m>0 ? `${v.toFixed(2)}/${m.toFixed(2)}` : '0'; }
-          else continue;
-          parts.push(`${w.toFixed(2)}·${k}(${expr})`);
-          sumW += w;
+        const groupParts = [];
+        const groupAvgs = [];
+        if (Number(qualityWeights.accuracy ?? 0) > 0) {
+          const acc = numeric(point.accuracy);
+          if (acc !== null) {
+            groupAvgs.push(acc / 100);
+            groupParts.push(`acc(${acc.toFixed(2)}/100)`);
+          }
         }
-        const substituted = parts.length ? `(${parts.join(' + ')}) / ${sumW.toFixed(2)} ×100 = ${fmtSig(point.value[1])}` : 'no weighted components';
+        const uptimeDbg = weightedGroupDebug(uptimeKeys);
+        if (uptimeDbg) { groupParts.push(uptimeDbg.expr); groupAvgs.push(uptimeDbg.avg); }
+        const throughputDbg = weightedGroupDebug(throughputKeys);
+        if (throughputDbg) { groupParts.push(throughputDbg.expr); groupAvgs.push(throughputDbg.avg); }
+        const latencyDbg = weightedGroupDebug(latencyKeys);
+        if (latencyDbg) { groupParts.push(latencyDbg.expr); groupAvgs.push(latencyDbg.avg); }
+        const activeCnt = groupParts.length;
+        const symbolic = activeCnt ? `Quality = (Σ groups)/N ×100, N=${activeCnt} — avg of ${['acc','uptime','throughput','latency'].filter((_,i)=>{
+          const flags=[Number(qualityWeights.accuracy??0)>0, !!uptimeDbg, !!throughputDbg, !!latencyDbg]; return flags[i];
+        }).join('+')} group avgs` : 'Quality = (Σ groups)/N ×100 (no active weights)';
+        const substituted = activeCnt ? `(${groupParts.join(' + ')}) / ${activeCnt} ×100 = ${fmtSig(point.value[1])}` : 'no weighted components';
         function familyDebug(label, keys, normDef) {
           const weighted = [];
           const unweighted = [];
@@ -755,28 +775,39 @@ const app = createApp({
     }
 
     function qualityScore(offer, maxima) {
-      const components = [];
       const accuracy = numeric(offer.item.accuracy);
-      if (accuracy !== null) components.push([qualityWeights.accuracy, accuracy / 100]);
       const stats = offer.offer.stats || {};
-      for (const [key, weight] of Object.entries(qualityWeights)) {
-        if (key === 'accuracy') continue;
-        const value = numeric(stats[key]);
-        if (value === null || !weight) continue;
-        let normalized;
-        if (key.startsWith('uptime_')) {
-          normalized = value / 100;
-        } else if (key.startsWith('latency_')) {
-          const max = maxima[key];
-          normalized = max > 0 ? 1 - value / max : 1;
-        } else {
-          const max = maxima[key];
-          normalized = max > 0 ? value / max : 0;
-        }
-        components.push([weight, Math.max(0, Math.min(1, normalized))]);
+      const groupAvgs = [];
+      if (Number(qualityWeights.accuracy ?? 0) > 0 && accuracy !== null) {
+        groupAvgs.push(accuracy / 100);
       }
-      const weightSum = components.reduce((sum, [weight]) => sum + weight, 0);
-      return weightSum ? components.reduce((sum, [weight, value]) => sum + weight * value, 0) / weightSum : null;
+      function weightedGroupAvg(keys) {
+        const weighted = [];
+        for (const key of keys) {
+          const w = Number(qualityWeights[key] ?? 0);
+          if (!w) continue;
+          const v = numeric(stats[key]);
+          if (v === null) continue;
+          let norm;
+          if (key.startsWith('uptime_')) norm = v / 100;
+          else if (key.startsWith('latency_')) { const m = maxima[key]; norm = m > 0 ? 1 - v / m : 1; }
+          else { const m = maxima[key]; norm = m > 0 ? v / m : 0; }
+          norm = Math.max(0, Math.min(1, norm));
+          weighted.push([w, norm]);
+        }
+        if (!weighted.length) return null;
+        const sumW = weighted.reduce((s, [w]) => s + w, 0);
+        if (!sumW) return null;
+        return weighted.reduce((s, [w, n]) => s + w * n, 0) / sumW;
+      }
+      const hasUptime = QUALITY_WEIGHT_KEYS.uptime.some(k => Number(qualityWeights[k] ?? 0) > 0);
+      if (hasUptime) { const a = weightedGroupAvg(QUALITY_WEIGHT_KEYS.uptime); if (a !== null) groupAvgs.push(a); }
+      const hasThroughput = QUALITY_WEIGHT_KEYS.throughput.some(k => Number(qualityWeights[k] ?? 0) > 0);
+      if (hasThroughput) { const a = weightedGroupAvg(QUALITY_WEIGHT_KEYS.throughput); if (a !== null) groupAvgs.push(a); }
+      const hasLatency = QUALITY_WEIGHT_KEYS.latency.some(k => Number(qualityWeights[k] ?? 0) > 0);
+      if (hasLatency) { const a = weightedGroupAvg(QUALITY_WEIGHT_KEYS.latency); if (a !== null) groupAvgs.push(a); }
+      if (!groupAvgs.length) return null;
+      return groupAvgs.reduce((a, b) => a + b, 0) / groupAvgs.length;
     }
 
     function buildPoints() {
