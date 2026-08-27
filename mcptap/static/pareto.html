@@ -65,7 +65,7 @@
           data-testid="provider-filter-select"
           style="min-width: 360px; max-width: 720px"
           size="small"
-          @update:value="renderChart"
+          @update:value="handleFilterUpdate"
         />
         </div>
         <div data-testid="model-filter" role="group" aria-label="Filter chart by model">
@@ -83,7 +83,7 @@
           data-testid="model-filter-select"
           style="min-width: 360px; max-width: 720px"
           size="small"
-          @update:value="renderChart"
+          @update:value="handleFilterUpdate"
         />
         </div>
         <button type="button" class="chart-control" data-testid="pareto-refresh" aria-label="Refresh Pareto data" :aria-busy="loading" @click="loadData">Refresh</button>
@@ -221,6 +221,7 @@ const app = createApp({
     const loading = ref(false);
     const error = ref('');
     const diagnosticsVisible = new URLSearchParams(window.location.search).get('e2llm') === '2';
+    const debugMode = new URLSearchParams(window.location.search).get('debug') === '1';
     const pointCount = ref(0);
     const modelCount = ref(0);
     const seriesCount = ref(0);
@@ -297,11 +298,37 @@ const app = createApp({
       const throughputVal = familyContribution(throughputKeys);
       const latencyVal = familyContribution(latencyKeys);
       const contribLines = `Uptime: ${uptimeVal ?? '—'}<br>Throughput: ${throughputVal ?? '—'}<br>Latency: ${latencyVal ?? '—'}`;
+      let debugBlock = '';
+      if (debugMode) {
+        const symbolic = 'Quality = Σ(w·norm)/Σw ×100, norm_acc=acc/100, norm_up=up/100, norm_lat=1−lat/max, norm_thr=thr/max';
+        const parts = [];
+        let sumW = 0;
+        const acc = numeric(point.accuracy);
+        if (acc !== null) {
+          const w = Number(qualityWeights.accuracy ?? 0);
+          if (w) { parts.push(`${w.toFixed(2)}·(${acc.toFixed(2)}/100)`); sumW += w; }
+        }
+        for (const k of [...uptimeKeys, ...latencyKeys, ...throughputKeys]) {
+          const w = Number(qualityWeights[k] ?? 0);
+          if (!w) continue;
+          const v = numeric(point.stats ? point.stats[k] : undefined);
+          if (v === null) continue;
+          let expr;
+          if (k.startsWith('uptime_')) expr = `${v.toFixed(2)}/100`;
+          else if (k.startsWith('latency_')) { const m = maxima[k] ?? 0; expr = m>0 ? `(1−${v.toFixed(2)}/${m.toFixed(2)})` : '1'; }
+          else if (k.startsWith('throughput_')) { const m = maxima[k] ?? 0; expr = m>0 ? `${v.toFixed(2)}/${m.toFixed(2)}` : '0'; }
+          else continue;
+          parts.push(`${w.toFixed(2)}·${expr}`);
+          sumW += w;
+        }
+        const substituted = parts.length ? `(${parts.join(' + ')}) / ${sumW.toFixed(2)} ×100 = ${fmtSig(point.value[1])}` : 'no weighted components';
+        debugBlock = `<div style="margin-top:8px;padding:6px 8px;background:#111;font:11px monospace;white-space:pre-wrap;word-break:break-word;border:1px solid #333;border-radius:4px"><b>debug</b><br>symbolic: ${symbolic}<br>substituted: ${substituted}</div>`;
+      }
       return `<b>${point.name}</b><br>Provider: <b>${point.provider}</b><br>Alias: <b>${point.alias}</b>` +
         `<br>In: $${fmtSig(point.cost.input)} · Out: $${fmtSig(point.cost.output)}` +
         `<br>Weighted cost: <b>$${fmtSig(point.value[0])}</b>` +
         `<br>Quality: <b>${fmtSig(point.value[1])}</b><br>Accuracy: ${fmtSig(point.accuracy)}` +
-        (point.isThinking ? '<br>Thinking: yes' : '') + `<br><br>${contribLines}`;
+        (point.isThinking ? '<br>Thinking: yes' : '') + `<br><br>${contribLines}` + debugBlock;
     });
 
     function formatDiagnosticNumber(value) {
@@ -365,6 +392,12 @@ const app = createApp({
     }
 
     const scheduleRenderChart = debounce((preserveViewport) => renderChart(preserveViewport), 100);
+
+    function handleFilterUpdate(value) {
+      if (selectedProviders.value === null) selectedProviders.value = [];
+      if (selectedModels.value === null) selectedModels.value = [];
+      Vue.nextTick(() => renderChart());
+    }
 
     function handleQualityChange() {
       updateQualityWeights();
@@ -871,7 +904,7 @@ const app = createApp({
       seriesCount, canvasCount, chartState, renderer, renderError, viewRange,
       formatDiagnosticNumber, formatRange,
       areaZoomActive, zoomSelectionStyle, loadData, renderChart, resetZoom,
-      QUALITY_SLIDER_MAX, qualitySliderDefinitions, qualityControls, handleQualityChange,
+      QUALITY_SLIDER_MAX, qualitySliderDefinitions, qualityControls, handleQualityChange, handleFilterUpdate,
       popupVisible, popupPoints, popupIndex, popupStyle, popupRef, popupCardHtml,
       handlePopupEnter, handlePopupLeave, popupNext, popupPrev,
     };
