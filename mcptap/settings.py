@@ -23,6 +23,11 @@ PROVIDER_REQUESTY = "requesty"
 PROVIDER_META = "meta"
 PROVIDER_NANO_GPT = "nano-gpt"
 PROVIDER_LLMTR = "llmtr"
+PROVIDER_KENARI = "kenari"
+PROVIDER_UNOROUTER = "unorouter"
+PROVIDER_RUNINFRA = "runinfra"
+PROVIDER_NVIDIA = "nvidia"
+PROVIDER_OPENCODE = "opencode"
 
 SYNTHETIC_GET_GOAL_CALL_ID = "synthetic_get_goal"
 SYNTHETIC_GET_GOAL_TOOL_NAME = "get_goal"
@@ -55,6 +60,11 @@ _PROVIDER_ENV_FILES = {
     PROVIDER_META: "meta.env",
     PROVIDER_NANO_GPT: "nano-gpt.env",
     PROVIDER_LLMTR: "llmtr.env",
+    PROVIDER_KENARI: "kenari.env",
+    PROVIDER_UNOROUTER: "unorouter.env",
+    PROVIDER_RUNINFRA: "runinfra.env",
+    PROVIDER_NVIDIA: "nvidia.env",
+    PROVIDER_OPENCODE: "opencode.env",
 }
 
 _UPSTREAM_BASE_URLS = {
@@ -64,6 +74,11 @@ _UPSTREAM_BASE_URLS = {
     PROVIDER_NANO_GPT: "https://nano-gpt.com/api/v1",
     # Alternative API host: https://api.nano-gpt.com/api/v1
     PROVIDER_LLMTR: "https://llmtr.com/v1",
+    PROVIDER_KENARI: "https://kenari.id/v1",
+    PROVIDER_UNOROUTER: "https://api.unorouter.com/v1",
+    PROVIDER_RUNINFRA: "https://api.runinfra.ai/v1",
+    PROVIDER_NVIDIA: "https://integrate.api.nvidia.com/v1",
+    PROVIDER_OPENCODE: "https://opencode.ai/zen/v1",
 }
 
 
