@@ -282,14 +282,16 @@ const app = createApp({
           if (w) weighted.push([w, norm]);
         }
         let avg = null;
+        let isWeighted = false;
         if (weighted.length) {
           const sumW = weighted.reduce((s, [w]) => s + w, 0);
-          if (sumW) avg = weighted.reduce((s, [w, n]) => s + w * n, 0) / sumW;
+          if (sumW) { avg = weighted.reduce((s, [w, n]) => s + w * n, 0) / sumW; isWeighted = true; }
         } else if (unweighted.length) {
           avg = unweighted.reduce((a, b) => a + b, 0) / unweighted.length;
+          isWeighted = false;
         }
         if (avg === null) return null;
-        return (avg * 100).toFixed(2);
+        return { value: (avg * 100).toFixed(2), isWeighted };
       }
       const uptimeKeys = QUALITY_WEIGHT_KEYS.uptime;
       const throughputKeys = QUALITY_WEIGHT_KEYS.throughput;
@@ -297,16 +299,26 @@ const app = createApp({
       const uptimeVal = familyContribution(uptimeKeys);
       const throughputVal = familyContribution(throughputKeys);
       const latencyVal = familyContribution(latencyKeys);
-      const contribLines = `Uptime: ${uptimeVal ?? '—'}<br>Throughput: ${throughputVal ?? '—'}<br>Latency: ${latencyVal ?? '—'}`;
+      function formatContrib(label, result) {
+        if (!result) return `${label}: —`;
+        if (result.isWeighted) return `${label}: ${result.value}`;
+        return `${label}: <span style="opacity:.55">${result.value} <span style="font-size:11px">(unweighted, w=0)</span></span>`;
+      }
+      const contribLines = [formatContrib('Uptime', uptimeVal), formatContrib('Throughput', throughputVal), formatContrib('Latency', latencyVal)].join('<br>');
       let debugBlock = '';
       if (debugMode) {
-        const symbolic = 'Quality = Σ(w·norm)/Σw ×100, norm_acc=acc/100, norm_up=up/100, norm_lat=1−lat/max, norm_thr=thr/max';
+        const activeNorms = [];
+        if (Number(qualityWeights.accuracy ?? 0)) activeNorms.push('norm_acc=acc/100');
+        if (uptimeKeys.some(k => Number(qualityWeights[k] ?? 0))) activeNorms.push('norm_up=up/100');
+        if (latencyKeys.some(k => Number(qualityWeights[k] ?? 0))) activeNorms.push('norm_lat=1−lat/max');
+        if (throughputKeys.some(k => Number(qualityWeights[k] ?? 0))) activeNorms.push('norm_thr=thr/max');
+        const symbolic = activeNorms.length ? `Quality = Σ(w·norm)/Σw ×100, ${activeNorms.join(', ')}` : 'Quality = Σ(w·norm)/Σw ×100 (no active weights)';
         const parts = [];
         let sumW = 0;
         const acc = numeric(point.accuracy);
         if (acc !== null) {
           const w = Number(qualityWeights.accuracy ?? 0);
-          if (w) { parts.push(`${w.toFixed(2)}·(${acc.toFixed(2)}/100)`); sumW += w; }
+          if (w) { parts.push(`${w.toFixed(2)}·acc(${acc.toFixed(2)}/100)`); sumW += w; }
         }
         for (const k of [...uptimeKeys, ...latencyKeys, ...throughputKeys]) {
           const w = Number(qualityWeights[k] ?? 0);
@@ -318,7 +330,7 @@ const app = createApp({
           else if (k.startsWith('latency_')) { const m = maxima[k] ?? 0; expr = m>0 ? `(1−${v.toFixed(2)}/${m.toFixed(2)})` : '1'; }
           else if (k.startsWith('throughput_')) { const m = maxima[k] ?? 0; expr = m>0 ? `${v.toFixed(2)}/${m.toFixed(2)}` : '0'; }
           else continue;
-          parts.push(`${w.toFixed(2)}·${expr}`);
+          parts.push(`${w.toFixed(2)}·${k}(${expr})`);
           sumW += w;
         }
         const substituted = parts.length ? `(${parts.join(' + ')}) / ${sumW.toFixed(2)} ×100 = ${fmtSig(point.value[1])}` : 'no weighted components';
