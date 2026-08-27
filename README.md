@@ -141,6 +141,7 @@ requesty.env       Requesty model and API key configuration
 meta.env           Meta model and API key configuration
 nano-gpt.env       NanoGPT model and API key configuration
 llmtr.env          LLMTR model and API key configuration
+[...].env          All other providers model and API key configuration
 mcp-intercept.yaml optional MCP tool interception configuration
 per-model.yaml     optional per-model instruction overrides
 use_tool_hook.py   optional tool-call hook script (runs before client tool calls)
@@ -180,6 +181,11 @@ requesty
 meta
 nano-gpt
 llmtr
+kenari
+unorouter
+runinfra
+nvidia
+opencode
 ```
 
 ### 2. Configure the provider

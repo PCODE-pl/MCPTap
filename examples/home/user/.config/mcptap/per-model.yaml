@@ -6,7 +6,6 @@ deepseek/deepseek-v4-flash:floor:
 policy/free-fallback-to-paid:
   instructions: |
     Never use the 'filesystem' MCP server.
-
 model/with-tool-restrictions:
   disable_builtin_tools: true
   disable_custom_tools: true
