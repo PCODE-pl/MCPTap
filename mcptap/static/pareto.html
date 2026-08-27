@@ -248,6 +248,7 @@ const app = createApp({
     let popupHideTimer = null;
     let popupInside = false;
     let popupAnchor = null;
+    const lastMaxima = ref({});
 
     const POPUP_OVERLAP_PX = 14;
     const POPUP_GAP = 14;
@@ -255,12 +256,52 @@ const app = createApp({
     const popupCardHtml = computed(() => {
       const point = popupPoints.value[popupIndex.value];
       if (!point) return '';
-      const stats = Object.entries(point.stats || {}).map(([key, value]) => `${key}: ${value}`).join('<br>');
-      return `<b>${point.name}</b><br>Provider: ${point.provider}<br>Alias: ${point.alias}` +
-        `<br>Weighted cost: $${point.value[0].toFixed(4)}/M tokens` +
-        `<br>Quality: ${point.value[1].toFixed(2)}<br>Accuracy: ${point.accuracy ?? '—'}` +
-        `<br>Input: $${point.cost.input} · Output: $${point.cost.output}/M` +
-        (point.isThinking ? '<br>Thinking: yes' : '') + (stats ? `<br><br>${stats}` : '');
+      const maxima = lastMaxima.value || {};
+      function fmtSig(v) {
+        const n = numeric(v);
+        if (n === null) return '—';
+        const s = n.toFixed(2);
+        return s.replace(/(\.\d*?[1-9])0+$/, '$1').replace(/\.0+$/, '');
+      }
+      function familyContribution(keys) {
+        const weighted = [];
+        const unweighted = [];
+        for (const key of keys) {
+          const raw = point.stats ? point.stats[key] : undefined;
+          const v = numeric(raw);
+          if (v === null) continue;
+          let norm;
+          if (key.startsWith('uptime_')) norm = v / 100;
+          else if (key.startsWith('latency_')) { const m = maxima[key] ?? 0; norm = m > 0 ? 1 - v / m : 1; }
+          else if (key.startsWith('throughput_')) { const m = maxima[key] ?? 0; norm = m > 0 ? v / m : 0; }
+          else continue;
+          norm = Math.max(0, Math.min(1, norm));
+          unweighted.push(norm);
+          const w = Number(qualityWeights[key] ?? 0);
+          if (w) weighted.push([w, norm]);
+        }
+        let avg = null;
+        if (weighted.length) {
+          const sumW = weighted.reduce((s, [w]) => s + w, 0);
+          if (sumW) avg = weighted.reduce((s, [w, n]) => s + w * n, 0) / sumW;
+        } else if (unweighted.length) {
+          avg = unweighted.reduce((a, b) => a + b, 0) / unweighted.length;
+        }
+        if (avg === null) return null;
+        return (avg * 100).toFixed(2);
+      }
+      const uptimeKeys = QUALITY_WEIGHT_KEYS.uptime;
+      const throughputKeys = QUALITY_WEIGHT_KEYS.throughput;
+      const latencyKeys = QUALITY_WEIGHT_KEYS.latency;
+      const uptimeVal = familyContribution(uptimeKeys);
+      const throughputVal = familyContribution(throughputKeys);
+      const latencyVal = familyContribution(latencyKeys);
+      const contribLines = `Uptime: ${uptimeVal ?? '—'}<br>Throughput: ${throughputVal ?? '—'}<br>Latency: ${latencyVal ?? '—'}`;
+      return `<b>${point.name}</b><br>Provider: <b>${point.provider}</b><br>Alias: <b>${point.alias}</b>` +
+        `<br>In: $${point.cost.input} · Out: $${point.cost.output}/M` +
+        `<br>Weighted cost: $${point.value[0].toFixed(2)}/M` +
+        `<br>Quality: <b>${fmtSig(point.value[1])}</b><br>Accuracy: ${fmtSig(point.accuracy)}` +
+        (point.isThinking ? '<br>Thinking: yes' : '') + `<br><br>${contribLines}`;
     });
 
     function formatDiagnosticNumber(value) {
@@ -403,7 +444,13 @@ const app = createApp({
 
     function handlePopupLeave() {
       popupInside = false;
-      hidePopup();
+      clearTimeout(popupHideTimer);
+      popupHideTimer = setTimeout(() => {
+        popupVisible.value = false;
+        popupPoints.value = [];
+        popupAnchor = null;
+        popupHideTimer = null;
+      }, 180);
     }
 
     function popupNext() { if (popupPoints.value.length) popupIndex.value = (popupIndex.value + 1) % popupPoints.value.length; }
@@ -608,6 +655,7 @@ const app = createApp({
         if (key === 'accuracy' || !key.startsWith('latency_') && !key.startsWith('throughput_')) continue;
         maxima[key] = Math.max(0, ...offers.map(offer => numeric(offer.offer.stats?.[key]) ?? 0));
       }
+      lastMaxima.value = maxima;
       return offers.map(offer => {
         const quality = qualityScore(offer, maxima);
         if (quality === null) return null;
