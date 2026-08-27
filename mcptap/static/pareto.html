@@ -375,7 +375,7 @@ const app = createApp({
       legendVisibility = { ...params.selected };
     }
 
-    function formatPopupPosition(anchorPixel) {
+    function formatPopupPosition(anchorPixel, measuredWidth, measuredHeight) {
       const chartDom = chart.value?.getDom();
       if (!chartDom) return { left: '0px', top: '0px' };
       const chartRect = chartDom.getBoundingClientRect();
@@ -383,8 +383,8 @@ const app = createApp({
       const containerRect = containerEl.getBoundingClientRect();
       const containerWidth = containerRect.width;
       const containerHeight = containerRect.height;
-      const width = 360;
-      const height = 220;
+      const width = measuredWidth || 360;
+      const height = measuredHeight || 220;
       const padding = 12;
       const anchorLeftInContainer = chartRect.left - containerRect.left + anchorPixel[0];
       const anchorTopInContainer = chartRect.top - containerRect.top + anchorPixel[1];
@@ -429,8 +429,17 @@ const app = createApp({
       const anchorIdx = result.overlapping.findIndex(entry => entry.provider === point.provider && entry.alias === point.alias && entry.name === point.name && entry.value[0] === point.value[0] && entry.value[1] === point.value[1]);
       popupIndex.value = anchorIdx >= 0 ? anchorIdx : 0;
       popupAnchor = point.value.slice();
-      popupStyle.value = formatPopupPosition(result.anchorPixel);
       popupVisible.value = true;
+      Vue.nextTick(() => {
+        if (!popupRef.value) {
+          popupStyle.value = formatPopupPosition(result.anchorPixel);
+          return;
+        }
+        const rect = popupRef.value.getBoundingClientRect();
+        const w = rect.width || 360;
+        const h = rect.height || 220;
+        popupStyle.value = formatPopupPosition(result.anchorPixel, w, h);
+      });
     }
 
     function hidePopup() {
