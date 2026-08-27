@@ -101,7 +101,7 @@ async def test_serve_pareto_page_returns_html():
         assert ".chart-container { position: relative; width: 100%;" in body
         assert ':data-testid="`quality-slider-${control.key}`"' in body
         assert "const QUALITY_SLIDER_DEFINITIONS = [" in body
-        assert "{ key: 'accuracy', label: 'Accuracy' }" in body
+        assert "{ key: 'accuracy', label: 'Accuracy', min: 0.05 }" in body
         assert "{ key: 'uptime-short', label: 'Uptime short' }" in body
         assert "{ key: 'uptime-long', label: 'Uptime long' }" in body
         assert "{ key: 'latency-short', label: 'Latency short' }" in body
