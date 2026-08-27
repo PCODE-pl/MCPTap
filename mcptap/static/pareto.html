@@ -384,7 +384,7 @@ const app = createApp({
           familyDebug('Throughput', throughputKeys, 'norm_thr=thr/max'),
           familyDebug('Latency', latencyKeys, 'norm_lat=1−lat/max'),
         ];
-        const familySection = `<hr style="margin:8px 0;border:none;border-top:1px solid #333">` + familyLines.join('<br>');
+        const familySection = `<hr style="margin:8px 0;border:none;border-top:1px solid #333">` + familyLines.join('<hr style="margin:8px 0;border:none;border-top:1px solid #333">');
         debugBlock = `<div style="margin-top:8px;padding:6px 8px;background:#111;font:11px monospace;white-space:pre-wrap;word-break:break-word;border:1px solid #333;border-radius:4px"><b>debug</b><br>symbolic: ${symbolic}<br>substituted: ${substituted}${familySection}</div>`;
       }
       return `<b>${point.name}</b><br>Provider: <b>${point.provider}</b><br>Alias: <b>${point.alias}</b>` +
