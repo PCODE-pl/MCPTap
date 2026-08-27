@@ -28,6 +28,16 @@
     .hint { font-size: 12px; opacity: .65; }
     .chart-diagnostics { position: absolute; z-index: 3; left: 16px; right: 16px; bottom: 16px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px 12px; padding: 8px 12px; border: 1px solid #28282f; background: rgba(16, 16, 20, .94); color: #bbb; font: 12px/1.4 monospace; }
     .chart-diagnostics strong { color: #eee; font-weight: 600; }
+    .pareto-popup { position: absolute; z-index: 4; max-width: 360px; max-height: calc(100vh - 24px); overflow: hidden; display: flex; flex-direction: column; background: #1a1a20; border: 1px solid #333; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.6); color: #ddd; font-size: 12px; line-height: 1.5; pointer-events: auto; }
+    .pareto-popup__nav { display: flex; align-items: center; justify-content: space-between; padding: 6px 8px; border-bottom: 1px solid #28282f; background: #22222a; gap: 8px; }
+    .pareto-popup__nav button { border: 1px solid rgba(255,255,255,.2); background: #25252c; color: #ddd; border-radius: 4px; width: 26px; height: 22px; cursor: pointer; font-size: 13px; line-height: 1; }
+    .pareto-popup__nav button:hover { border-color: #63b3ed; background: #303b4a; }
+    .pareto-popup__nav span { opacity: .8; font: 11px monospace; }
+    .pareto-popup__card { padding: 10px 12px; overflow: auto; word-break: break-word; }
+    .pareto-popup__card b { color: #fff; }
+    .pareto-popup__dots { display: flex; justify-content: center; gap: 4px; padding: 4px 6px 6px; }
+    .pareto-popup__dots span { width: 6px; height: 6px; border-radius: 50%; background: #444; display: inline-block; }
+    .pareto-popup__dots span.active { background: #63b3ed; }
     @media (max-width: 700px) {
       .content-layout { display: flex; flex-direction: column; overflow-y: auto; }
       .chart-container { flex: 0 0 min(65vh, 620px); }
@@ -118,6 +128,15 @@
           </section>
           <p id="pareto-chart-status" class="sr-only" data-testid="pareto-chart-status" aria-live="polite">{{ loading ? 'Loading chart data.' : error || renderError || (areaZoomActive ? 'Zoom area selection is active.' : `${pointCount} points and ${modelCount} models are shown.`) }}</p>
           <div v-if="zoomSelectionStyle" class="zoom-selection" data-testid="pareto-zoom-selection" role="region" aria-label="Selected zoom area" :style="zoomSelectionStyle"></div>
+          <div v-if="popupVisible" ref="popupRef" class="pareto-popup" data-testid="pareto-popup" role="dialog" aria-label="Model details" :style="popupStyle" @mouseenter="handlePopupEnter" @mouseleave="handlePopupLeave">
+            <div v-if="popupPoints.length > 1" class="pareto-popup__nav" data-testid="pareto-popup-nav">
+              <button type="button" data-testid="pareto-popup-prev" aria-label="Previous model" @click="popupPrev">‹</button>
+              <span data-testid="pareto-popup-counter">{{ popupIndex + 1 }} / {{ popupPoints.length }}</span>
+              <button type="button" data-testid="pareto-popup-next" aria-label="Next model" @click="popupNext">›</button>
+            </div>
+            <div class="pareto-popup__card" data-testid="pareto-popup-card" v-html="popupCardHtml"></div>
+            <div v-if="popupPoints.length > 1" class="pareto-popup__dots" data-testid="pareto-popup-dots"><span v-for="(_, idx) in popupPoints" :key="idx" :class="{active: idx === popupIndex}"></span></div>
+          </div>
         </section>
         <aside class="quality-controls" data-testid="quality-controls" aria-label="Quality weights">
           <div v-for="control in qualitySliderDefinitions" :key="control.key" class="quality-slider">
@@ -221,6 +240,28 @@ const app = createApp({
     const zoomSelectionStyle = ref(null);
     let baseRange = { xMin: 0, xMax: 1, yMin: 0, yMax: 100 };
     const viewRange = ref({ ...baseRange });
+    const popupVisible = ref(false);
+    const popupPoints = ref([]);
+    const popupIndex = ref(0);
+    const popupStyle = ref({});
+    const popupRef = ref(null);
+    let popupHideTimer = null;
+    let popupInside = false;
+    let popupAnchor = null;
+
+    const POPUP_OVERLAP_PX = 14;
+    const POPUP_GAP = 14;
+
+    const popupCardHtml = computed(() => {
+      const point = popupPoints.value[popupIndex.value];
+      if (!point) return '';
+      const stats = Object.entries(point.stats || {}).map(([key, value]) => `${key}: ${value}`).join('<br>');
+      return `<b>${point.name}</b><br>Provider: ${point.provider}<br>Alias: ${point.alias}` +
+        `<br>Weighted cost: $${point.value[0].toFixed(4)}/M tokens` +
+        `<br>Quality: ${point.value[1].toFixed(2)}<br>Accuracy: ${point.accuracy ?? '—'}` +
+        `<br>Input: $${point.cost.input} · Output: $${point.cost.output}/M` +
+        (point.isThinking ? '<br>Thinking: yes' : '') + (stats ? `<br><br>${stats}` : '');
+    });
 
     function formatDiagnosticNumber(value) {
       return numeric(value) === null ? '—' : Number(value).toFixed(4).replace(/0+$/, '').replace(/\.$/, '');
@@ -292,6 +333,90 @@ const app = createApp({
     function handleLegendSelectChanged(params) {
       legendVisibility = { ...params.selected };
     }
+
+    function formatPopupPosition(anchorPixel) {
+      const chartDom = chart.value?.getDom();
+      if (!chartDom) return { left: '0px', top: '0px' };
+      const chartRect = chartDom.getBoundingClientRect();
+      const width = 360;
+      const height = 220;
+      const padding = 12;
+      let left = anchorPixel[0] + POPUP_GAP;
+      let top = anchorPixel[1] + POPUP_GAP;
+      left = Math.max(padding, Math.min(left, chartDom.clientWidth - width - padding));
+      top = Math.max(padding, Math.min(top, chartDom.clientHeight - height - padding));
+      // convert to absolute inside chart-container (chart is inset by grid)
+      const leftAbs = chartRect.left;
+      const containerRect = chartDom.parentElement.getBoundingClientRect();
+      // popup is positioned inside chart-container, offset by chartDom position
+      // so use chartDom's offset within container
+      const offsetLeft = chartRect.left - containerRect.left + left;
+      const offsetTop = chartRect.top - containerRect.top + top;
+      return { left: `${offsetLeft}px`, top: `${offsetTop}px` };
+    }
+
+    function findOverlappingPoints(anchorDataValue) {
+      const anchorPixel = chart.value.convertToPixel({ xAxisIndex: 0, yAxisIndex: 0 }, anchorDataValue);
+      if (!Array.isArray(anchorPixel)) return { overlapping: [], anchorPixel: null };
+      const overlapping = [];
+      for (const point of renderedPoints) {
+        const pixel = chart.value.convertToPixel({ xAxisIndex: 0, yAxisIndex: 0 }, point.value);
+        if (!Array.isArray(pixel)) continue;
+        const dist = Math.hypot(pixel[0] - anchorPixel[0], pixel[1] - anchorPixel[1]);
+        if (dist <= POPUP_OVERLAP_PX) overlapping.push(point);
+      }
+      // stable sort: cheapest first, then quality desc to keep deterministic order
+      overlapping.sort((a, b) => a.value[0] - b.value[0] || b.value[1] - a.value[1] || a.name.localeCompare(b.name));
+      return { overlapping, anchorPixel };
+    }
+
+    function showPopupForPoint(point) {
+      clearTimeout(popupHideTimer);
+      popupHideTimer = null;
+      const result = findOverlappingPoints(point.value);
+      if (!result.overlapping.length) return;
+      popupPoints.value = result.overlapping;
+      const anchorIdx = result.overlapping.findIndex(entry => entry.provider === point.provider && entry.alias === point.alias && entry.name === point.name && entry.value[0] === point.value[0] && entry.value[1] === point.value[1]);
+      popupIndex.value = anchorIdx >= 0 ? anchorIdx : 0;
+      popupAnchor = point.value.slice();
+      popupStyle.value = formatPopupPosition(result.anchorPixel);
+      popupVisible.value = true;
+    }
+
+    function hidePopup() {
+      clearTimeout(popupHideTimer);
+      popupHideTimer = setTimeout(() => {
+        if (!popupInside) {
+          popupVisible.value = false;
+          popupPoints.value = [];
+          popupAnchor = null;
+        }
+        popupHideTimer = null;
+      }, 220);
+    }
+
+    function handlePopupEnter() {
+      popupInside = true;
+      clearTimeout(popupHideTimer);
+      popupHideTimer = null;
+    }
+
+    function handlePopupLeave() {
+      popupInside = false;
+      hidePopup();
+    }
+
+    function popupNext() { if (popupPoints.value.length) popupIndex.value = (popupIndex.value + 1) % popupPoints.value.length; }
+    function popupPrev() { if (popupPoints.value.length) popupIndex.value = (popupIndex.value - 1 + popupPoints.value.length) % popupPoints.value.length; }
+
+    function handleScatterMouseOver(params) {
+      const point = params?.data;
+      if (!point || !point.value || !Array.isArray(point.value)) return;
+      showPopupForPoint(point);
+    }
+
+    function handleScatterMouseOut() { hidePopup(); }
+    function handleScatterGlobalOut() { if (!popupInside) { popupVisible.value = false; popupPoints.value = []; } }
 
     function numeric(value) {
       return typeof value === 'number' && Number.isFinite(value) ? value : null;
@@ -581,33 +706,7 @@ const app = createApp({
           color: ['#63b3ed', '#f6ad55', '#68d391', '#fc8181', '#b794f4', '#4fd1c5', '#f687b3'],
           legend: { type: 'scroll', selected: legendSelection, textStyle: { color: '#ddd' }, top: 8 },
           grid: { left: 72, right: 32, top: 52, bottom: 66 },
-          tooltip: {
-          trigger: 'item',
-          confine: true,
-          extraCssText: 'max-height: calc(100vh - 24px); overflow-y: auto;',
-          position(point, params, dom, rect, size) {
-            const padding = 12;
-            const chartRect = chart.value.getDom().getBoundingClientRect();
-            const width = size.contentSize[0];
-            const height = size.contentSize[1];
-            const absolutePoint = [chartRect.left + point[0] + 14, chartRect.top + point[1] + 14];
-            const left = Math.max(padding, Math.min(absolutePoint[0], window.innerWidth - width - padding));
-            const top = Math.max(padding, Math.min(absolutePoint[1], window.innerHeight - height - padding));
-            return [
-              left - chartRect.left,
-              top - chartRect.top,
-            ];
-          },
-          formatter(params) {
-            const point = params.data;
-            const stats = Object.entries(point.stats || {}).map(([key, value]) => `${key}: ${value}`).join('<br>');
-            return `<b>${point.name}</b><br>Provider: ${point.provider}<br>Alias: ${point.alias}` +
-              `<br>Weighted cost: $${point.value[0].toFixed(4)}/M tokens` +
-              `<br>Quality: ${point.value[1].toFixed(2)}<br>Accuracy: ${point.accuracy ?? '—'}` +
-              `<br>Input: $${point.cost.input} · Output: $${point.cost.output}/M` +
-              (point.isThinking ? '<br>Thinking: yes' : '') + (stats ? `<br><br>${stats}` : '');
-          },
-        },
+          tooltip: { show: false },
           xAxis: { name: 'Weighted cost ($/M tokens)', nameLocation: 'middle', nameGap: 38, type: 'value', scale: true, min: viewRange.value.xMin, max: viewRange.value.xMax, axisLabel: { color: '#aaa', formatter: value => Number.isInteger(value) ? value : value.toFixed(1) }, nameTextStyle: { color: '#ccc' }, splitLine: { lineStyle: { color: '#28282f' } } },
           yAxis: { name: 'Quality', nameLocation: 'middle', nameGap: 48, type: 'value', min: viewRange.value.yMin, max: viewRange.value.yMax, axisLabel: { color: '#aaa', formatter: value => Number.isInteger(value) ? value : value.toFixed(1) }, nameTextStyle: { color: '#ccc' }, splitLine: { lineStyle: { color: '#28282f' } } },
           series,
@@ -650,6 +749,9 @@ const app = createApp({
     onMounted(async () => {
       chart.value = echarts.init(document.getElementById('chart'), 'dark');
       chart.value.on('legendselectchanged', handleLegendSelectChanged);
+      chart.value.on('mouseover', { seriesType: 'scatter' }, handleScatterMouseOver);
+      chart.value.on('mouseout', { seriesType: 'scatter' }, handleScatterMouseOut);
+      chart.value.on('globalout', handleScatterGlobalOut);
       renderer.value = chart.value.getZr().painter.getType?.() || 'unknown';
       const zr = chart.value.getZr();
       zr.on('mousewheel', handleChartWheel);
@@ -665,10 +767,14 @@ const app = createApp({
         renderCheckFrame = null;
       }
       scheduleRenderChart.cancel();
+      clearTimeout(popupHideTimer);
       window.removeEventListener('resize', resizeChart);
       if (chart.value) {
         const zr = chart.value.getZr();
         chart.value.off('legendselectchanged', handleLegendSelectChanged);
+        chart.value.off('mouseover', handleScatterMouseOver);
+        chart.value.off('mouseout', handleScatterMouseOut);
+        chart.value.off('globalout', handleScatterGlobalOut);
         zr.off('mousewheel', handleChartWheel);
         zr.off('mousedown', handleChartMouseDown);
         zr.off('mousemove', handleChartMouseMove);
@@ -683,6 +789,8 @@ const app = createApp({
       formatDiagnosticNumber, formatRange,
       areaZoomActive, zoomSelectionStyle, loadData, renderChart, resetZoom,
       QUALITY_SLIDER_MAX, qualitySliderDefinitions, qualityControls, handleQualityChange,
+      popupVisible, popupPoints, popupIndex, popupStyle, popupRef, popupCardHtml,
+      handlePopupEnter, handlePopupLeave, popupNext, popupPrev,
     };
   },
 });
