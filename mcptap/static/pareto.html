@@ -216,6 +216,32 @@ const app = createApp({
     const { darkTheme, NConfigProvider, NLayout, NLayoutHeader, NLayoutContent,
       NSelect, NSlider } = naive;
     const rawData = ref({});
+    const paretoStats = computed(() => {
+      const data = rawData.value;
+      if (data && typeof data === 'object' && !Array.isArray(data) && data.stats && data.medians && typeof data.stats === 'object' && typeof data.medians === 'object' && !Array.isArray(data.medians)) {
+        const medianKeys = Object.keys(data.medians);
+        const hasMedianShape = medianKeys.some(k => k.startsWith('latency_') || k.startsWith('uptime_') || k.startsWith('throughput_'));
+        if (hasMedianShape) return data.stats;
+      }
+      return data || {};
+    });
+    const paretoMedians = computed(() => {
+      const data = rawData.value;
+      if (data && typeof data === 'object' && !Array.isArray(data) && data.stats && data.medians && typeof data.stats === 'object' && typeof data.medians === 'object' && !Array.isArray(data.medians)) {
+        const medianKeys = Object.keys(data.medians);
+        const hasMedianShape = medianKeys.some(k => k.startsWith('latency_') || k.startsWith('uptime_') || k.startsWith('throughput_'));
+        if (hasMedianShape) return data.medians;
+      }
+      return {};
+    });
+    function effectiveStats(stats) {
+      if (!stats || typeof stats !== 'object' || Array.isArray(stats) || Object.keys(stats).length === 0) {
+        const m = paretoMedians.value;
+        if (m && typeof m === 'object' && Object.keys(m).length) return m;
+        return stats || {};
+      }
+      return stats;
+    }
     const selectedProviders = ref([...DEFAULT_PROVIDERS]);
     const selectedModels = ref([]);
     const loading = ref(false);
@@ -445,14 +471,14 @@ const app = createApp({
 
     const providerOptions = computed(() => {
       const providers = new Set();
-      for (const item of Object.values(rawData.value)) {
+      for (const item of Object.values(paretoStats.value)) {
         for (const provider of Object.keys(item.providers || {})) providers.add(provider);
       }
       return [...providers].sort().map(value => ({ label: value, value }));
     });
 
     const modelOptions = computed(() => {
-      const models = Object.keys(rawData.value || {});
+      const models = Object.keys(paretoStats.value || {});
       return [...models].sort().map(value => ({ label: value, value }));
     });
 
@@ -758,7 +784,7 @@ const app = createApp({
       const hasProviderFilter = selectedProviders.value.length > 0;
       const hasModelFilter = selectedModels.value.length > 0;
       const selectedModelsSet = hasModelFilter ? new Set(selectedModels.value) : null;
-      for (const [canonicalModel, item] of Object.entries(rawData.value)) {
+      for (const [canonicalModel, item] of Object.entries(paretoStats.value)) {
         if (selectedModelsSet && !selectedModelsSet.has(canonicalModel)) continue;
         for (const [provider, aliases] of Object.entries(item.providers || {})) {
           if (hasProviderFilter && !selectedProviders.value.includes(provider)) continue;
@@ -775,7 +801,7 @@ const app = createApp({
 
     function qualityScore(offer, maxima) {
       const accuracy = numeric(offer.item.accuracy);
-      const stats = offer.offer.stats || {};
+      const stats = effectiveStats(offer.offer.stats);
       function weightedGroupAvg(keys) {
         const weighted = [];
         for (const key of keys) {
@@ -819,10 +845,11 @@ const app = createApp({
       const maxima = {};
       for (const key of Object.keys(qualityWeights)) {
         if (key === 'accuracy' || !key.startsWith('latency_') && !key.startsWith('throughput_')) continue;
-        maxima[key] = Math.max(0, ...offers.map(offer => numeric(offer.offer.stats?.[key]) ?? 0));
+        maxima[key] = Math.max(0, ...offers.map(offer => numeric(effectiveStats(offer.offer.stats)?.[key]) ?? 0));
       }
       lastMaxima.value = maxima;
       return offers.map(offer => {
+        const stats = effectiveStats(offer.offer.stats);
         const quality = qualityScore(offer, maxima);
         if (quality === null) return null;
         const weightedCost = (COST_INPUT_TOKENS * offer.input + COST_OUTPUT_TOKENS * offer.output) /
@@ -833,7 +860,7 @@ const app = createApp({
           provider: offer.provider,
           alias: offer.alias,
           accuracy: offer.item.accuracy,
-          stats: offer.offer.stats || {},
+          stats,
           cost: offer.offer.cost,
           isThinking: offer.offer.is_thinking,
         };
