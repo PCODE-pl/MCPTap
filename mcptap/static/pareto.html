@@ -562,6 +562,7 @@ const app = createApp({
     }
 
     function showPopupForPoint(point) {
+      if (selectionStart.value !== null) return;
       clearTimeout(popupHideTimer);
       popupHideTimer = null;
       const result = findOverlappingPoints(point.value);
@@ -633,6 +634,7 @@ const app = createApp({
     function popupPrev() { if (popupPoints.value.length) popupIndex.value = (popupIndex.value - 1 + popupPoints.value.length) % popupPoints.value.length; }
 
     function handleScatterMouseOver(params) {
+      if (selectionStart.value !== null) return;
       const point = params?.data;
       if (!point || !point.value || !Array.isArray(point.value)) return;
       showPopupForPoint(point);
@@ -742,6 +744,13 @@ const app = createApp({
       if (!areaZoomActive.value) return;
       const pixel = pointerPosition(params);
       if (!isInPlot(pixel)) return;
+      // Disable popup while zoom selection is active
+      popupVisible.value = false;
+      popupPoints.value = [];
+      popupAnchor = null;
+      popupInside = false;
+      clearTimeout(popupHideTimer);
+      popupHideTimer = null;
       selectionStart.value = pixel;
       updateZoomSelection(pixel, pixel);
     }
