@@ -40,7 +40,7 @@ def _replace_header(headers: Dict[str, str], name: str, value: str) -> None:
     headers[name] = value
 
 
-def _apply_provider_headers(headers: Dict[str, str]) -> Dict[str, str]:
+def _apply_provider_headers(headers: Dict[str, str], body: Optional[Dict[str, Any]] = None) -> Dict[str, str]:
     """Apply headers required by the selected upstream provider."""
     outgoing_headers = dict(headers)
     if settings.upstream_provider != PROVIDER_OPENCODE:
@@ -50,6 +50,10 @@ def _apply_provider_headers(headers: Dict[str, str]) -> Dict[str, str]:
         (value.strip() for name, value in outgoing_headers.items() if name.lower() == "session-id" and value.strip()),
         "",
     )
+    if not session_id and body is not None:
+        prompt_cache_key = body.get("prompt_cache_key")
+        if isinstance(prompt_cache_key, str):
+            session_id = prompt_cache_key.strip()
     if session_id:
         _replace_header(outgoing_headers, "x-opencode-session", session_id)
     _replace_header(outgoing_headers, "User-Agent", _OPENCODE_USER_AGENT)
@@ -100,7 +104,7 @@ async def post_upstream_buffered(
     if chat_mode:
         request_body = responses_request_to_chat(request_body, _CHAT_CONVERSATIONS, stream=stream)
     upstream_path = _chat_upstream_path(path)
-    outgoing_headers = _apply_provider_headers(headers)
+    outgoing_headers = _apply_provider_headers(headers, body)
     outgoing_headers["Content-Type"] = "application/json"
     if stream:
         request_body["stream"] = True
@@ -291,7 +295,7 @@ async def forward_rewritten(
         return await emit_buffered_response(request, status, response_headers, raw), raw
 
     body = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
-    outgoing_headers = _apply_provider_headers(request_headers)
+    outgoing_headers = _apply_provider_headers(request_headers, payload)
     outgoing_headers["Content-Type"] = "application/json"
     log_communication("upstream_request", request.method, target_url, outgoing_headers, body)
     try:
