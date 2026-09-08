@@ -1,10 +1,10 @@
 """Tests for OpenCode-specific upstream request headers."""
 
 import pytest
-from aiohttp import web
+from aiohttp import ClientSession, web
 from aiohttp.test_utils import TestClient, TestServer
 
-from mcptap.upstream import post_upstream_buffered
+from mcptap.upstream import passthrough, post_upstream_buffered
 
 
 @pytest.mark.asyncio
@@ -34,6 +34,49 @@ async def test_opencode_headers_identify_session_and_client(monkeypatch):
         )
     finally:
         await client.close()
+
+    assert received_headers["x-opencode-session"] == "session-123"
+    assert received_headers["User-Agent"] == "opencode/mcp-tap"
+
+
+@pytest.mark.asyncio
+async def test_passthrough_sends_opencode_headers(monkeypatch):
+    received_headers = {}
+
+    async def upstream_handler(request):
+        received_headers.update(request.headers)
+        return web.Response(body=b"upstream response")
+
+    upstream_server = TestServer(web.Application())
+    upstream_server.app.router.add_post("/raw", upstream_handler)
+    await upstream_server.start_server()
+
+    upstream_session = ClientSession()
+    proxy_app = web.Application()
+
+    async def proxy_handler(request):
+        from mcptap.settings import settings
+
+        monkeypatch.setattr(settings, "upstream_provider", "opencode")
+        return await passthrough(
+            request,
+            upstream_session,
+            str(upstream_server.make_url("/raw")),
+            {"session-id": "session-123", "User-Agent": "hermes/test"},
+            b"request body",
+        )
+
+    proxy_app.router.add_post("/proxy", proxy_handler)
+    proxy_client = TestClient(TestServer(proxy_app))
+    await proxy_client.start_server()
+    try:
+        response = await proxy_client.post("/proxy", data=b"ignored")
+        assert response.status == 200
+        assert await response.read() == b"upstream response"
+    finally:
+        await proxy_client.close()
+        await upstream_session.close()
+        await upstream_server.close()
 
     assert received_headers["x-opencode-session"] == "session-123"
     assert received_headers["User-Agent"] == "opencode/mcp-tap"
