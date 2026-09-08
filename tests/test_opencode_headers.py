@@ -40,6 +40,38 @@ async def test_opencode_headers_identify_session_and_client(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_opencode_headers_fall_back_to_prompt_cache_key(monkeypatch):
+    received_headers = {}
+
+    async def handler(request):
+        received_headers.update(request.headers)
+        return web.json_response({"id": "resp_1", "model": "m", "output": []})
+
+    server = TestServer(web.Application())
+    server.app.router.add_post("/v1/responses", handler)
+    client = TestClient(server)
+    await client.start_server()
+    try:
+        from mcptap.settings import settings
+
+        monkeypatch.setattr(settings, "upstream_provider", "opencode")
+        monkeypatch.setattr(settings, "upstream_base_url", str(server.make_url("/v1")))
+        monkeypatch.setattr(settings, "api_key", "test-key")
+        await post_upstream_buffered(
+            client.session,
+            "/responses",
+            {"User-Agent": "hermes/test"},
+            {"model": "m", "prompt_cache_key": "pck_session_123", "input": "Hello"},
+            False,
+        )
+    finally:
+        await client.close()
+
+    assert received_headers["x-opencode-session"] == "pck_session_123"
+    assert received_headers["User-Agent"] == "opencode/mcp-tap"
+
+
+@pytest.mark.asyncio
 async def test_passthrough_sends_opencode_headers(monkeypatch):
     received_headers = {}
 
@@ -63,7 +95,7 @@ async def test_passthrough_sends_opencode_headers(monkeypatch):
             upstream_session,
             str(upstream_server.make_url("/raw")),
             {"session-id": "session-123", "User-Agent": "hermes/test"},
-            b"request body",
+            b"{}",
         )
 
     proxy_app.router.add_post("/proxy", proxy_handler)
