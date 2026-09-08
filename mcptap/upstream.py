@@ -26,9 +26,34 @@ from mcptap.encrypted_replay import (
 )
 from mcptap.http_utils import filtered_headers, log_communication
 from mcptap.responses import response_json_from_raw
-from mcptap.settings import LOGGER, settings
+from mcptap.settings import LOGGER, PROVIDER_OPENCODE, settings
 
 _CHAT_CONVERSATIONS = PersistentChatStore()
+_OPENCODE_USER_AGENT = "opencode/mcp-tap"
+
+
+def _replace_header(headers: Dict[str, str], name: str, value: str) -> None:
+    """Set a header without leaving a differently-cased duplicate behind."""
+    for existing_name in list(headers):
+        if existing_name.lower() == name.lower():
+            del headers[existing_name]
+    headers[name] = value
+
+
+def _apply_provider_headers(headers: Dict[str, str]) -> Dict[str, str]:
+    """Apply headers required by the selected upstream provider."""
+    outgoing_headers = dict(headers)
+    if settings.upstream_provider != PROVIDER_OPENCODE:
+        return outgoing_headers
+
+    session_id = next(
+        (value.strip() for name, value in outgoing_headers.items() if name.lower() == "session-id" and value.strip()),
+        "",
+    )
+    if session_id:
+        _replace_header(outgoing_headers, "x-opencode-session", session_id)
+    _replace_header(outgoing_headers, "User-Agent", _OPENCODE_USER_AGENT)
+    return outgoing_headers
 
 
 def _uses_chat_completions(path: str) -> bool:
@@ -75,7 +100,7 @@ async def post_upstream_buffered(
     if chat_mode:
         request_body = responses_request_to_chat(request_body, _CHAT_CONVERSATIONS, stream=stream)
     upstream_path = _chat_upstream_path(path)
-    outgoing_headers = dict(headers)
+    outgoing_headers = _apply_provider_headers(headers)
     outgoing_headers["Content-Type"] = "application/json"
     if stream:
         request_body["stream"] = True
@@ -181,7 +206,8 @@ async def passthrough(
     raw_body: bytes,
 ) -> web.StreamResponse:
     LOGGER.info("%s %s (body not rewritten)", request.method, request.path_qs)
-    log_communication("upstream_request", request.method, target_url, request_headers, raw_body)
+    outgoing_headers = _apply_provider_headers(request_headers)
+    log_communication("upstream_request", request.method, target_url, outgoing_headers, raw_body)
     try:
         upstream_response = await session.request(
             method=request.method,
@@ -265,7 +291,7 @@ async def forward_rewritten(
         return await emit_buffered_response(request, status, response_headers, raw), raw
 
     body = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
-    outgoing_headers = dict(request_headers)
+    outgoing_headers = _apply_provider_headers(request_headers)
     outgoing_headers["Content-Type"] = "application/json"
     log_communication("upstream_request", request.method, target_url, outgoing_headers, body)
     try:
