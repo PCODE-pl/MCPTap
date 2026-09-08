@@ -212,7 +212,7 @@ async def passthrough(
         upstream_response = await session.request(
             method=request.method,
             url=target_url,
-            headers=request_headers,
+            headers=outgoing_headers,
             data=raw_body if raw_body else None,
             allow_redirects=False,
         )
