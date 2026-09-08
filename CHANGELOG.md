@@ -1,6 +1,33 @@
 <!-- markdownlint-disable MD024 -->
 # Changelog
 
+## [2.11.0]
+
+### Added
+
+- **Provider configuration templates** — added `kenari`, `unorouter`, `runinfra`, `nvidia`, and `opencode` provider configuration templates in `examples/home/user/.config/mcptap/*.env`.
+- **Pareto model filter** — added `n-select` model filter with bag-style selection for canonical model slugs (`provider/model`) in `mcptap/static/pareto.html`.
+- **Pareto scatter overlay** — replaced the native ECharts tooltip with a custom overlay that groups overlapping points and provides a carousel with dot pagination and enterable hover behavior.
+- **OpenCode upstream compatibility** — added `x-opencode-session` / `User-Agent` mapping for the `opencode` provider in `mcptap/upstream.py`, including a `prompt_cache_key` fallback when the client does not send `session-id`, and updated passthrough/forwarded requests. Covered by `tests/test_opencode_headers.py` (4 tests).
+
+### Changed
+
+- **Pareto ordering and rendering** — ordered Pareto series by model coverage, pinned chart rendering to `echarts@6.1.0`, preserved provider legend state, formatted cost axis and quality axis formatting, tightened axis ranges, and kept zero-price points visible while zooming.
+- **Pareto layout and structure** — removed the Pareto title marker and save-image control, added a responsive layout with a persistent quality-control side panel, configured area zoom by default, clamped Y zoom behavior, and updated quality-weight defaults and viewport behaviour on weight changes.
+- **Pareto quality weighting and debug output** — changed quality scoring to a group-averaged formulation across accuracy/uptime/throughput/latency, adjusted the accuracy slider range, and expanded debug output in `?debug=1` popups to show weighted/unweighted contributions and per-family formulas. Empty model stats now fall back to global medians for `maxima` and scoring.
+- **Pareto popup behaviour and styling** — boldened provider/alias and metric values, renamed cost fields to `In:` / `Out:`, improved hide/enter timing, disabled the popup during zoom dragging, fixed positioning near chart edges using measured popup size and container-based anchor logic, rendered popup content and quality formulas synchronously, and improved accessibility and panel polish.
+
+### Fixed
+
+- **Pareto filter refresh** — fixed `bag-filter` removal not refreshing the chart by applying provider/model filter updates after the next tick (`Vue.nextTick(() => renderChart())`).
+- **Pareto zoom and tooltip positioning** — fixed mouse-centered wheel zoom anchoring and tooltip placement near viewport edges.
+- **Pareto chart zoom interaction** — corrected wheel zoom around the pointer, prevented viewport clamping from shifting the anchor, kept chart pointer coordinates aligned with native chart coordinates, preserved the X zoom ratio around the mouse anchor, kept the viewport stable across weight changes, and made all zoom behaviour correct and stable.
+- **OpenCode header forwarding** — fixed missing upstream session header on non-model-passthrough requests; upstream headers are now correctly rewritten instead of being dropped/logged only.
+
+### Full Changelog
+
+[https://github.com/PCODE-pl/MCPTap/compare/v2.10.0...v2.11.0](https://github.com/PCODE-pl/MCPTap/compare/v2.10.0...v2.11.0)
+
 ## [2.10.0]
 
 ### Added
