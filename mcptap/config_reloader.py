@@ -45,6 +45,11 @@ _FILE_OPENCODE_ENV = "opencode.env"
 _FILE_ORCAROUTER_ENV = "orcarouter.env"
 _FILE_AIHUBMIX_ENV = "aihubmix.env"
 _FILE_TOKENROUTER_ENV = "tokenrouter.env"
+_FILE_INFERX_ENV = "inferx.env"
+_FILE_KILO_ENV = "kilo.env"
+_FILE_PENDRA_ENV = "pendra.env"
+_FILE_VERCEL_ENV = "vercel.env"
+_FILE_ZENMUX_ENV = "zenmux.env"
 _FILE_INTERCEPT_YAML = "mcp-intercept.yaml"
 _FILE_PER_MODEL_YAML = "per-model.yaml"
 _FILE_USE_TOOL_HOOK = "use_tool_hook.py"
@@ -65,6 +70,11 @@ _ENV_FILES = {
     _FILE_ORCAROUTER_ENV,
     _FILE_AIHUBMIX_ENV,
     _FILE_TOKENROUTER_ENV,
+    _FILE_INFERX_ENV,
+    _FILE_KILO_ENV,
+    _FILE_PENDRA_ENV,
+    _FILE_VERCEL_ENV,
+    _FILE_ZENMUX_ENV,
 }
 
 # Files whose content is embedded in settings (path stored in proxy.env).

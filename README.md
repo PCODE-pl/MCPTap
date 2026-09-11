@@ -189,6 +189,11 @@ opencode
 orcarouter
 aihubmix
 tokenrouter
+inferx
+kilo
+pendra
+vercel
+zenmux
 ```
 
 ### 2. Configure the provider

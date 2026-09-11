@@ -181,6 +181,47 @@ def test_tokenrouter_provider_loads_settings_and_credentials(tmp_path, monkeypat
         assert get_provider_api_key("TOKENROUTER") == "tokenrouter-test"
 
 
+@pytest.mark.parametrize(
+    ("provider_upper", "env_file", "base_url"),
+    [
+        ("INFERX", "inferx.env", "https://model.inferx.net/endpoints/v1"),
+        ("KILO", "kilo.env", "https://api.kilo.ai/api/gateway"),
+        ("PENDRA", "pendra.env", "https://api.pendra.ai/api/v1"),
+        ("VERCEL", "vercel.env", "https://ai-gateway.vercel.sh/v1"),
+        ("ZENMUX", "zenmux.env", "https://zenmux.ai/api/v1"),
+    ],
+)
+def test_gateway_provider_loads_settings_and_credentials(provider_upper, env_file, base_url, tmp_path, monkeypatch):
+    provider = provider_upper.lower()
+    config_dir = tmp_path / "mcptap"
+    config_dir.mkdir()
+    (config_dir / "proxy.env").write_text(
+        f"MCP_TAP_UPSTREAM_PROVIDER= {provider_upper} \nMCP_TAP_LISTEN_HOST=127.0.0.1\nMCP_TAP_LISTEN_PORT=8787\n"
+    )
+    (config_dir / env_file).write_text(
+        "MCP_TAP_API_KEY=gateway-test\nMCP_TAP_MODEL=zai/glm-5.2\nMCP_TAP_PLAN_MODE_MODEL=zai/glm-5.2\n"
+        "MCP_TAP_USE_CHAT_COMPLETIONS=false\n"
+    )
+    for key in (
+        "MCP_TAP_API_KEY",
+        "MCP_TAP_MODEL",
+        "MCP_TAP_PLAN_MODE_MODEL",
+        "MCP_TAP_UPSTREAM_PROVIDER",
+        "MCP_TAP_USE_CHAT_COMPLETIONS",
+    ):
+        monkeypatch.delenv(key, raising=False)
+
+    with patch("mcptap.settings.CONFIG_DIR", config_dir):
+        _load_env_files()
+        settings = _build_settings()
+        assert settings.upstream_provider == provider
+        assert settings.upstream_base_url == base_url
+        assert settings.provider_env_file == env_file
+        assert settings.api_key == "gateway-test"
+        assert settings.use_chat_completions is False
+        assert get_provider_api_key(provider_upper) == "gateway-test"
+
+
 def test_get_provider_api_key_rejects_unknown_provider():
     with pytest.raises(ValueError, match="Unsupported provider"):
         get_provider_api_key("unknown")
