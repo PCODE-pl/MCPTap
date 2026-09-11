@@ -25,6 +25,7 @@ async def test_opencode_headers_identify_session_and_client(monkeypatch):
         monkeypatch.setattr(settings, "upstream_provider", "opencode")
         monkeypatch.setattr(settings, "upstream_base_url", str(server.make_url("/v1")))
         monkeypatch.setattr(settings, "api_key", "test-key")
+        monkeypatch.setattr(settings, "use_chat_completions", False)
         await post_upstream_buffered(
             client.session,
             "/responses",
@@ -57,6 +58,7 @@ async def test_opencode_headers_fall_back_to_prompt_cache_key(monkeypatch):
         monkeypatch.setattr(settings, "upstream_provider", "opencode")
         monkeypatch.setattr(settings, "upstream_base_url", str(server.make_url("/v1")))
         monkeypatch.setattr(settings, "api_key", "test-key")
+        monkeypatch.setattr(settings, "use_chat_completions", False)
         await post_upstream_buffered(
             client.session,
             "/responses",
@@ -132,6 +134,7 @@ async def test_non_opencode_headers_are_not_rewritten(monkeypatch):
         monkeypatch.setattr(settings, "upstream_provider", "openrouter")
         monkeypatch.setattr(settings, "upstream_base_url", str(server.make_url("/v1")))
         monkeypatch.setattr(settings, "api_key", "test-key")
+        monkeypatch.setattr(settings, "use_chat_completions", False)
         await post_upstream_buffered(
             client.session,
             "/responses",
