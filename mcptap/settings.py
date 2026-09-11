@@ -31,6 +31,11 @@ PROVIDER_OPENCODE = "opencode"
 PROVIDER_ORCAROUTER = "orcarouter"
 PROVIDER_AIHUBMIX = "aihubmix"
 PROVIDER_TOKENROUTER = "tokenrouter"
+PROVIDER_INFERX = "inferx"
+PROVIDER_KILO = "kilo"
+PROVIDER_PENDRA = "pendra"
+PROVIDER_VERCEL = "vercel"
+PROVIDER_ZENMUX = "zenmux"
 
 SYNTHETIC_GET_GOAL_CALL_ID = "synthetic_get_goal"
 SYNTHETIC_GET_GOAL_TOOL_NAME = "get_goal"
@@ -71,6 +76,11 @@ _PROVIDER_ENV_FILES = {
     PROVIDER_ORCAROUTER: "orcarouter.env",
     PROVIDER_AIHUBMIX: "aihubmix.env",
     PROVIDER_TOKENROUTER: "tokenrouter.env",
+    PROVIDER_INFERX: "inferx.env",
+    PROVIDER_KILO: "kilo.env",
+    PROVIDER_PENDRA: "pendra.env",
+    PROVIDER_VERCEL: "vercel.env",
+    PROVIDER_ZENMUX: "zenmux.env",
 }
 
 _UPSTREAM_BASE_URLS = {
@@ -88,6 +98,11 @@ _UPSTREAM_BASE_URLS = {
     PROVIDER_ORCAROUTER: "https://api.orcarouter.ai/v1",
     PROVIDER_AIHUBMIX: "https://aihubmix.com/v1",
     PROVIDER_TOKENROUTER: "https://api.tokenrouter.com/v1",
+    PROVIDER_INFERX: "https://model.inferx.net/endpoints/v1",
+    PROVIDER_KILO: "https://api.kilo.ai/api/gateway",
+    PROVIDER_PENDRA: "https://api.pendra.ai/api/v1",
+    PROVIDER_VERCEL: "https://ai-gateway.vercel.sh/v1",
+    PROVIDER_ZENMUX: "https://zenmux.ai/api/v1",
 }
 
 
