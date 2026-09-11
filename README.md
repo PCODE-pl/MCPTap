@@ -187,6 +187,7 @@ runinfra
 nvidia
 opencode
 orcarouter
+aihubmix
 ```
 
 ### 2. Configure the provider
