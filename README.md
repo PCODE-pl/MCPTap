@@ -188,6 +188,7 @@ nvidia
 opencode
 orcarouter
 aihubmix
+tokenrouter
 ```
 
 ### 2. Configure the provider
