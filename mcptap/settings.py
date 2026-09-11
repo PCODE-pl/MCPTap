@@ -28,6 +28,7 @@ PROVIDER_UNOROUTER = "unorouter"
 PROVIDER_RUNINFRA = "runinfra"
 PROVIDER_NVIDIA = "nvidia"
 PROVIDER_OPENCODE = "opencode"
+PROVIDER_ORCAROUTER = "orcarouter"
 
 SYNTHETIC_GET_GOAL_CALL_ID = "synthetic_get_goal"
 SYNTHETIC_GET_GOAL_TOOL_NAME = "get_goal"
@@ -65,6 +66,7 @@ _PROVIDER_ENV_FILES = {
     PROVIDER_RUNINFRA: "runinfra.env",
     PROVIDER_NVIDIA: "nvidia.env",
     PROVIDER_OPENCODE: "opencode.env",
+    PROVIDER_ORCAROUTER: "orcarouter.env",
 }
 
 _UPSTREAM_BASE_URLS = {
@@ -79,6 +81,7 @@ _UPSTREAM_BASE_URLS = {
     PROVIDER_RUNINFRA: "https://api.runinfra.ai/v1",
     PROVIDER_NVIDIA: "https://integrate.api.nvidia.com/v1",
     PROVIDER_OPENCODE: "https://opencode.ai/zen/v1",
+    PROVIDER_ORCAROUTER: "https://api.orcarouter.ai/v1",
 }
 
 

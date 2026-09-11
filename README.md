@@ -186,6 +186,7 @@ unorouter
 runinfra
 nvidia
 opencode
+orcarouter
 ```
 
 ### 2. Configure the provider
