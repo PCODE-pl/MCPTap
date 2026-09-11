@@ -151,6 +151,36 @@ def test_aihubmix_provider_loads_settings_and_credentials(tmp_path, monkeypatch)
         assert get_provider_api_key("AIHUBMIX") == "aihubmix-test"
 
 
+def test_tokenrouter_provider_loads_settings_and_credentials(tmp_path, monkeypatch):
+    config_dir = tmp_path / "mcptap"
+    config_dir.mkdir()
+    (config_dir / "proxy.env").write_text(
+        "MCP_TAP_UPSTREAM_PROVIDER= TOKENROUTER \nMCP_TAP_LISTEN_HOST=127.0.0.1\nMCP_TAP_LISTEN_PORT=8787\n"
+    )
+    (config_dir / "tokenrouter.env").write_text(
+        "MCP_TAP_API_KEY=tokenrouter-test\nMCP_TAP_MODEL=zai/glm-5.2\nMCP_TAP_PLAN_MODE_MODEL=zai/glm-5.2\n"
+        "MCP_TAP_USE_CHAT_COMPLETIONS=false\n"
+    )
+    for key in (
+        "MCP_TAP_API_KEY",
+        "MCP_TAP_MODEL",
+        "MCP_TAP_PLAN_MODE_MODEL",
+        "MCP_TAP_UPSTREAM_PROVIDER",
+        "MCP_TAP_USE_CHAT_COMPLETIONS",
+    ):
+        monkeypatch.delenv(key, raising=False)
+
+    with patch("mcptap.settings.CONFIG_DIR", config_dir):
+        _load_env_files()
+        settings = _build_settings()
+        assert settings.upstream_provider == "tokenrouter"
+        assert settings.upstream_base_url == "https://api.tokenrouter.com/v1"
+        assert settings.provider_env_file == "tokenrouter.env"
+        assert settings.api_key == "tokenrouter-test"
+        assert settings.use_chat_completions is False
+        assert get_provider_api_key("TOKENROUTER") == "tokenrouter-test"
+
+
 def test_get_provider_api_key_rejects_unknown_provider():
     with pytest.raises(ValueError, match="Unsupported provider"):
         get_provider_api_key("unknown")
