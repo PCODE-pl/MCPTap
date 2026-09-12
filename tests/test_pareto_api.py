@@ -237,7 +237,9 @@ async def test_serve_pareto_page_returns_html():
         assert "return Math.sqrt(Math.max(value, 0));" in body
         assert "return compressedCostAxis.value ? transformXPoint(value) : value;" in body
         assert "value => formatCompressedAxisLabel(value)" in body
-        assert "Weighted cost ($/M tokens, sqrt)" in body
+        assert "name: 'Weighted cost ($/M tokens)', nameLocation: 'middle', nameGap: 38," in body
+        assert "'Weighted cost ($/M tokens, sqrt)'" not in body
+        assert "'Weighted cost ($/M tokens, log)'" not in body
         assert "grid: { left: 72, right: 32, top: 52, bottom: 66 }" in body
         assert "const plotWidth = chartWidth - 72 - 32;" in body
         assert "requestAnimationFrame(() => updateScaleOverlay());" in body

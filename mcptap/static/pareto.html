@@ -1063,7 +1063,7 @@ const app = createApp({
           tooltip: { show: false },
           xAxis: compressedCostAxis.value
             ? {
-                name: 'Weighted cost ($/M tokens, sqrt)', nameLocation: 'middle', nameGap: 38,
+                name: 'Weighted cost ($/M tokens)', nameLocation: 'middle', nameGap: 38,
                 type: 'value', min: viewRange.value.xMin, max: viewRange.value.xMax,
                 axisLabel: { color: '#aaa', formatter: value => formatCompressedAxisLabel(value) },
                 nameTextStyle: { color: '#ccc' }, splitLine: { lineStyle: { color: '#28282f' } },
