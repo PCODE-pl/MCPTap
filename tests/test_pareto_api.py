@@ -243,7 +243,7 @@ async def test_serve_pareto_page_returns_html():
         assert 'aria-label="Square-root cost scale"' in body
         assert "<span>scale</span>" in body
         assert "sqrt scale" not in body
-        assert "const compressedCostAxis = ref(false);" in body
+        assert "const compressedCostAxis = ref(true);" in body
         assert "function handleCostScaleChange(checked)" in body
         assert "updateScaleOverlay" in body
         assert "return Math.sqrt(Math.max(value, 0));" in body
