@@ -26,6 +26,8 @@
     .quality-controls { min-width: 0; padding: 16px; overflow-y: auto; border-left: 1px solid #28282f; box-sizing: border-box; }
     .quality-controls h2 { margin: 0 0 16px; font-size: 15px; font-weight: 600; }
     .quality-slider { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; align-items: center; margin-bottom: 14px; }
+    .quality-slider-row { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; margin-bottom: 14px; }
+    .quality-slider-row .quality-slider { margin-bottom: 0; }
     .quality-slider label { font-size: 13px; }
     .quality-slider output { color: #aaa; font: 12px monospace; }
     .quality-slider .n-slider { grid-column: 1 / -1; }
@@ -171,7 +173,7 @@
           </div>
         </section>
         <aside class="quality-controls" data-testid="quality-controls" aria-label="Quality weights">
-          <div v-for="control in qualitySliderDefinitions" :key="control.key" class="quality-slider">
+          <div v-for="control in singleSliderDefinitions" :key="control.key" class="quality-slider">
             <label :for="`quality-slider-${control.key}`">{{ control.label }}</label>
             <output :for="`quality-slider-${control.key}`">{{ qualityControls[control.key].toFixed(2) }}</output>
             <n-slider
@@ -183,6 +185,51 @@
               :data-testid="`quality-slider-${control.key}`"
               @update:value="handleQualityChange"
             />
+          </div>
+          <div class="quality-slider-row" data-testid="quality-slider-row-uptime">
+            <div v-for="control in pairedSliderDefinitions.uptime" :key="control.key" class="quality-slider">
+              <label :for="`quality-slider-${control.key}`">{{ control.label }}</label>
+              <output :for="`quality-slider-${control.key}`">{{ qualityControls[control.key].toFixed(2) }}</output>
+              <n-slider
+                :id="`quality-slider-${control.key}`"
+                v-model:value="qualityControls[control.key]"
+                :min="control.min ?? 0"
+                :max="QUALITY_SLIDER_MAX"
+                :step="0.05"
+                :data-testid="`quality-slider-${control.key}`"
+                @update:value="handleQualityChange"
+              />
+            </div>
+          </div>
+          <div class="quality-slider-row" data-testid="quality-slider-row-latency">
+            <div v-for="control in pairedSliderDefinitions.latency" :key="control.key" class="quality-slider">
+              <label :for="`quality-slider-${control.key}`">{{ control.label }}</label>
+              <output :for="`quality-slider-${control.key}`">{{ qualityControls[control.key].toFixed(2) }}</output>
+              <n-slider
+                :id="`quality-slider-${control.key}`"
+                v-model:value="qualityControls[control.key]"
+                :min="control.min ?? 0"
+                :max="QUALITY_SLIDER_MAX"
+                :step="0.05"
+                :data-testid="`quality-slider-${control.key}`"
+                @update:value="handleQualityChange"
+              />
+            </div>
+          </div>
+          <div class="quality-slider-row" data-testid="quality-slider-row-throughput">
+            <div v-for="control in pairedSliderDefinitions.throughput" :key="control.key" class="quality-slider">
+              <label :for="`quality-slider-${control.key}`">{{ control.label }}</label>
+              <output :for="`quality-slider-${control.key}`">{{ qualityControls[control.key].toFixed(2) }}</output>
+              <n-slider
+                :id="`quality-slider-${control.key}`"
+                v-model:value="qualityControls[control.key]"
+                :min="control.min ?? 0"
+                :max="QUALITY_SLIDER_MAX"
+                :step="0.05"
+                :data-testid="`quality-slider-${control.key}`"
+                @update:value="handleQualityChange"
+              />
+            </div>
           </div>
         </aside>
       </div>
@@ -206,6 +253,12 @@ const QUALITY_SLIDER_DEFINITIONS = [
   { key: 'throughput-short', label: 'Throughput short' },
   { key: 'throughput-long', label: 'Throughput long' },
 ];
+const singleSliderDefinitions = QUALITY_SLIDER_DEFINITIONS.filter(control => control.key === 'accuracy');
+const pairedSliderDefinitions = {
+  uptime: QUALITY_SLIDER_DEFINITIONS.filter(control => control.key.startsWith('uptime-')),
+  latency: QUALITY_SLIDER_DEFINITIONS.filter(control => control.key.startsWith('latency-')),
+  throughput: QUALITY_SLIDER_DEFINITIONS.filter(control => control.key.startsWith('throughput-')),
+};
 const DEFAULT_QUALITY_CONTROLS = {
   accuracy: 1,
   'uptime-short': 0,
@@ -285,8 +338,7 @@ const app = createApp({
     let renderedPoints = [];
     let legendVisibility = {};
     let renderCheckFrame = null;
-    const qualitySliderDefinitions = QUALITY_SLIDER_DEFINITIONS;
-    const qualityControls = Vue.reactive({ ...DEFAULT_QUALITY_CONTROLS });
+        const qualityControls = Vue.reactive({ ...DEFAULT_QUALITY_CONTROLS });
     const qualityWeights = Vue.reactive({ accuracy: qualityControls.accuracy });
     const areaZoomActive = ref(true);
     const selectionStart = ref(null);
@@ -1159,7 +1211,7 @@ const app = createApp({
       seriesCount, canvasCount, chartState, renderer, renderError, viewRange,
       formatDiagnosticNumber, formatRange,
       areaZoomActive, zoomSelectionStyle, loadData, renderChart, resetZoom,
-      QUALITY_SLIDER_MAX, qualitySliderDefinitions, qualityControls, handleQualityChange, handleFilterUpdate,
+      QUALITY_SLIDER_MAX, singleSliderDefinitions, pairedSliderDefinitions, qualityControls, handleQualityChange, handleFilterUpdate,
       popupVisible, popupPoints, popupIndex, popupStyle, popupRef, popupCardHtml,
       handlePopupEnter, handlePopupLeave, popupNext, popupPrev,
     };
