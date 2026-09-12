@@ -15,10 +15,10 @@ async def test_fetch_and_store_once_writes_valid_json_atomically(tmp_path: Path)
     payload = {"models": [{"model": "test-model", "score": 1}]}
     task = ParetoDataTask(target_path=target)
 
-    async def fetch_remote():
+    async def fetch_remote(url=None):
         return json.dumps(payload).encode("utf-8")
 
-    task._fetch_remote = fetch_remote
+    task._fetch_remote = fetch_remote  # type: ignore[method-assign]
 
     await task._fetch_and_store_once()
 
@@ -32,10 +32,10 @@ async def test_fetch_and_store_once_rejects_invalid_json_without_overwriting(tmp
     target.write_text('{"previous": true}', encoding="utf-8")
     task = ParetoDataTask(target_path=target)
 
-    async def fetch_remote():
+    async def fetch_remote(url=None):
         return b"not json"
 
-    task._fetch_remote = fetch_remote
+    task._fetch_remote = fetch_remote  # type: ignore[method-assign]
 
     with pytest.raises(ValueError, match="valid JSON object"):
         await task._fetch_and_store_once()
@@ -72,3 +72,37 @@ async def test_start_stop_lifecycle(tmp_path: Path):
     assert task._task is not None
     await task.stop()
     assert task._task is None
+
+
+@pytest.mark.asyncio
+async def test_tested_models_task_fetches_tested_models_url(tmp_path: Path):
+    target = tmp_path / "tested_models.json"
+    payload = {"providers": ["openrouter"], "free": {}, "paid": {}}
+    task = ParetoDataTask(target_path=target, source_url=ParetoDataTask.TESTED_MODELS_URL)
+
+    async def fetch_remote(url=None):
+        return json.dumps(payload).encode("utf-8")
+
+    task._fetch_remote = fetch_remote  # type: ignore[method-assign]
+
+    await task._fetch_and_store_once()
+
+    assert json.loads(target.read_text(encoding="utf-8")) == payload
+    assert ParetoDataTask.TESTED_MODELS_URL.endswith("/tested_models.json")
+    assert "MCPTap-Pareto" in ParetoDataTask.TESTED_MODELS_URL
+
+
+@pytest.mark.asyncio
+async def test_tested_models_task_rejects_non_object_payload(tmp_path: Path):
+    target = tmp_path / "tested_models.json"
+    task = ParetoDataTask(target_path=target, source_url=ParetoDataTask.TESTED_MODELS_URL)
+
+    async def fetch_remote(url=None):
+        return b"[1, 2, 3]"
+
+    task._fetch_remote = fetch_remote  # type: ignore[method-assign]
+
+    with pytest.raises(ValueError, match="valid JSON object"):
+        await task._fetch_and_store_once()
+
+    assert not target.exists()

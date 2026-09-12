@@ -86,6 +86,15 @@
           @update:value="handleFilterUpdate"
         />
         </div>
+        <label data-testid="include-untested-wrapper" style="display: flex; align-items: center; gap: 6px; font-size: 13px">
+          <n-checkbox
+            v-model:checked="includeUntested"
+            data-testid="include-untested-checkbox"
+            aria-label="Include untested models"
+            @update:checked="handleUntestedChange"
+          />
+          <span>Include untested models</span>
+        </label>
         <button type="button" class="chart-control" data-testid="pareto-refresh" aria-label="Refresh Pareto data" :aria-busy="loading" @click="loadData">Refresh</button>
         <div class="chart-controls" data-testid="pareto-chart-controls" role="toolbar" aria-label="Chart controls">
           <button type="button" class="chart-control" data-testid="pareto-zoom-reset" aria-label="Reset chart zoom" aria-controls="chart" @click="resetZoom">Reset zoom</button>
@@ -222,8 +231,9 @@ function debounce(callback, delay) {
 const app = createApp({
   setup() {
     const { darkTheme, NConfigProvider, NLayout, NLayoutHeader, NLayoutContent,
-      NSelect, NSlider } = naive;
+      NSelect, NSlider, NCheckbox } = naive;
     const rawData = ref({});
+    const rawTested = ref({});
     const paretoStats = computed(() => {
       const data = rawData.value;
       if (data && typeof data === 'object' && !Array.isArray(data) && data.stats && data.medians && typeof data.stats === 'object' && typeof data.medians === 'object' && !Array.isArray(data.medians)) {
@@ -252,6 +262,7 @@ const app = createApp({
     }
     const selectedProviders = ref([...DEFAULT_PROVIDERS]);
     const selectedModels = ref([]);
+    const includeUntested = ref(false);
     const loading = ref(false);
     const error = ref('');
     const diagnosticsVisible = new URLSearchParams(window.location.search).get('e2llm') === '2';
@@ -796,15 +807,41 @@ const app = createApp({
       };
     }
 
+    function buildTestedOfferKeys(testedData) {
+      const keys = new Set();
+      if (!testedData || typeof testedData !== 'object' || Array.isArray(testedData)) return keys;
+      for (const section of ['free', 'paid']) {
+        const models = testedData[section];
+        if (!models || typeof models !== 'object' || Array.isArray(models)) continue;
+        for (const [canonicalModel, item] of Object.entries(models)) {
+          for (const provider of Object.keys(item?.providers || {})) {
+            keys.add(`${canonicalModel} ${provider}`);
+          }
+        }
+      }
+      return keys;
+    }
+
+    function handleUntestedChange(checked) {
+      includeUntested.value = checked !== false;
+      Vue.nextTick(() => renderChart());
+    }
+
     function collectOffers() {
       const offers = [];
       const hasProviderFilter = selectedProviders.value.length > 0;
       const hasModelFilter = selectedModels.value.length > 0;
       const selectedModelsSet = hasModelFilter ? new Set(selectedModels.value) : null;
+      const testedData = rawTested.value;
+      const testedKeys = includeUntested.value ? null : buildTestedOfferKeys(testedData);
+      const testedProviders = testedData && typeof testedData === 'object' && !Array.isArray(testedData)
+        ? new Set(Object.keys(testedData).includes('providers') && Array.isArray(testedData.providers) ? testedData.providers : [])
+        : new Set();
       for (const [canonicalModel, item] of Object.entries(paretoStats.value)) {
         if (selectedModelsSet && !selectedModelsSet.has(canonicalModel)) continue;
         for (const [provider, aliases] of Object.entries(item.providers || {})) {
           if (hasProviderFilter && !selectedProviders.value.includes(provider)) continue;
+          if (testedKeys && !testedKeys.has(`${canonicalModel} ${provider}`) && !testedProviders.has(provider)) continue;
           for (const [alias, offer] of Object.entries(aliases || {})) {
             const input = numeric(offer.cost?.input);
             const output = numeric(offer.cost?.output);
@@ -990,9 +1027,17 @@ const app = createApp({
       chartState.value = 'loading';
       renderError.value = '';
       try {
-        const response = await fetch('/api/pareto', { cache: 'no-store' });
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        rawData.value = await response.json();
+        const [paretoResponse, testedResponse] = await Promise.all([
+          fetch('/api/pareto', { cache: 'no-store' }),
+          fetch('/api/pareto-tested', { cache: 'no-store' }).catch(() => null),
+        ]);
+        if (!paretoResponse.ok) throw new Error(`HTTP ${paretoResponse.status}`);
+        rawData.value = await paretoResponse.json();
+        if (testedResponse && testedResponse.ok) {
+          rawTested.value = await testedResponse.json();
+        } else {
+          rawTested.value = {};
+        }
         renderChart();
       } catch (err) {
         error.value = `Failed to load Pareto data: ${err.message}`;
@@ -1041,8 +1086,8 @@ const app = createApp({
       }
     });
 
-    return { darkTheme, NConfigProvider, NLayout, NLayoutHeader, NLayoutContent, NSelect, NSlider,
-      selectedProviders, selectedModels, providerOptions, modelOptions, loading, error, diagnosticsVisible, pointCount, modelCount,
+    return { darkTheme, NConfigProvider, NLayout, NLayoutHeader, NLayoutContent, NSelect, NSlider, NCheckbox,
+      selectedProviders, selectedModels, providerOptions, modelOptions, includeUntested, handleUntestedChange, loading, error, diagnosticsVisible, pointCount, modelCount,
       seriesCount, canvasCount, chartState, renderer, renderError, viewRange,
       formatDiagnosticNumber, formatRange,
       areaZoomActive, zoomSelectionStyle, loadData, renderChart, resetZoom,
