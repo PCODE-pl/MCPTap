@@ -160,11 +160,14 @@ async def test_serve_pareto_page_returns_html():
             in body
         )
         assert (
-            ".toolbar-actions { display: flex; align-items: center; gap: 12px; flex: 1 1 40%; flex-wrap: wrap; min-width: 0; }"
+            ".toolbar-actions { display: flex; align-items: center; gap: 12px; flex: 0 0 20%; flex-wrap: wrap; min-width: 0; }"
             in body
         )
+        assert '.toolbar-actions[data-testid="toolbar-secondary-actions"] { flex: 1 1 20%; }' in body
         assert 'data-testid="toolbar-filters"' in body
         assert 'data-testid="toolbar-actions"' in body
+        assert 'data-testid="toolbar-secondary-actions"' in body
+        assert body.index('data-testid="toolbar-actions"') < body.index("include-untested-wrapper")
         assert ".content-layout { width: 100%;" in body
         assert ".chart-container { position: relative; width: 100%;" in body
         assert ':data-testid="`quality-slider-${control.key}`"' in body
