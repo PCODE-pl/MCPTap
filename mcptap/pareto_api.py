@@ -8,10 +8,15 @@ from aiohttp import web  # type: ignore
 from mcptap.settings import LOGGER
 
 _DEFAULT_PARETO_PATH = Path(__file__).resolve().parent.parent / "data" / "pareto.json"
+_DEFAULT_TESTED_MODELS_PATH = Path(__file__).resolve().parent.parent / "data" / "tested_models.json"
 
 
 def _pareto_path(request: web.Request) -> Path:
     return Path(request.app.get("pareto_path", _DEFAULT_PARETO_PATH))
+
+
+def _pareto_tested_path(request: web.Request) -> Path:
+    return Path(request.app.get("pareto_tested_path", _DEFAULT_TESTED_MODELS_PATH))
 
 
 async def handle_pareto_data(request: web.Request) -> web.Response:
@@ -28,6 +33,23 @@ async def handle_pareto_data(request: web.Request) -> web.Response:
     if not isinstance(payload, dict):
         LOGGER.error("Pareto data at %s is not a JSON object", path)
         return web.json_response({"error": "Pareto data is unavailable"}, status=503)
+    return web.json_response(payload)
+
+
+async def handle_pareto_tested_data(request: web.Request) -> web.Response:
+    """Return the latest locally stored tested-models JSON."""
+    path = _pareto_tested_path(request)
+    try:
+        with path.open("r", encoding="utf-8") as tested_file:
+            payload = json.load(tested_file)
+    except FileNotFoundError:
+        return web.json_response({"error": "Tested models data not found"}, status=404)
+    except (OSError, json.JSONDecodeError) as exc:
+        LOGGER.error("Failed to read tested models data from %s: %s", path, exc)
+        return web.json_response({"error": "Tested models data is unavailable"}, status=503)
+    if not isinstance(payload, dict):
+        LOGGER.error("Tested models data at %s is not a JSON object", path)
+        return web.json_response({"error": "Tested models data is unavailable"}, status=503)
     return web.json_response(payload)
 
 

@@ -364,12 +364,21 @@ async def _start_pareto_data(app: web.Application) -> None:
     task = ParetoDataTask()
     app["pareto_data"] = task
     task.start()
+    tested_task = ParetoDataTask(
+        target_path=ParetoDataTask.tested_models_target_path(),
+        source_url=ParetoDataTask.TESTED_MODELS_URL,
+    )
+    app["pareto_tested_data"] = tested_task
+    tested_task.start()
 
 
 async def _stop_pareto_data(app: web.Application) -> None:
     task: Optional[ParetoDataTask] = app.get("pareto_data")
     if task is not None:
         await task.stop()
+    tested_task: Optional[ParetoDataTask] = app.get("pareto_tested_data")
+    if tested_task is not None:
+        await tested_task.stop()
 
 
 async def _start_credits_checker(app: web.Application) -> None:
@@ -434,13 +443,18 @@ def build_app() -> web.Application:
     app.on_cleanup.append(_close_client_session)
     app.on_cleanup.append(_close_log_store)
     from mcptap.log_api import handle_log_detail, handle_logs_list, serve_logs_page
-    from mcptap.pareto_api import handle_pareto_data, serve_pareto_page
+    from mcptap.pareto_api import (
+        handle_pareto_data,
+        handle_pareto_tested_data,
+        serve_pareto_page,
+    )
 
     app.router.add_get("/health", health)
     app.router.add_get("/api/logs", handle_logs_list)
     app.router.add_get("/api/logs/{log_id}", handle_log_detail)
     app.router.add_get("/ui/logs", serve_logs_page)
     app.router.add_get("/api/pareto", handle_pareto_data)
+    app.router.add_get("/api/pareto-tested", handle_pareto_tested_data)
     app.router.add_get("/ui/pareto", serve_pareto_page)
     app.router.add_route("*", "/{tail:.*}", proxy)
     return app

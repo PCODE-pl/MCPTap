@@ -12,16 +12,25 @@ import aiohttp  # type: ignore
 from mcptap.settings import LOGGER
 
 _PARETO_URL = "https://raw.githubusercontent.com/PCODE-pl/MCPTap-Pareto/dev/pareto.json"
+_TESTED_MODELS_URL = "https://raw.githubusercontent.com/PCODE-pl/MCPTap-Pareto/dev/tested_models.json"
 _PARETO_INTERVAL = 3600
 _FETCH_TIMEOUT = 30
 _DEFAULT_TARGET_PATH = Path(__file__).resolve().parent.parent / "data" / "pareto.json"
+_DEFAULT_TESTED_MODELS_PATH = Path(__file__).resolve().parent.parent / "data" / "tested_models.json"
 
 
 class ParetoDataTask:
     """Download and atomically store Pareto data at a fixed interval."""
 
-    def __init__(self, target_path: Path = _DEFAULT_TARGET_PATH) -> None:
+    TESTED_MODELS_URL = _TESTED_MODELS_URL
+
+    @staticmethod
+    def tested_models_target_path() -> Path:
+        return _DEFAULT_TESTED_MODELS_PATH
+
+    def __init__(self, target_path: Path = _DEFAULT_TARGET_PATH, source_url: str = _PARETO_URL) -> None:
         self._target_path = target_path
+        self._source_url = source_url
         self._task: Optional[asyncio.Task[None]] = None
 
     def start(self) -> None:
@@ -56,7 +65,7 @@ class ParetoDataTask:
             await asyncio.sleep(_PARETO_INTERVAL)
 
     async def _fetch_and_store_once(self) -> None:
-        raw_data = await self._fetch_remote()
+        raw_data = await self._fetch_remote(self._source_url)
         try:
             payload = json.loads(raw_data.decode("utf-8"))
         except (UnicodeDecodeError, json.JSONDecodeError) as exc:
@@ -85,11 +94,11 @@ class ParetoDataTask:
         LOGGER.info("ParetoDataTask: refreshed %s", self._target_path)
 
     @staticmethod
-    async def _fetch_remote() -> bytes:
+    async def _fetch_remote(url: str) -> bytes:
         timeout = aiohttp.ClientTimeout(total=_FETCH_TIMEOUT)
         async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.get(_PARETO_URL) as response:
+            async with session.get(url) as response:
                 if response.status != 200:
                     body = await response.text()
-                    raise RuntimeError(f"HTTP {response.status} from {_PARETO_URL}: {body[:200]}")
+                    raise RuntimeError(f"HTTP {response.status} from {url}: {body[:200]}")
                 return await response.read()

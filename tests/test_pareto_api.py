@@ -6,7 +6,11 @@ import pytest  # type: ignore
 from aiohttp import web
 from aiohttp.test_utils import TestClient, TestServer
 
-from mcptap.pareto_api import handle_pareto_data, serve_pareto_page
+from mcptap.pareto_api import (
+    handle_pareto_data,
+    handle_pareto_tested_data,
+    serve_pareto_page,
+)
 
 
 @pytest.mark.asyncio
@@ -33,6 +37,60 @@ async def test_handle_pareto_data_returns_not_found_when_file_is_missing(tmp_pat
         response = await client.get("/api/pareto")
         assert response.status == 404
         assert await response.json() == {"error": "Pareto data not found"}
+
+
+@pytest.mark.asyncio
+async def test_handle_pareto_tested_data_returns_json_from_configured_path(tmp_path: Path):
+    target = tmp_path / "tested_models.json"
+    target.write_text('{"providers": ["openrouter"], "free": {}, "paid": {}}', encoding="utf-8")
+    app = web.Application()
+    app["pareto_tested_path"] = target
+    app.router.add_get("/api/pareto-tested", handle_pareto_tested_data)
+
+    async with TestClient(TestServer(app)) as client:
+        response = await client.get("/api/pareto-tested")
+        assert response.status == 200
+        assert await response.json() == {"providers": ["openrouter"], "free": {}, "paid": {}}
+
+
+@pytest.mark.asyncio
+async def test_handle_pareto_tested_data_returns_not_found_when_file_is_missing(tmp_path: Path):
+    app = web.Application()
+    app["pareto_tested_path"] = tmp_path / "missing.json"
+    app.router.add_get("/api/pareto-tested", handle_pareto_tested_data)
+
+    async with TestClient(TestServer(app)) as client:
+        response = await client.get("/api/pareto-tested")
+        assert response.status == 404
+        assert await response.json() == {"error": "Tested models data not found"}
+
+
+@pytest.mark.asyncio
+async def test_handle_pareto_tested_data_returns_503_for_invalid_json(tmp_path: Path):
+    target = tmp_path / "tested_models.json"
+    target.write_text("not json", encoding="utf-8")
+    app = web.Application()
+    app["pareto_tested_path"] = target
+    app.router.add_get("/api/pareto-tested", handle_pareto_tested_data)
+
+    async with TestClient(TestServer(app)) as client:
+        response = await client.get("/api/pareto-tested")
+        assert response.status == 503
+        assert await response.json() == {"error": "Tested models data is unavailable"}
+
+
+@pytest.mark.asyncio
+async def test_handle_pareto_tested_data_returns_503_for_non_object_payload(tmp_path: Path):
+    target = tmp_path / "tested_models.json"
+    target.write_text("[1, 2, 3]", encoding="utf-8")
+    app = web.Application()
+    app["pareto_tested_path"] = target
+    app.router.add_get("/api/pareto-tested", handle_pareto_tested_data)
+
+    async with TestClient(TestServer(app)) as client:
+        response = await client.get("/api/pareto-tested")
+        assert response.status == 503
+        assert await response.json() == {"error": "Tested models data is unavailable"}
 
 
 @pytest.mark.asyncio
@@ -162,6 +220,13 @@ async def test_serve_pareto_page_returns_html():
         assert "new URLSearchParams(window.location.search).get('e2llm') === '2'" in body
         assert "const hasProviderFilter = selectedProviders.value.length > 0;" in body
         assert "if (hasProviderFilter && !selectedProviders.value.includes(provider)) continue;" in body
+        assert "const includeUntested = ref(false);" in body
+        assert 'v-model:checked="includeUntested"' in body
+        assert "handleUntestedChange" in body
+        assert "const testedKeys = includeUntested.value ? null : buildTestedOfferKeys(testedData);" in body
+        assert "const testedData = rawTested.value;" in body
+        assert "for (const section of ['free', 'paid']) {" in body
+        assert "fetch('/api/pareto-tested', { cache: 'no-store' })" in body
         assert "data-chart-state" in body
         assert "data-renderer" in body
         assert "data-canvas-count" in body
