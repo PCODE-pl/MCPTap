@@ -230,6 +230,8 @@ async def test_serve_pareto_page_returns_html():
         assert "new URLSearchParams(window.location.search).get('e2llm') === '2'" in body
         assert "const hasProviderFilter = selectedProviders.value.length > 0;" in body
         assert "if (hasProviderFilter && !selectedProviders.value.includes(provider)) continue;" in body
+        assert "const selectedProviders = ref([]);" in body
+        assert "DEFAULT_PROVIDERS" not in body
         assert "const includeUntested = ref(false);" in body
         assert 'v-model:checked="includeUntested"' in body
         assert "handleUntestedChange" in body
