@@ -229,6 +229,19 @@ async def test_serve_pareto_page_returns_html():
         assert "fetch('/api/pareto-tested', { cache: 'no-store' })" in body
         assert "testedProviders" not in body
         assert "if (testedKeys && !testedKeys.has(`${canonicalModel} ${provider}`)) continue;" in body
+        assert 'data-testid="log-cost-checkbox"' in body
+        assert 'aria-label="Logarithmic cost axis"' in body
+        assert "const logCostAxis = ref(false);" in body
+        assert "function handleLogCostChange(checked)" in body
+        assert "updateLogAxisOverlay" in body
+        assert "const LOG_X_BASE = 10;" in body
+        assert "const logX = Math.log10(Math.max(value, LOG_X_MIN));" in body
+        assert "return logCostAxis.value ? transformXPoint(value) : value;" in body
+        assert "type: 'log'," in body
+        assert "base: 10" in body
+        assert "grid: { left: 72, right: 32, top: 52, bottom: 66 }" in body
+        assert "const plotWidth = chartWidth - 72 - 32;" in body
+        assert "requestAnimationFrame(() => updateLogAxisOverlay());" in body
         assert "data-chart-state" in body
         assert "data-renderer" in body
         assert "data-canvas-count" in body
