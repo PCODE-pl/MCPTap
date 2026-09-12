@@ -231,6 +231,8 @@ async def test_serve_pareto_page_returns_html():
         assert "if (testedKeys && !testedKeys.has(`${canonicalModel} ${provider}`)) continue;" in body
         assert 'data-testid="sqrt-cost-checkbox"' in body
         assert 'aria-label="Square-root cost scale"' in body
+        assert "<span>scale</span>" in body
+        assert "sqrt scale" not in body
         assert "const compressedCostAxis = ref(false);" in body
         assert "function handleCostScaleChange(checked)" in body
         assert "updateScaleOverlay" in body

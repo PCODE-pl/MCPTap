@@ -147,7 +147,7 @@
               aria-label="Square-root cost scale"
               @update:checked="handleCostScaleChange"
             />
-            <span>sqrt scale</span>
+            <span>scale</span>
           </label>
           <div v-if="popupVisible" ref="popupRef" class="pareto-popup" data-testid="pareto-popup" role="dialog" aria-label="Model details" :style="popupStyle" @mouseenter="handlePopupEnter" @mouseleave="handlePopupLeave">
             <div v-if="popupPoints.length > 1" class="pareto-popup__nav" data-testid="pareto-popup-nav">
