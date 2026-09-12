@@ -155,6 +155,16 @@ async def test_serve_pareto_page_returns_html():
         assert 'data-testid="quality-controls"' in body
         assert "<h2>Quality weights</h2>" not in body
         assert "grid-template-columns: minmax(0, 1fr) 282px" in body
+        assert (
+            ".toolbar-filters { display: flex; align-items: center; gap: 12px; flex: 0 0 60%; min-width: 0; flex-direction: column; align-items: stretch; }"
+            in body
+        )
+        assert (
+            ".toolbar-actions { display: flex; align-items: center; gap: 12px; flex: 1 1 40%; flex-wrap: wrap; min-width: 0; }"
+            in body
+        )
+        assert 'data-testid="toolbar-filters"' in body
+        assert 'data-testid="toolbar-actions"' in body
         assert ".content-layout { width: 100%;" in body
         assert ".chart-container { position: relative; width: 100%;" in body
         assert ':data-testid="`quality-slider-${control.key}`"' in body
