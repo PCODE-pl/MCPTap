@@ -869,6 +869,7 @@ const app = createApp({
 
     function formatCompressedAxisLabel(compressedValue) {
       const value = compressedValue * compressedValue;
+      if (value === 0) return '0';
       if (value >= 1) return Number.isInteger(value) ? String(value) : value.toFixed(1);
       return value >= 0.01 ? value.toFixed(2) : value.toExponential(0);
     }
@@ -895,7 +896,7 @@ const app = createApp({
       let left = chartRect.left - containerRect.left + centerX + nameWidth / 2 + 14;
       const maxLeft = containerRect.width - overlayWidth - 8;
       left = Math.max(8, Math.min(left, maxLeft));
-      const top = chartRect.top - containerRect.top + chartRect.height - 66 + 28;
+      const top = chartRect.top - containerRect.top + chartRect.height - 66 + 31;
       scaleOverlayStyle.value = { left: `${left}px`, top: `${top}px` };
       scaleOverlayVisible.value = true;
     }
