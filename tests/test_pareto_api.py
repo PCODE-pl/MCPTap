@@ -255,6 +255,8 @@ async def test_serve_pareto_page_returns_html():
         assert "grid: { left: 72, right: 32, top: 52, bottom: 66 }" in body
         assert "const plotWidth = chartWidth - 72 - 32;" in body
         assert "requestAnimationFrame(() => updateScaleOverlay());" in body
+        assert "chartRect.height - 66 + 31;" in body
+        assert "if (value === 0) return '0';" in body
         assert "logCostAxis" not in body
         assert "LOG_X" not in body
         assert "type: 'log'" not in body
