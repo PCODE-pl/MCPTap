@@ -834,14 +834,11 @@ const app = createApp({
       const selectedModelsSet = hasModelFilter ? new Set(selectedModels.value) : null;
       const testedData = rawTested.value;
       const testedKeys = includeUntested.value ? null : buildTestedOfferKeys(testedData);
-      const testedProviders = testedData && typeof testedData === 'object' && !Array.isArray(testedData)
-        ? new Set(Object.keys(testedData).includes('providers') && Array.isArray(testedData.providers) ? testedData.providers : [])
-        : new Set();
       for (const [canonicalModel, item] of Object.entries(paretoStats.value)) {
         if (selectedModelsSet && !selectedModelsSet.has(canonicalModel)) continue;
         for (const [provider, aliases] of Object.entries(item.providers || {})) {
           if (hasProviderFilter && !selectedProviders.value.includes(provider)) continue;
-          if (testedKeys && !testedKeys.has(`${canonicalModel} ${provider}`) && !testedProviders.has(provider)) continue;
+          if (testedKeys && !testedKeys.has(`${canonicalModel} ${provider}`)) continue;
           for (const [alias, offer] of Object.entries(aliases || {})) {
             const input = numeric(offer.cost?.input);
             const output = numeric(offer.cost?.output);

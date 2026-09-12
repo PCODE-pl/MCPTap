@@ -227,6 +227,8 @@ async def test_serve_pareto_page_returns_html():
         assert "const testedData = rawTested.value;" in body
         assert "for (const section of ['free', 'paid']) {" in body
         assert "fetch('/api/pareto-tested', { cache: 'no-store' })" in body
+        assert "testedProviders" not in body
+        assert "if (testedKeys && !testedKeys.has(`${canonicalModel} ${provider}`)) continue;" in body
         assert "data-chart-state" in body
         assert "data-renderer" in body
         assert "data-canvas-count" in body
