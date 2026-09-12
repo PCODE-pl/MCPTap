@@ -189,8 +189,8 @@ async def test_serve_pareto_page_returns_html():
         assert "{ key: 'uptime-long', label: 'Uptime long' }" in body
         assert "{ key: 'latency-short', label: 'Latency short' }" in body
         assert "{ key: 'latency-long', label: 'Latency long' }" in body
-        assert "{ key: 'throughput-short', label: 'Throughput short' }" in body
-        assert "{ key: 'throughput-long', label: 'Throughput long' }" in body
+        assert "{ key: 'throughput-short', label: 'Speed short' }" in body
+        assert "{ key: 'throughput-long', label: 'Speed long' }" in body
         assert "const QUALITY_SLIDER_MAX = 3;" in body
         assert (
             "accuracy: 1,\n  'uptime-short': 0,\n  'uptime-long': 0,\n  'latency-short': 0,\n  'latency-long': 0,\n  'throughput-short': 0,\n  'throughput-long': 0,"
