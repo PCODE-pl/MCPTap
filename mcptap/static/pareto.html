@@ -180,7 +180,7 @@
               :id="`quality-slider-${control.key}`"
               v-model:value="qualityControls[control.key]"
               :min="control.min ?? 0"
-              :max="QUALITY_SLIDER_MAX"
+              :max="control.max ?? QUALITY_SLIDER_MAX"
               :step="0.05"
               :data-testid="`quality-slider-${control.key}`"
               @update:value="handleQualityChange"
@@ -194,7 +194,7 @@
                 :id="`quality-slider-${control.key}`"
                 v-model:value="qualityControls[control.key]"
                 :min="control.min ?? 0"
-                :max="QUALITY_SLIDER_MAX"
+                :max="control.max ?? QUALITY_SLIDER_MAX"
                 :step="0.05"
                 :data-testid="`quality-slider-${control.key}`"
                 @update:value="handleQualityChange"
@@ -209,7 +209,7 @@
                 :id="`quality-slider-${control.key}`"
                 v-model:value="qualityControls[control.key]"
                 :min="control.min ?? 0"
-                :max="QUALITY_SLIDER_MAX"
+                :max="control.max ?? QUALITY_SLIDER_MAX"
                 :step="0.05"
                 :data-testid="`quality-slider-${control.key}`"
                 @update:value="handleQualityChange"
@@ -224,7 +224,7 @@
                 :id="`quality-slider-${control.key}`"
                 v-model:value="qualityControls[control.key]"
                 :min="control.min ?? 0"
-                :max="QUALITY_SLIDER_MAX"
+                :max="control.max ?? QUALITY_SLIDER_MAX"
                 :step="0.05"
                 :data-testid="`quality-slider-${control.key}`"
                 @update:value="handleQualityChange"
@@ -243,9 +243,10 @@ const { createApp, ref, computed, onMounted, onBeforeUnmount } = Vue;
 // The token mix and quality controls are intentionally explicit for the Pareto view.
 const COST_INPUT_TOKENS = 1000000;
 const COST_OUTPUT_TOKENS = 1000000;
-const QUALITY_SLIDER_MAX = 3;
+const QUALITY_SLIDER_ACCURACY_MAX = 2;
+const QUALITY_SLIDER_MAX = 1;
 const QUALITY_SLIDER_DEFINITIONS = [
-  { key: 'accuracy', label: 'Accuracy', min: 0.05 },
+  { key: 'accuracy', label: 'Accuracy', min: 0.05, max: QUALITY_SLIDER_ACCURACY_MAX },
   { key: 'uptime-short', label: 'Uptime short' },
   { key: 'uptime-long', label: 'Uptime long' },
   { key: 'latency-short', label: 'Latency short' },
