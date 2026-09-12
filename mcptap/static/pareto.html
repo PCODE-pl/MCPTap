@@ -220,26 +220,6 @@ const QUALITY_WEIGHT_KEYS = {
   latency: ['latency_last_30m', 'latency_last_1h', 'latency_last_1d'],
   throughput: ['throughput_last_30m', 'throughput_last_1h', 'throughput_last_1d'],
 };
-const DEFAULT_PROVIDERS = [
-  'aihubmix',
-  'inferx',
-  'kenari',
-  'kilo',
-  'llmtr',
-  'meta',
-  'nano-gpt',
-  'nvidia',
-  'opencode',
-  'openrouter',
-  'orcarouter',
-  'pendra',
-  'requesty',
-  'runinfra',
-  'tokenrouter',
-  'unorouter',
-  'vercel',
-  'zenmux',
-];
 
 function debounce(callback, delay) {
   let timeoutId;
@@ -283,7 +263,7 @@ const app = createApp({
       }
       return stats;
     }
-    const selectedProviders = ref([...DEFAULT_PROVIDERS]);
+    const selectedProviders = ref([]);
     const selectedModels = ref([]);
     const includeUntested = ref(false);
     const compressedCostAxis = ref(true);
