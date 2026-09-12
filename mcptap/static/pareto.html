@@ -25,8 +25,8 @@
     .chart-control { border: 1px solid rgba(255, 255, 255, .2); border-radius: 3px; padding: 4px 9px; color: #ddd; background: #25252c; cursor: pointer; font: inherit; font-size: 12px; }
     .chart-control:hover, .chart-control[aria-pressed="true"] { border-color: #63b3ed; background: #303b4a; }
     .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
-    .log-axis-overlay { position: absolute; z-index: 3; display: flex; align-items: center; gap: 4px; color: #ccc; font: 12px sans-serif; pointer-events: auto; }
-    .log-axis-overlay .n-checkbox { pointer-events: auto; }
+    .cost-scale-overlay { position: absolute; z-index: 3; display: flex; align-items: center; gap: 4px; color: #ccc; font: 12px sans-serif; pointer-events: auto; }
+    .cost-scale-overlay .n-checkbox { pointer-events: auto; }
     .hint { font-size: 12px; opacity: .65; }
     .chart-diagnostics { position: absolute; z-index: 3; left: 16px; right: 16px; bottom: 16px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px 12px; padding: 8px 12px; border: 1px solid #28282f; background: rgba(16, 16, 20, .94); color: #bbb; font: 12px/1.4 monospace; }
     .chart-diagnostics strong { color: #eee; font-weight: 600; }
@@ -139,15 +139,15 @@
           </section>
           <p id="pareto-chart-status" class="sr-only" data-testid="pareto-chart-status" aria-live="polite">{{ loading ? 'Loading chart data.' : error || renderError || (areaZoomActive ? 'Zoom area selection is active.' : `${pointCount} points and ${modelCount} models are shown.`) }}</p>
           <div v-if="zoomSelectionStyle" class="zoom-selection" data-testid="pareto-zoom-selection" role="region" aria-label="Selected zoom area" :style="zoomSelectionStyle"></div>
-          <label v-show="logOverlayVisible" ref="logOverlayRef" class="log-axis-overlay" data-testid="log-axis-overlay" :style="logOverlayStyle">
+          <label v-show="scaleOverlayVisible" ref="scaleOverlayRef" class="cost-scale-overlay" data-testid="cost-scale-overlay" :style="scaleOverlayStyle">
             <n-checkbox
-              v-model:checked="logCostAxis"
+              v-model:checked="compressedCostAxis"
               size="small"
-              data-testid="log-cost-checkbox"
-              aria-label="Logarithmic cost axis"
-              @update:checked="handleLogCostChange"
+              data-testid="sqrt-cost-checkbox"
+              aria-label="Square-root cost scale"
+              @update:checked="handleCostScaleChange"
             />
-            <span>log scale</span>
+            <span>sqrt scale</span>
           </label>
           <div v-if="popupVisible" ref="popupRef" class="pareto-popup" data-testid="pareto-popup" role="dialog" aria-label="Model details" :style="popupStyle" @mouseenter="handlePopupEnter" @mouseleave="handlePopupLeave">
             <div v-if="popupPoints.length > 1" class="pareto-popup__nav" data-testid="pareto-popup-nav">
@@ -275,12 +275,10 @@ const app = createApp({
     const selectedProviders = ref([...DEFAULT_PROVIDERS]);
     const selectedModels = ref([]);
     const includeUntested = ref(false);
-    const logCostAxis = ref(false);
-    const logOverlayVisible = ref(false);
-    const logOverlayStyle = ref({ display: 'none' });
-    const logOverlayRef = ref(null);
-    const LOG_X_BASE = 10;
-    const LOG_X_MIN = 0.001;
+    const compressedCostAxis = ref(false);
+    const scaleOverlayVisible = ref(false);
+    const scaleOverlayStyle = ref({ display: 'none' });
+    const scaleOverlayRef = ref(null);
     const loading = ref(false);
     const error = ref('');
     const diagnosticsVisible = new URLSearchParams(window.location.search).get('e2llm') === '2';
@@ -845,37 +843,36 @@ const app = createApp({
       Vue.nextTick(() => renderChart());
     }
 
-    function handleLogCostChange(checked) {
-      logCostAxis.value = checked !== false;
+    function handleCostScaleChange(checked) {
+      compressedCostAxis.value = checked !== false;
       Vue.nextTick(() => renderChart());
     }
 
     function transformXPoint(value) {
-      const logX = Math.log10(Math.max(value, LOG_X_MIN));
-      return Math.max(0, logX - Math.log10(LOG_X_MIN));
+      return Math.sqrt(Math.max(value, 0));
     }
 
     function displayXValue(value) {
-      return logCostAxis.value ? transformXPoint(value) : value;
+      return compressedCostAxis.value ? transformXPoint(value) : value;
     }
 
-    function formatLogAxisLabel(logSpaceValue) {
-      const value = Math.pow(LOG_X_BASE, logSpaceValue + Math.log10(LOG_X_MIN));
+    function formatCompressedAxisLabel(compressedValue) {
+      const value = compressedValue * compressedValue;
       if (value >= 1) return Number.isInteger(value) ? String(value) : value.toFixed(1);
       return value >= 0.01 ? value.toFixed(2) : value.toExponential(0);
     }
 
-    function updateLogAxisOverlay() {
+    function updateScaleOverlay() {
       const chartDom = chart.value?.getDom();
-      if (!chartDom) { logOverlayVisible.value = false; return; }
+      if (!chartDom) { scaleOverlayVisible.value = false; return; }
       const containerEl = chartDom.parentElement;
-      if (!containerEl) { logOverlayVisible.value = false; return; }
+      if (!containerEl) { scaleOverlayVisible.value = false; return; }
       const chartRect = chartDom.getBoundingClientRect();
       const containerRect = containerEl.getBoundingClientRect();
       const chartWidth = chartRect.width;
       const plotWidth = chartWidth - 72 - 32;
-      if (plotWidth <= 0) { logOverlayVisible.value = false; return; }
-      const overlayEl = logOverlayRef.value;
+      if (plotWidth <= 0) { scaleOverlayVisible.value = false; return; }
+      const overlayEl = scaleOverlayRef.value;
       const overlayWidth = overlayEl ? overlayEl.getBoundingClientRect().width : 0;
       // Grid center: axis name "Weighted cost ($/M tokens)" is centered at plot center.
       // Place the checkbox to the right of the measured axis-name text.
@@ -888,8 +885,8 @@ const app = createApp({
       const maxLeft = containerRect.width - overlayWidth - 8;
       left = Math.max(8, Math.min(left, maxLeft));
       const top = chartRect.top - containerRect.top + chartRect.height - 66 + 28;
-      logOverlayStyle.value = { left: `${left}px`, top: `${top}px` };
-      logOverlayVisible.value = true;
+      scaleOverlayStyle.value = { left: `${left}px`, top: `${top}px` };
+      scaleOverlayVisible.value = true;
     }
 
     function collectOffers() {
@@ -1064,11 +1061,11 @@ const app = createApp({
           legend: { type: 'scroll', selected: legendSelection, textStyle: { color: '#ddd' }, top: 8 },
           grid: { left: 72, right: 32, top: 52, bottom: 66 },
           tooltip: { show: false },
-          xAxis: logCostAxis.value
+          xAxis: compressedCostAxis.value
             ? {
-                name: 'Weighted cost ($/M tokens, log)', nameLocation: 'middle', nameGap: 38,
+                name: 'Weighted cost ($/M tokens, sqrt)', nameLocation: 'middle', nameGap: 38,
                 type: 'value', min: viewRange.value.xMin, max: viewRange.value.xMax,
-                axisLabel: { color: '#aaa', formatter: value => formatLogAxisLabel(value) },
+                axisLabel: { color: '#aaa', formatter: value => formatCompressedAxisLabel(value) },
                 nameTextStyle: { color: '#ccc' }, splitLine: { lineStyle: { color: '#28282f' } },
               }
             : {
@@ -1083,7 +1080,7 @@ const app = createApp({
         renderedPoints = points;
         updateCanvasDiagnostics();
         chartState.value = 'ready';
-        requestAnimationFrame(() => updateLogAxisOverlay());
+        requestAnimationFrame(() => updateScaleOverlay());
         renderCheckFrame = requestAnimationFrame(() => {
           renderCheckFrame = requestAnimationFrame(() => {
             renderCheckFrame = null;
@@ -1124,7 +1121,7 @@ const app = createApp({
 
     function resizeChart() {
       if (chart.value) chart.value.resize();
-      requestAnimationFrame(() => updateLogAxisOverlay());
+      requestAnimationFrame(() => updateScaleOverlay());
     }
 
     onMounted(async () => {
@@ -1166,7 +1163,7 @@ const app = createApp({
 
     return { darkTheme, NConfigProvider, NLayout, NLayoutHeader, NLayoutContent, NSelect, NSlider, NCheckbox,
       selectedProviders, selectedModels, providerOptions, modelOptions, includeUntested, handleUntestedChange, loading, error, diagnosticsVisible, pointCount, modelCount,
-      logCostAxis, handleLogCostChange, logOverlayVisible, logOverlayStyle, logOverlayRef,
+      compressedCostAxis, handleCostScaleChange, scaleOverlayVisible, scaleOverlayStyle, scaleOverlayRef,
       seriesCount, canvasCount, chartState, renderer, renderError, viewRange,
       formatDiagnosticNumber, formatRange,
       areaZoomActive, zoomSelectionStyle, loadData, renderChart, resetZoom,
