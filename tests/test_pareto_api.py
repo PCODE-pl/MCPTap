@@ -237,8 +237,8 @@ async def test_serve_pareto_page_returns_html():
         assert "const LOG_X_BASE = 10;" in body
         assert "const logX = Math.log10(Math.max(value, LOG_X_MIN));" in body
         assert "return logCostAxis.value ? transformXPoint(value) : value;" in body
-        assert "type: 'log'," in body
-        assert "base: 10" in body
+        assert "type: 'value', min: viewRange.value.xMin, max: viewRange.value.xMax," in body
+        assert "value => formatLogAxisLabel(value)" in body
         assert "grid: { left: 72, right: 32, top: 52, bottom: 66 }" in body
         assert "const plotWidth = chartWidth - 72 - 32;" in body
         assert "requestAnimationFrame(() => updateLogAxisOverlay());" in body

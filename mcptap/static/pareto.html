@@ -1067,7 +1067,7 @@ const app = createApp({
           xAxis: logCostAxis.value
             ? {
                 name: 'Weighted cost ($/M tokens, log)', nameLocation: 'middle', nameGap: 38,
-                type: 'log', base: 10, min: viewRange.value.xMin, max: viewRange.value.xMax,
+                type: 'value', min: viewRange.value.xMin, max: viewRange.value.xMax,
                 axisLabel: { color: '#aaa', formatter: value => formatLogAxisLabel(value) },
                 nameTextStyle: { color: '#ccc' }, splitLine: { lineStyle: { color: '#28282f' } },
               }
