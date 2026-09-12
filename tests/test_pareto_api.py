@@ -168,6 +168,21 @@ async def test_serve_pareto_page_returns_html():
         assert ".content-layout { width: 100%;" in body
         assert ".chart-container { position: relative; width: 100%;" in body
         assert ':data-testid="`quality-slider-${control.key}`"' in body
+        assert (
+            "const singleSliderDefinitions = QUALITY_SLIDER_DEFINITIONS.filter(control => control.key === 'accuracy');"
+            in body
+        )
+        assert "pairedSliderDefinitions = {" in body
+        assert "control.key.startsWith('uptime-')" in body
+        assert "control.key.startsWith('latency-')" in body
+        assert "control.key.startsWith('throughput-')" in body
+        assert 'data-testid="quality-slider-row-uptime"' in body
+        assert 'data-testid="quality-slider-row-latency"' in body
+        assert 'data-testid="quality-slider-row-throughput"' in body
+        assert (
+            ".quality-slider-row { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; margin-bottom: 14px; }"
+            in body
+        )
         assert "const QUALITY_SLIDER_DEFINITIONS = [" in body
         assert "{ key: 'accuracy', label: 'Accuracy', min: 0.05 }" in body
         assert "{ key: 'uptime-short', label: 'Uptime short' }" in body
