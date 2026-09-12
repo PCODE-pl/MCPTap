@@ -240,10 +240,12 @@ async def test_serve_pareto_page_returns_html():
         assert 'data-testid="pareto-zoom-area"' not in body
         assert "const areaZoomActive = ref(true);" in body
         assert "areaZoomActive.value = false" not in body
-        assert 'data-testid="pareto-zoom-reset"' in body
+        assert 'data-testid="pareto-zoom-reset"' not in body
+        assert "resetZoom" not in body
+        assert "chart-controls" not in body
         assert 'data-testid="pareto-save-image"' not in body
         assert "saveChartImage" not in body
-        assert 'role="toolbar"' in body
+        assert 'role="toolbar"' not in body
         assert 'aria-label="Pareto scatter chart showing weighted cost and quality"' in body
         assert "new URLSearchParams(window.location.search).get('e2llm') === '2'" in body
         assert "const hasProviderFilter = selectedProviders.value.length > 0;" in body
