@@ -889,8 +889,11 @@ const app = createApp({
         const models = testedData[section];
         if (!models || typeof models !== 'object' || Array.isArray(models)) continue;
         for (const [canonicalModel, item] of Object.entries(models)) {
-          for (const provider of Object.keys(item?.providers || {})) {
+          for (const [provider, aliases] of Object.entries(item?.providers || {})) {
             keys.add(`${canonicalModel} ${provider}`);
+            for (const alias of Object.keys(aliases || {})) {
+              keys.add(`${canonicalModel} ${provider} ${alias}`);
+            }
           }
         }
       }
@@ -965,8 +968,10 @@ const app = createApp({
         if (selectedModelsSet && !selectedModelsSet.has(canonicalModel)) continue;
         for (const [provider, aliases] of Object.entries(item.providers || {})) {
           if (hasProviderFilter && !selectedProviders.value.includes(provider)) continue;
-          if (testedKeys && !testedKeys.has(`${canonicalModel} ${provider}`)) continue;
+          const providerAliases = Object.keys(aliases || {});
+          if (testedKeys && !providerAliases.some(alias => testedKeys.has(`${canonicalModel} ${provider} ${alias}`))) continue;
           for (const [alias, offer] of Object.entries(aliases || {})) {
+            if (testedKeys && !testedKeys.has(`${canonicalModel} ${provider} ${alias}`)) continue;
             const input = numeric(offer.cost?.input);
             const output = numeric(offer.cost?.output);
             if (input === null || output === null) continue;

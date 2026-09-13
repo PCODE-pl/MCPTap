@@ -275,7 +275,13 @@ async def test_serve_pareto_page_returns_html():
         assert "for (const section of ['free', 'paid']) {" in body
         assert "fetch('/api/pareto-tested', { cache: 'no-store' })" in body
         assert "testedProviders" not in body
-        assert "if (testedKeys && !testedKeys.has(`${canonicalModel} ${provider}`)) continue;" in body
+        assert "keys.add(`${canonicalModel} ${provider}`);" in body
+        assert "keys.add(`${canonicalModel} ${provider} ${alias}`);" in body
+        assert (
+            "if (testedKeys && !providerAliases.some(alias => testedKeys.has(`${canonicalModel} ${provider} ${alias}`))) continue;"
+            in body
+        )
+        assert "if (testedKeys && !testedKeys.has(`${canonicalModel} ${provider} ${alias}`)) continue;" in body
         assert 'data-testid="sqrt-cost-checkbox"' in body
         assert 'aria-label="Square-root cost scale"' in body
         assert "<span>scale</span>" in body
