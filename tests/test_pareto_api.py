@@ -176,6 +176,7 @@ async def test_serve_pareto_page_returns_html():
         assert "const DEFAULT_COST_MIX = 0.5;" in body
         assert "const costMix = ref(DEFAULT_COST_MIX);" in body
         assert "function handleCostMixChange(value)" in body
+        assert "costMix.value = numeric(value) ?? DEFAULT_COST_MIX;" in body
         assert "const weightedCost = (1 - costMix.value) * offer.input + costMix.value * offer.output;" in body
         assert 'data-testid="quality-slider-cost-mix"' in body
         assert 'data-testid="quality-slider-row-primary"' in body
