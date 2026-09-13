@@ -181,7 +181,7 @@
                 id="quality-slider-accuracy"
                 v-model:value="qualityControls.accuracy"
                 :min="0.05"
-                :max="QUALITY_SLIDER_ACCURACY_MAX"
+                :max="1"
                 :step="0.05"
                 data-testid="quality-slider-accuracy"
                 @update:value="handleQualityChange"
@@ -258,10 +258,9 @@ const { createApp, ref, computed, onMounted, onBeforeUnmount } = Vue;
 // The token mix and quality controls are intentionally explicit for the Pareto view.
 const COST_INPUT_TOKENS = 1000000;
 const COST_OUTPUT_TOKENS = 1000000;
-const QUALITY_SLIDER_ACCURACY_MAX = 2;
 const QUALITY_SLIDER_MAX = 1;
 const QUALITY_SLIDER_DEFINITIONS = [
-  { key: 'accuracy', label: 'Accuracy', min: 0.05, max: QUALITY_SLIDER_ACCURACY_MAX },
+  { key: 'accuracy', label: 'Accuracy', min: 0.05 },
   { key: 'uptime-short', label: 'Uptime short' },
   { key: 'uptime-long', label: 'Uptime long' },
   { key: 'latency-short', label: 'Latency short' },
