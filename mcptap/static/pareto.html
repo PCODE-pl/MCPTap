@@ -173,18 +173,33 @@
           </div>
         </section>
         <aside class="quality-controls" data-testid="quality-controls" aria-label="Quality weights">
-          <div v-for="control in singleSliderDefinitions" :key="control.key" class="quality-slider">
-            <label :for="`quality-slider-${control.key}`">{{ control.label }}</label>
-            <output :for="`quality-slider-${control.key}`">{{ qualityControls[control.key].toFixed(2) }}</output>
-            <n-slider
-              :id="`quality-slider-${control.key}`"
-              v-model:value="qualityControls[control.key]"
-              :min="control.min ?? 0"
-              :max="control.max ?? QUALITY_SLIDER_MAX"
-              :step="0.05"
-              :data-testid="`quality-slider-${control.key}`"
-              @update:value="handleQualityChange"
-            />
+          <div class="quality-slider-row" data-testid="quality-slider-row-primary">
+            <div class="quality-slider">
+              <label for="quality-slider-accuracy">Accuracy</label>
+              <output for="quality-slider-accuracy">{{ qualityControls.accuracy.toFixed(2) }}</output>
+              <n-slider
+                id="quality-slider-accuracy"
+                v-model:value="qualityControls.accuracy"
+                :min="0.05"
+                :max="QUALITY_SLIDER_ACCURACY_MAX"
+                :step="0.05"
+                data-testid="quality-slider-accuracy"
+                @update:value="handleQualityChange"
+              />
+            </div>
+            <div class="quality-slider">
+              <label for="quality-slider-cost-mix">Cost</label>
+              <output for="quality-slider-cost-mix">{{ costMix.toFixed(2) }}</output>
+              <n-slider
+                id="quality-slider-cost-mix"
+                v-model:value="costMix"
+                :min="0"
+                :max="1"
+                :step="0.05"
+                data-testid="quality-slider-cost-mix"
+                @update:value="handleCostMixChange"
+              />
+            </div>
           </div>
           <div class="quality-slider-row" data-testid="quality-slider-row-uptime">
             <div v-for="control in pairedSliderDefinitions.uptime" :key="control.key" class="quality-slider">
@@ -254,12 +269,12 @@ const QUALITY_SLIDER_DEFINITIONS = [
   { key: 'throughput-short', label: 'Speed short' },
   { key: 'throughput-long', label: 'Speed long' },
 ];
-const singleSliderDefinitions = QUALITY_SLIDER_DEFINITIONS.filter(control => control.key === 'accuracy');
 const pairedSliderDefinitions = {
   uptime: QUALITY_SLIDER_DEFINITIONS.filter(control => control.key.startsWith('uptime-')),
   latency: QUALITY_SLIDER_DEFINITIONS.filter(control => control.key.startsWith('latency-')),
   throughput: QUALITY_SLIDER_DEFINITIONS.filter(control => control.key.startsWith('throughput-')),
 };
+const DEFAULT_COST_MIX = 0.5;
 const DEFAULT_QUALITY_CONTROLS = {
   accuracy: 1,
   'uptime-short': 0,
@@ -340,6 +355,7 @@ const app = createApp({
     let legendVisibility = {};
     let renderCheckFrame = null;
         const qualityControls = Vue.reactive({ ...DEFAULT_QUALITY_CONTROLS });
+    const costMix = ref(DEFAULT_COST_MIX);
     const qualityWeights = Vue.reactive({ accuracy: qualityControls.accuracy });
     const areaZoomActive = ref(true);
     const selectionStart = ref(null);
@@ -876,6 +892,11 @@ const app = createApp({
       return keys;
     }
 
+    function handleCostMixChange(value) {
+      costMix.value = numeric(value) ?? DEFAULT_COST_MIX;
+      Vue.nextTick(() => renderChart());
+    }
+
     function handleUntestedChange(checked) {
       includeUntested.value = checked !== false;
       Vue.nextTick(() => renderChart());
@@ -1004,8 +1025,7 @@ const app = createApp({
         const stats = effectiveStats(offer.offer.stats);
         const quality = qualityScore(offer, maxima);
         if (quality === null) return null;
-        const weightedCost = (COST_INPUT_TOKENS * offer.input + COST_OUTPUT_TOKENS * offer.output) /
-          (COST_INPUT_TOKENS + COST_OUTPUT_TOKENS);
+        const weightedCost = (1 - costMix.value) * offer.input + costMix.value * offer.output;
         return {
           value: [displayXValue(weightedCost), quality * 100],
           weightedCost,
@@ -1207,7 +1227,7 @@ const app = createApp({
       seriesCount, canvasCount, chartState, renderer, renderError, viewRange,
       formatDiagnosticNumber, formatRange,
       areaZoomActive, zoomSelectionStyle, loadData, renderChart,
-      QUALITY_SLIDER_MAX, singleSliderDefinitions, pairedSliderDefinitions, qualityControls, handleQualityChange, handleFilterUpdate,
+      QUALITY_SLIDER_MAX, pairedSliderDefinitions, qualityControls, costMix, handleCostMixChange, handleQualityChange, handleFilterUpdate,
       popupVisible, popupPoints, popupIndex, popupStyle, popupRef, popupCardHtml,
       handlePopupEnter, handlePopupLeave, popupNext, popupPrev,
     };
