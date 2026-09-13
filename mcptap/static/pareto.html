@@ -513,7 +513,7 @@ const app = createApp({
       }
       return `<b>${point.name}</b><br>Provider: <b>${point.provider}</b><br>Alias: <b>${point.alias}</b>` +
         `<br>In: $${fmtSig(point.cost.input)} · Out: $${fmtSig(point.cost.output)}` +
-        `<br>Weighted cost: <b>$${fmtSig(point.value[0])}</b>` +
+        `<br>Weighted cost: <b>$${fmtSig(point.weightedCost)}</b>` +
         `<br>Quality: <b>${debugMode ? Number(point.value[1]).toFixed(6) : fmtSig(point.value[1])}</b><br>Accuracy: ${fmtSig(point.accuracy)}` +
         (point.isThinking ? '<br>Thinking: yes' : '') + `<br><br>${contribLines}` + debugBlock;
     });
@@ -1008,6 +1008,7 @@ const app = createApp({
           (COST_INPUT_TOKENS + COST_OUTPUT_TOKENS);
         return {
           value: [displayXValue(weightedCost), quality * 100],
+          weightedCost,
           name: offer.canonicalModel,
           provider: offer.provider,
           alias: offer.alias,
