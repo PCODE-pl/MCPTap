@@ -445,6 +445,7 @@ def build_app() -> web.Application:
     from mcptap.log_api import handle_log_detail, handle_logs_list, serve_logs_page
     from mcptap.pareto_api import (
         handle_pareto_data,
+        handle_pareto_refresh,
         handle_pareto_tested_data,
         serve_pareto_page,
     )
@@ -455,6 +456,7 @@ def build_app() -> web.Application:
     app.router.add_get("/ui/logs", serve_logs_page)
     app.router.add_get("/api/pareto", handle_pareto_data)
     app.router.add_get("/api/pareto-tested", handle_pareto_tested_data)
+    app.router.add_post("/api/pareto-refresh", handle_pareto_refresh)
     app.router.add_get("/ui/pareto", serve_pareto_page)
     app.router.add_route("*", "/{tail:.*}", proxy)
     return app

@@ -43,6 +43,10 @@ class ParetoDataTask:
             self._target_path,
         )
 
+    async def refresh_now(self) -> None:
+        """Fetch from GitHub and store immediately, outside the hourly loop."""
+        await self._fetch_and_store_once()
+
     async def stop(self) -> None:
         if self._task is None:
             return

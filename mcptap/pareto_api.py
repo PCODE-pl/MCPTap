@@ -11,6 +11,44 @@ _DEFAULT_PARETO_PATH = Path(__file__).resolve().parent.parent / "data" / "pareto
 _DEFAULT_TESTED_MODELS_PATH = Path(__file__).resolve().parent.parent / "data" / "tested_models.json"
 
 
+async def handle_pareto_refresh(request: web.Request) -> web.Response:
+    """Refetch both artifacts from GitHub, then return the fresh local payloads."""
+    pareto_task = request.app.get("pareto_data")
+    tested_task = request.app.get("pareto_tested_data")
+    if pareto_task is None or tested_task is None:
+        return web.json_response({"error": "Pareto refresh is unavailable"}, status=503)
+    try:
+        await pareto_task.refresh_now()
+    except Exception as exc:
+        LOGGER.error("Pareto refresh failed: %s", exc)
+        return web.json_response({"error": f"Pareto refresh failed: {exc}"}, status=502)
+    try:
+        await tested_task.refresh_now()
+    except Exception as exc:
+        LOGGER.error("Tested models refresh failed: %s", exc)
+        return web.json_response({"error": f"Tested models refresh failed: {exc}"}, status=502)
+    pareto_payload = _read_payload(_pareto_path(request))
+    if pareto_payload is None:
+        return web.json_response({"error": "Pareto data is unavailable"}, status=503)
+    tested_payload = _read_payload(_pareto_tested_path(request))
+    if tested_payload is None:
+        return web.json_response({"error": "Tested models data is unavailable"}, status=503)
+    return web.json_response({"refreshed": True, "pareto": pareto_payload, "tested": tested_payload})
+
+
+def _read_payload(path: Path) -> dict | None:
+    try:
+        with path.open("r", encoding="utf-8") as pareto_file:
+            payload = json.load(pareto_file)
+    except (FileNotFoundError, OSError, json.JSONDecodeError) as exc:
+        LOGGER.error("Failed to read Pareto data from %s: %s", path, exc)
+        return None
+    if not isinstance(payload, dict):
+        LOGGER.error("Pareto data at %s is not a JSON object", path)
+        return None
+    return payload
+
+
 def _pareto_path(request: web.Request) -> Path:
     return Path(request.app.get("pareto_path", _DEFAULT_PARETO_PATH))
 

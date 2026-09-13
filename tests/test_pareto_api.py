@@ -1,6 +1,7 @@
 """Tests for the Pareto data HTTP handlers."""
 
 from pathlib import Path
+from unittest import mock
 
 import pytest  # type: ignore
 from aiohttp import web
@@ -8,6 +9,7 @@ from aiohttp.test_utils import TestClient, TestServer
 
 from mcptap.pareto_api import (
     handle_pareto_data,
+    handle_pareto_refresh,
     handle_pareto_tested_data,
     serve_pareto_page,
 )
@@ -91,6 +93,63 @@ async def test_handle_pareto_tested_data_returns_503_for_non_object_payload(tmp_
         response = await client.get("/api/pareto-tested")
         assert response.status == 503
         assert await response.json() == {"error": "Tested models data is unavailable"}
+
+
+@pytest.mark.asyncio
+async def test_handle_pareto_refresh_refetches_github_and_serves_fresh_payload(tmp_path: Path):
+    pareto_task = mock.Mock()
+    tested_task = mock.Mock()
+    pareto_task.refresh_now = mock.AsyncMock(return_value=None)
+    tested_task.refresh_now = mock.AsyncMock(return_value=None)
+    target = tmp_path / "pareto.json"
+    tested_target = tmp_path / "tested_models.json"
+    target.write_text('{"fresh": "pareto"}', encoding="utf-8")
+    tested_target.write_text('{"fresh": "tested"}', encoding="utf-8")
+    app = web.Application()
+    app["pareto_data"] = pareto_task
+    app["pareto_tested_data"] = tested_task
+    app["pareto_path"] = target
+    app["pareto_tested_path"] = tested_target
+    app.router.add_post("/api/pareto-refresh", handle_pareto_refresh)
+
+    async with TestClient(TestServer(app)) as client:
+        response = await client.post("/api/pareto-refresh")
+        pareto_task.refresh_now.assert_awaited_once()
+        tested_task.refresh_now.assert_awaited_once()
+        assert response.status == 200
+        body = await response.json()
+        assert body["refreshed"] is True
+        assert body["pareto"] == {"fresh": "pareto"}
+        assert body["tested"] == {"fresh": "tested"}
+
+
+@pytest.mark.asyncio
+async def test_handle_pareto_refresh_returns_503_without_tasks(tmp_path: Path):
+    app = web.Application()
+    app.router.add_post("/api/pareto-refresh", handle_pareto_refresh)
+
+    async with TestClient(TestServer(app)) as client:
+        response = await client.post("/api/pareto-refresh")
+        assert response.status == 503
+
+
+@pytest.mark.asyncio
+async def test_handle_pareto_refresh_returns_502_when_github_fetch_fails(tmp_path: Path):
+    pareto_task = mock.Mock()
+    tested_task = mock.Mock()
+    pareto_task.refresh_now = mock.AsyncMock(side_effect=RuntimeError("HTTP 500"))
+    tested_task.refresh_now = mock.AsyncMock(return_value=None)
+    app = web.Application()
+    app["pareto_data"] = pareto_task
+    app["pareto_tested_data"] = tested_task
+    app["pareto_path"] = tmp_path / "pareto.json"
+    app["pareto_tested_path"] = tmp_path / "tested_models.json"
+    app.router.add_post("/api/pareto-refresh", handle_pareto_refresh)
+
+    async with TestClient(TestServer(app)) as client:
+        response = await client.post("/api/pareto-refresh")
+        assert response.status == 502
+        assert "HTTP 500" in (await response.json())["error"]
 
 
 @pytest.mark.asyncio
@@ -273,7 +332,9 @@ async def test_serve_pareto_page_returns_html():
         assert "const testedKeys = includeUntested.value ? null : buildTestedOfferKeys(testedData);" in body
         assert "const testedData = rawTested.value;" in body
         assert "for (const section of ['free', 'paid']) {" in body
-        assert "fetch('/api/pareto-tested', { cache: 'no-store' })" in body
+        assert "fetch('/api/pareto-refresh', { method: 'POST', cache: 'no-store' })" in body
+        assert "rawData.value = refreshed.pareto;" in body
+        assert "rawTested.value = refreshed.tested" in body
         assert "testedProviders" not in body
         assert "keys.add(`${canonicalModel} ${provider}`);" in body
         assert "keys.add(`${canonicalModel} ${provider} ${alias}`);" in body
