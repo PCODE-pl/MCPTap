@@ -1169,17 +1169,11 @@ const app = createApp({
       chartState.value = 'loading';
       renderError.value = '';
       try {
-        const [paretoResponse, testedResponse] = await Promise.all([
-          fetch('/api/pareto', { cache: 'no-store' }),
-          fetch('/api/pareto-tested', { cache: 'no-store' }).catch(() => null),
-        ]);
-        if (!paretoResponse.ok) throw new Error(`HTTP ${paretoResponse.status}`);
-        rawData.value = await paretoResponse.json();
-        if (testedResponse && testedResponse.ok) {
-          rawTested.value = await testedResponse.json();
-        } else {
-          rawTested.value = {};
-        }
+        const refreshResponse = await fetch('/api/pareto-refresh', { method: 'POST', cache: 'no-store' });
+        if (!refreshResponse.ok) throw new Error(`HTTP ${refreshResponse.status}`);
+        const refreshed = await refreshResponse.json();
+        rawData.value = refreshed.pareto;
+        rawTested.value = refreshed.tested && typeof refreshed.tested === 'object' && !Array.isArray(refreshed.tested) ? refreshed.tested : {};
         renderChart();
       } catch (err) {
         error.value = `Failed to load Pareto data: ${err.message}`;
