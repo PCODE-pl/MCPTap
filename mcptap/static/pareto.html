@@ -101,9 +101,19 @@
         </div>
         </div>
         <div class="toolbar-actions" data-testid="toolbar-actions">
+        <label data-testid="only-configured-wrapper" style="display: flex; align-items: center; gap: 6px; font-size: 13px">
+          <n-checkbox
+            v-model:checked="onlyConfigured"
+            data-testid="only-configured-checkbox"
+            aria-label="Only configured providers"
+            @update:checked="handleOnlyConfiguredChange"
+          />
+          <span>only configured providers</span>
+        </label>
         <label data-testid="include-untested-wrapper" style="display: flex; align-items: center; gap: 6px; font-size: 13px">
           <n-checkbox
             v-model:checked="includeUntested"
+            :disabled="onlyConfigured"
             data-testid="include-untested-checkbox"
             aria-label="Include untested models"
             @update:checked="handleUntestedChange"
@@ -334,6 +344,8 @@ const app = createApp({
     const selectedProviders = ref([]);
     const selectedModels = ref([]);
     const includeUntested = ref(false);
+    const onlyConfigured = ref(true);
+    const configuredProviders = ref([]);
     const compressedCostAxis = ref(true);
     const scaleOverlayVisible = ref(false);
     const scaleOverlayStyle = ref({ display: 'none' });
@@ -910,6 +922,12 @@ const app = createApp({
       Vue.nextTick(() => renderChart());
     }
 
+    function handleOnlyConfiguredChange(checked) {
+      onlyConfigured.value = checked !== false;
+      if (onlyConfigured.value) includeUntested.value = false;
+      Vue.nextTick(() => renderChart());
+    }
+
     function handleCostScaleChange(checked) {
       compressedCostAxis.value = checked !== false;
       Vue.nextTick(() => renderChart());
@@ -968,6 +986,7 @@ const app = createApp({
         if (selectedModelsSet && !selectedModelsSet.has(canonicalModel)) continue;
         for (const [provider, aliases] of Object.entries(item.providers || {})) {
           if (hasProviderFilter && !selectedProviders.value.includes(provider)) continue;
+          if (onlyConfigured.value && !configuredProviders.value.includes(provider)) continue;
           const providerAliases = Object.keys(aliases || {});
           if (testedKeys && !providerAliases.some(alias => testedKeys.has(`${canonicalModel} ${provider} ${alias}`))) continue;
           for (const [alias, offer] of Object.entries(aliases || {})) {
@@ -1174,6 +1193,15 @@ const app = createApp({
         const refreshed = await refreshResponse.json();
         rawData.value = refreshed.pareto;
         rawTested.value = refreshed.tested && typeof refreshed.tested === 'object' && !Array.isArray(refreshed.tested) ? refreshed.tested : {};
+        try {
+          const configuredResponse = await fetch('/api/configured-providers', { cache: 'no-store' });
+          if (configuredResponse.ok) {
+            const configured = await configuredResponse.json();
+            configuredProviders.value = Array.isArray(configured.providers) ? configured.providers : [];
+          }
+        } catch (configuredErr) {
+          configuredProviders.value = [];
+        }
         renderChart();
       } catch (err) {
         error.value = `Failed to load Pareto data: ${err.message}`;
@@ -1226,7 +1254,7 @@ const app = createApp({
     });
 
     return { darkTheme, NConfigProvider, NLayout, NLayoutHeader, NLayoutContent, NSelect, NSlider, NCheckbox,
-      selectedProviders, selectedModels, providerOptions, modelOptions, includeUntested, handleUntestedChange, loading, error, diagnosticsVisible, pointCount, modelCount,
+      selectedProviders, selectedModels, providerOptions, modelOptions, includeUntested, handleUntestedChange, onlyConfigured, configuredProviders, handleOnlyConfiguredChange, loading, error, diagnosticsVisible, pointCount, modelCount,
       compressedCostAxis, handleCostScaleChange, scaleOverlayVisible, scaleOverlayStyle, scaleOverlayRef,
       seriesCount, canvasCount, chartState, renderer, renderError, viewRange,
       formatDiagnosticNumber, formatRange,
