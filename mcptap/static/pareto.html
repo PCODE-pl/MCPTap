@@ -893,7 +893,7 @@ const app = createApp({
 
     function handleCostMixChange(value) {
       costMix.value = numeric(value) ?? DEFAULT_COST_MIX;
-      Vue.nextTick(() => renderChart());
+      scheduleRenderChart(true);
     }
 
     function handleUntestedChange(checked) {
