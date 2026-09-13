@@ -9,6 +9,32 @@ from mcptap.settings import LOGGER
 
 _DEFAULT_PARETO_PATH = Path(__file__).resolve().parent.parent / "data" / "pareto.json"
 _DEFAULT_TESTED_MODELS_PATH = Path(__file__).resolve().parent.parent / "data" / "tested_models.json"
+CONFIG_DIR = Path.home() / ".config/mcptap"
+
+
+def _configured_providers() -> list[str]:
+    providers: list[str] = []
+    for provider_file in sorted(CONFIG_DIR.glob("*.env")):
+        if provider_file.name == "proxy.env":
+            continue
+        try:
+            content = provider_file.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        key = ""
+        for line in content.splitlines():
+            stripped = line.strip()
+            if stripped.startswith("MCP_TAP_API_KEY="):
+                key = stripped.split("=", 1)[1].strip()
+                break
+        if key and "..." not in key:
+            providers.append(provider_file.stem)
+    return providers
+
+
+async def handle_configured_providers(_request: web.Request) -> web.Response:
+    """Return providers with a real (non-placeholder) MCP_TAP_API_KEY."""
+    return web.json_response({"providers": _configured_providers()})
 
 
 async def handle_pareto_refresh(request: web.Request) -> web.Response:

@@ -8,6 +8,7 @@ from aiohttp import web
 from aiohttp.test_utils import TestClient, TestServer
 
 from mcptap.pareto_api import (
+    handle_configured_providers,
     handle_pareto_data,
     handle_pareto_refresh,
     handle_pareto_tested_data,
@@ -152,6 +153,50 @@ async def test_handle_pareto_refresh_returns_502_when_github_fetch_fails(tmp_pat
         assert "HTTP 500" in (await response.json())["error"]
 
 
+def _configured_app(monkeypatch, tmp_path: Path, files: dict[str, str]) -> web.Application:
+    from mcptap import pareto_api
+
+    config_dir = tmp_path / "mcptap"
+    config_dir.mkdir(exist_ok=True)
+    for name, content in files.items():
+        (config_dir / name).write_text(content, encoding="utf-8")
+    monkeypatch.setattr(pareto_api, "CONFIG_DIR", config_dir)
+    app = web.Application()
+    app.router.add_get("/api/configured-providers", handle_configured_providers)
+    return app
+
+
+@pytest.mark.asyncio
+async def test_handle_configured_providers_lists_real_keys_only(monkeypatch, tmp_path: Path):
+    app = _configured_app(
+        monkeypatch,
+        tmp_path,
+        {
+            "openrouter.env": "MCP_TAP_API_KEY=sk-or-abcdef\n",
+            "zenmux.env": "MCP_TAP_API_KEY=sk-ai-...a8bd\n",
+            "tokenrouter.env": "MCP_TAP_API_KEY=\n",
+        },
+    )
+
+    async with TestClient(TestServer(app)) as client:
+        response = await client.get("/api/configured-providers")
+        assert response.status == 200
+        body = await response.json()
+        assert "openrouter" in body["providers"]
+        assert "zenmux" not in body["providers"]
+        assert "tokenrouter" not in body["providers"]
+
+
+@pytest.mark.asyncio
+async def test_handle_configured_providers_empty_when_no_real_keys(monkeypatch, tmp_path: Path):
+    app = _configured_app(monkeypatch, tmp_path, {"openrouter.env": "MCP_TAP_API_KEY=sk-....\n"})
+
+    async with TestClient(TestServer(app)) as client:
+        response = await client.get("/api/configured-providers")
+        assert response.status == 200
+        assert (await response.json()) == {"providers": []}
+
+
 @pytest.mark.asyncio
 async def test_serve_pareto_page_returns_html():
     app = web.Application()
@@ -229,6 +274,17 @@ async def test_serve_pareto_page_returns_html():
         assert 'data-testid="toolbar-actions"' in body
         assert 'data-testid="toolbar-secondary-actions"' in body
         assert body.index('data-testid="toolbar-actions"') < body.index("include-untested-wrapper")
+        assert 'data-testid="only-configured-wrapper"' in body
+        assert 'data-testid="only-configured-checkbox"' in body
+        assert "<span>only configured providers</span>" in body
+        assert "const onlyConfigured = ref(true);" in body
+        assert "const configuredProviders = ref([]);" in body
+        assert "function handleOnlyConfiguredChange(checked)" in body
+        assert "if (onlyConfigured.value) includeUntested.value = false;" in body
+        assert ':disabled="onlyConfigured"' in body
+        assert "if (onlyConfigured.value && !configuredProviders.value.includes(provider)) continue;" in body
+        assert "fetch('/api/configured-providers', { cache: 'no-store' })" in body
+        assert "configuredProviders.value = Array.isArray(configured.providers)" in body
         assert ".content-layout { width: 100%;" in body
         assert ".chart-container { position: relative; width: 100%;" in body
         assert ':data-testid="`quality-slider-${control.key}`"' in body
