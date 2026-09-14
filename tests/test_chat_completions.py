@@ -15,7 +15,7 @@ from mcptap.chat_completions import (
     responses_request_to_chat,
 )
 from mcptap.responses import response_json_from_sse
-from mcptap.upstream import post_upstream_buffered
+from mcptap.upstream import forward_rewritten, post_upstream_buffered
 
 
 def test_responses_request_maps_messages_tools_and_reasoning():
@@ -414,6 +414,54 @@ async def test_buffered_upstream_converts_chat_sse_answer_to_responses_stream(mo
     assert headers["Content-Type"] == "text/event-stream"
     assert body["object"] == "response"
     assert body["output"][0]["content"][0]["text"] == "Hello"
+
+
+@pytest.mark.asyncio
+async def test_forward_rewritten_converts_chat_sse_answer_without_chat_adapter(monkeypatch):
+    """Streaming path (no hook/intercept) also converts Chat-SSE masquerades."""
+
+    async def handler(request):
+        return web.Response(
+            text=(
+                'data: {"id":"chatcmpl_7","object":"chat.completion.chunk","model":"m",'
+                '"choices":[{"index":0,"delta":{"role":"assistant","content":"Hi"},'
+                '"finish_reason":null}]}\n\n'
+                'data: {"id":"chatcmpl_7","object":"chat.completion.chunk","model":"m",'
+                '"choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}\n\n'
+                "data: [DONE]\n\n"
+            ),
+            content_type="text/event-stream",
+        )
+
+    server = TestServer(web.Application())
+    server.app.router.add_post("/v1/responses", handler)
+    client = TestClient(server)
+    await client.start_server()
+    try:
+        from aiohttp.test_utils import make_mocked_request
+
+        from mcptap.settings import settings
+
+        monkeypatch.setattr(settings, "use_chat_completions", False)
+        monkeypatch.setattr(settings, "upstream_provider", "aihubmix")
+        monkeypatch.setattr(settings, "upstream_base_url", str(server.make_url("/v1")))
+        monkeypatch.setattr(settings, "api_key", "test-key")
+        monkeypatch.setattr(settings, "model", "m")
+        monkeypatch.setattr(settings, "plan_mode_model", "m")
+        request = make_mocked_request("POST", "/v1/responses", headers={"Content-Type": "application/json"})
+        resp, raw = await forward_rewritten(
+            request,
+            client.session,
+            str(server.make_url("/v1/responses")),
+            {},
+            {"model": "m", "input": "Hi", "stream": True},
+        )
+    finally:
+        await client.close()
+
+    assert resp.status == 200
+    assert b"response.completed" in raw
+    assert b"chat.completion.chunk" not in raw
 
 
 def test_store_keeps_latest_response_history():
