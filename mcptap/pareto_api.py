@@ -24,28 +24,38 @@ def _provider_env_file(provider: str) -> Path | None:
     return path
 
 
-def _set_provider_model(path: Path, key: str, alias: str) -> None:
+def _set_env_key(path: Path, key: str, value: str, quoted: bool = False) -> None:
     try:
         content = path.read_text(encoding="utf-8")
     except OSError as exc:
         raise RuntimeError(f"Cannot read {path.name}: {exc}") from exc
+    rendered = f'{key}="{value}"' if quoted else f"{key}={value}"
     lines = content.splitlines()
     updated = False
     for index, line in enumerate(lines):
         if line.strip().startswith(f"{key}="):
-            lines[index] = f"{key}={alias}"
+            lines[index] = rendered
             updated = True
             break
     if not updated:
-        lines.append(f"{key}={alias}")
+        lines.append(rendered)
     try:
         path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     except OSError as exc:
         raise RuntimeError(f"Cannot write {path.name}: {exc}") from exc
 
 
+def _set_provider_model(path: Path, key: str, alias: str) -> None:
+    _set_env_key(path, key, alias)
+
+
 async def handle_provider_model(request: web.Request) -> web.Response:
-    """Set MCP_TAP_MODEL (act) or MCP_TAP_PLAN_MODE_MODEL (plan) in a provider .env file."""
+    """Set the provider model slot and switch MCP_TAP_UPSTREAM_PROVIDER to it.
+
+    Writes MCP_TAP_MODEL (act) or MCP_TAP_PLAN_MODE_MODEL (plan) into the
+    provider .env file and points proxy.env at that provider. The
+    ConfigReloader picks both files up live.
+    """
     try:
         payload = await request.json()
     except Exception:
@@ -64,11 +74,12 @@ async def handle_provider_model(request: web.Request) -> web.Response:
         return web.json_response({"error": f"Unknown provider: {provider}"}, status=400)
     try:
         _set_provider_model(path, _PROVIDER_MODEL_KEYS[slot], alias)
+        _set_env_key(CONFIG_DIR / "proxy.env", "MCP_TAP_UPSTREAM_PROVIDER", path.stem, quoted=True)
     except RuntimeError as exc:
         LOGGER.error("Failed to set provider model: %s", exc)
         return web.json_response({"error": str(exc)}, status=500)
     LOGGER.info("Provider model set: provider=%s slot=%s model=%s", path.stem, slot, alias)
-    return web.json_response({"provider": path.stem, "slot": slot, "model": alias})
+    return web.json_response({"provider": path.stem, "slot": slot, "model": alias, "upstream_provider": path.stem})
 
 
 def _configured_providers() -> list[str]:
