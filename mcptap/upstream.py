@@ -16,6 +16,7 @@ from aiohttp import (  # type: ignore
 from mcptap.chat_completions import (
     chat_sse_to_responses,
     convert_chat_response,
+    looks_like_chat_completions_sse,
     responses_request_to_chat,
 )
 from mcptap.chat_store import PersistentChatStore
@@ -143,6 +144,14 @@ async def post_upstream_buffered(
             response_headers["Content-Type"] = "text/event-stream" if stream else "application/json"
         else:
             body_json = response_json_from_raw(raw, stream)
+    elif stream and resp.status < 400 and looks_like_chat_completions_sse(raw):
+        # Some providers answer /responses with native Chat Completions SSE;
+        # convert it so the client gets a valid Responses stream.
+        LOGGER.warning("Upstream answered Responses call with Chat Completions SSE; converting")
+        response_id = f"resp_{uuid.uuid4().hex[:24]}"
+        raw, response_json = convert_chat_response(raw, stream, response_id=response_id)
+        body_json = response_json if response_json is not None else {}
+        response_headers["Content-Type"] = "text/event-stream"
     else:
         body_json = response_json_from_raw(raw, stream)
 

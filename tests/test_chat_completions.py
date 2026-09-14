@@ -11,6 +11,7 @@ from mcptap.chat_completions import (
     chat_response_to_responses,
     chat_sse_to_responses,
     convert_chat_response,
+    looks_like_chat_completions_sse,
     responses_request_to_chat,
 )
 from mcptap.responses import response_json_from_sse
@@ -347,6 +348,72 @@ def test_convert_chat_stream_does_not_serialize_internal_sse_bytes():
     assert converted_body is not None
     assert converted_body["id"] == "resp_1"
     assert b"response.output_text.delta" in converted_raw
+
+
+def test_looks_like_chat_completions_sse_detects_chat_chunks():
+    chat_sse = b'data: {"id":"chatcmpl_1","object":"chat.completion.chunk","choices":[{"index":0,"delta":{"content":"Hi"}}]}\n\ndata: [DONE]\n\n'
+    responses_sse = b'data: {"type":"response.completed","response":{"id":"resp_1","output":[]}}\n\ndata: [DONE]\n\n'
+
+    assert looks_like_chat_completions_sse(chat_sse) is True
+    assert looks_like_chat_completions_sse(responses_sse) is False
+    assert looks_like_chat_completions_sse(b'{"id":"resp_1","output":[]}') is False
+
+
+def test_looks_like_chat_completions_sse_handles_garbage():
+    assert looks_like_chat_completions_sse(b"\xff\xfe not utf8") is False
+    assert looks_like_chat_completions_sse(b"data: {broken json\n\n") is False
+    assert looks_like_chat_completions_sse(b"") is False
+
+
+@pytest.mark.asyncio
+async def test_buffered_upstream_converts_chat_sse_answer_to_responses_stream(monkeypatch):
+    """Providers that answer /responses with native Chat SSE are converted."""
+
+    async def handler(request):
+        assert request.path == "/v1/responses"
+        return web.Response(
+            text=(
+                'data: {"id":"chatcmpl_9","object":"chat.completion.chunk","model":"m",'
+                '"choices":[{"index":0,"delta":{"role":"assistant","content":"Hello"},'
+                '"finish_reason":null}]}\n\n'
+                'data: {"id":"chatcmpl_9","object":"chat.completion.chunk","model":"m",'
+                '"choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}\n\n'
+                "data: [DONE]\n\n"
+            ),
+            content_type="text/event-stream",
+        )
+
+    server = TestServer(web.Application())
+    server.app.router.add_post("/v1/responses", handler)
+    client = TestClient(server)
+    await client.start_server()
+    try:
+        from mcptap.settings import settings
+
+        monkeypatch.setattr(settings, "use_chat_completions", False)
+        monkeypatch.setattr(settings, "upstream_provider", "aihubmix")
+        monkeypatch.setattr(settings, "upstream_base_url", str(server.make_url("/v1")))
+        monkeypatch.setattr(settings, "api_key", "test-key")
+        monkeypatch.setattr(settings, "model", "m")
+        monkeypatch.setattr(settings, "plan_mode_model", "m")
+        status, headers, raw, body = await post_upstream_buffered(
+            client.session,
+            "/responses",
+            {},
+            {"model": "m", "input": "Hello"},
+            True,
+        )
+    finally:
+        await client.close()
+
+    assert status == 200
+    assert b"response.output_text.delta" in raw
+    assert b'"delta":"Hello"' in raw
+    assert b"response.completed" in raw
+    assert b"chat.completion.chunk" not in raw
+    assert headers["Content-Type"] == "text/event-stream"
+    assert body["object"] == "response"
+    assert body["output"][0]["content"][0]["text"] == "Hello"
 
 
 def test_store_keeps_latest_response_history():
