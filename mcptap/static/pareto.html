@@ -54,8 +54,9 @@
     .pareto-popup__dots span.active { background: #63b3ed; }
     .pareto-popup__actions { display: flex; gap: 8px; padding: 0 12px 10px; }
     .pareto-popup__actions .chart-control:disabled { opacity: .4; cursor: not-allowed; }
-    .pareto-popup__notice { padding: 0 12px 10px; font-size: 12px; min-height: 18px; color: #9fd68a; }
-    .pareto-popup__notice[data-tone="error"] { color: #f0a3a3; }
+    .pareto-toast { position: fixed; z-index: 10; top: 12px; left: 12px; max-width: min(520px, 60vw); padding: 8px 12px; border: 1px solid #333; border-radius: 6px; background: rgba(26, 26, 32, .96); color: #9fd68a; font-size: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.6); animation: pareto-toast-in .25s ease-out; }
+    .pareto-toast[data-tone="error"] { color: #f0a3a3; }
+    @keyframes pareto-toast-in { from { transform: translateY(-120%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
     @media (max-width: 700px) {
       .content-layout { display: flex; flex-direction: column; overflow-y: auto; }
       .chart-container { flex: 0 0 min(65vh, 620px); }
@@ -187,9 +188,9 @@
               <button type="button" class="chart-control" data-testid="pareto-act-model" :disabled="!popupActionable" :title="popupActionTitle" @click="handleActModel">Act model</button>
               <button type="button" class="chart-control" data-testid="pareto-plan-model" :disabled="!popupActionable" :title="popupActionTitle" @click="handlePlanModel">Plan model</button>
             </div>
-            <div class="pareto-popup__notice" data-testid="pareto-popup-notice" role="status" aria-live="polite" :data-tone="popupNoticeTone">{{ popupNotice }}</div>
             <div v-if="popupPoints.length > 1" class="pareto-popup__dots" data-testid="pareto-popup-dots"><span v-for="(_, idx) in popupPoints" :key="idx" :class="{active: idx === popupIndex}"></span></div>
           </div>
+          <div v-if="toastMessage" class="pareto-toast" data-testid="pareto-toast" role="status" aria-live="polite" :data-tone="toastTone">{{ toastMessage }}</div>
         </section>
         <aside class="quality-controls" data-testid="quality-controls" aria-label="Quality weights">
           <div class="quality-slider-row" data-testid="quality-slider-row-primary">
@@ -712,9 +713,9 @@ const app = createApp({
     }
     function popupPrev() { if (popupPoints.value.length) popupIndex.value = (popupIndex.value - 1 + popupPoints.value.length) % popupPoints.value.length; }
 
-    const popupNotice = ref('');
-    const popupNoticeTone = ref('ok');
-    let popupNoticeTimer = null;
+    const toastMessage = ref('');
+    const toastTone = ref('ok');
+    let toastTimer = null;
 
     const popupActionReason = computed(() => {
       const point = popupPoints.value[popupIndex.value];
@@ -729,11 +730,11 @@ const app = createApp({
 
     const popupActionTitle = computed(() => popupActionable.value ? '' : popupActionReason.value);
 
-    function setPopupNotice(message, tone) {
-      popupNotice.value = message;
-      popupNoticeTone.value = tone;
-      clearTimeout(popupNoticeTimer);
-      popupNoticeTimer = setTimeout(() => { popupNotice.value = ''; }, 4000);
+    function showToast(message, tone) {
+      toastMessage.value = message;
+      toastTone.value = tone;
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => { toastMessage.value = ''; }, 5000);
     }
 
     async function setPopupModel(slot) {
@@ -748,9 +749,9 @@ const app = createApp({
         });
         const body = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(body.error || `HTTP ${response.status}`);
-        setPopupNotice(`${slot === 'act' ? 'Act' : 'Plan'} model set: ${body.model} (${body.provider})`, 'ok');
+        showToast(`${slot === 'act' ? 'Act' : 'Plan'} model set: ${body.model} (${body.provider})`, 'ok');
       } catch (err) {
-        setPopupNotice(`Failed to set ${slot} model: ${err.message}`, 'error');
+        showToast(`Failed to set ${slot} model: ${err.message}`, 'error');
       }
     }
 
@@ -1275,7 +1276,7 @@ const app = createApp({
       QUALITY_SLIDER_MAX, pairedSliderDefinitions, qualityControls, costMix, costMixLabel, handleCostMixChange, handleQualityChange, handleFilterUpdate,
       popupVisible, popupPoints, popupIndex, popupStyle, popupRef, popupCardHtml,
       handlePopupEnter, handlePopupLeave, popupNext, popupPrev,
-      popupActionable, popupActionTitle, popupNotice, popupNoticeTone, handleActModel, handlePlanModel,
+      popupActionable, popupActionTitle, toastMessage, toastTone, handleActModel, handlePlanModel,
     };
   },
 });
