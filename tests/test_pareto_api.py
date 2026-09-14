@@ -12,6 +12,7 @@ from mcptap.pareto_api import (
     handle_pareto_data,
     handle_pareto_refresh,
     handle_pareto_tested_data,
+    handle_provider_model,
     serve_pareto_page,
 )
 
@@ -195,6 +196,110 @@ async def test_handle_configured_providers_empty_when_no_real_keys(monkeypatch, 
         response = await client.get("/api/configured-providers")
         assert response.status == 200
         assert (await response.json()) == {"providers": []}
+
+
+def _provider_model_app(monkeypatch, tmp_path: Path, files: dict[str, str]) -> web.Application:
+    from mcptap import pareto_api
+
+    config_dir = tmp_path / "mcptap"
+    config_dir.mkdir(exist_ok=True)
+    for name, content in files.items():
+        (config_dir / name).write_text(content, encoding="utf-8")
+    monkeypatch.setattr(pareto_api, "CONFIG_DIR", config_dir)
+    app = web.Application()
+    app.router.add_post("/api/provider-model", handle_provider_model)
+    return app
+
+
+@pytest.mark.asyncio
+async def test_handle_provider_model_sets_act_model(monkeypatch, tmp_path: Path):
+    app = _provider_model_app(
+        monkeypatch,
+        tmp_path,
+        {"openrouter.env": "MCP_TAP_API_KEY=sk-or-abcdef\nMCP_TAP_MODEL=old/model\nMCP_TAP_PLAN_MODE_MODEL=old/plan\n"},
+    )
+
+    async with TestClient(TestServer(app)) as client:
+        response = await client.post(
+            "/api/provider-model",
+            json={"provider": "openrouter", "alias": "new/model:floor", "slot": "act"},
+        )
+        assert response.status == 200
+        body = await response.json()
+        assert body == {"provider": "openrouter", "slot": "act", "model": "new/model:floor"}
+        content = (tmp_path / "mcptap" / "openrouter.env").read_text(encoding="utf-8")
+        assert "MCP_TAP_MODEL=new/model:floor" in content
+        assert "MCP_TAP_PLAN_MODE_MODEL=old/plan" in content
+
+
+@pytest.mark.asyncio
+async def test_handle_provider_model_sets_plan_model(monkeypatch, tmp_path: Path):
+    app = _provider_model_app(
+        monkeypatch,
+        tmp_path,
+        {"zenmux.env": "MCP_TAP_API_KEY=sk-zm-abcdef\nMCP_TAP_MODEL=old/model\nMCP_TAP_PLAN_MODE_MODEL=old/plan\n"},
+    )
+
+    async with TestClient(TestServer(app)) as client:
+        response = await client.post(
+            "/api/provider-model",
+            json={"provider": "zenmux", "alias": "new/model", "slot": "plan"},
+        )
+        assert response.status == 200
+        assert (await response.json())["model"] == "new/model"
+        content = (tmp_path / "mcptap" / "zenmux.env").read_text(encoding="utf-8")
+        assert "MCP_TAP_PLAN_MODE_MODEL=new/model" in content
+        assert "MCP_TAP_MODEL=old/model" in content
+
+
+@pytest.mark.asyncio
+async def test_handle_provider_model_appends_missing_key(monkeypatch, tmp_path: Path):
+    app = _provider_model_app(monkeypatch, tmp_path, {"openrouter.env": "MCP_TAP_API_KEY=sk-or-abcdef\n"})
+
+    async with TestClient(TestServer(app)) as client:
+        response = await client.post(
+            "/api/provider-model",
+            json={"provider": "openrouter", "alias": "new/model", "slot": "act"},
+        )
+        assert response.status == 200
+        content = (tmp_path / "mcptap" / "openrouter.env").read_text(encoding="utf-8")
+        assert "MCP_TAP_MODEL=new/model" in content
+
+
+@pytest.mark.asyncio
+async def test_handle_provider_model_rejects_unknown_provider(monkeypatch, tmp_path: Path):
+    app = _provider_model_app(monkeypatch, tmp_path, {})
+
+    async with TestClient(TestServer(app)) as client:
+        response = await client.post(
+            "/api/provider-model",
+            json={"provider": "nonexistent", "alias": "m/a", "slot": "act"},
+        )
+        assert response.status == 400
+
+
+@pytest.mark.asyncio
+async def test_handle_provider_model_rejects_bad_slot(monkeypatch, tmp_path: Path):
+    app = _provider_model_app(monkeypatch, tmp_path, {"openrouter.env": "MCP_TAP_API_KEY=x\n"})
+
+    async with TestClient(TestServer(app)) as client:
+        response = await client.post(
+            "/api/provider-model",
+            json={"provider": "openrouter", "alias": "m/a", "slot": "turbo"},
+        )
+        assert response.status == 400
+
+
+@pytest.mark.asyncio
+async def test_handle_provider_model_rejects_empty_alias(monkeypatch, tmp_path: Path):
+    app = _provider_model_app(monkeypatch, tmp_path, {"openrouter.env": "MCP_TAP_API_KEY=x\n"})
+
+    async with TestClient(TestServer(app)) as client:
+        response = await client.post(
+            "/api/provider-model",
+            json={"provider": "openrouter", "alias": "  ", "slot": "act"},
+        )
+        assert response.status == 400
 
 
 @pytest.mark.asyncio
@@ -446,3 +551,17 @@ async def test_serve_pareto_page_returns_html():
         assert "popupNext" in body
         assert "popupPrev" in body
         assert "POPUP_OVERLAP_PX" in body
+        assert 'data-testid="pareto-popup-actions"' in body
+        assert 'data-testid="pareto-act-model"' in body
+        assert 'data-testid="pareto-plan-model"' in body
+        assert 'data-testid="pareto-popup-notice"' in body
+        assert ':disabled="!popupActionable"' in body
+        assert ':title="popupActionTitle"' in body
+        assert '@click="handleActModel"' in body
+        assert '@click="handlePlanModel"' in body
+        assert "const popupActionReason = computed(() => {" in body
+        assert "if (!configuredProviders.value.includes(point.provider))" in body
+        assert "buildTestedOfferKeys(rawTested.value)" in body
+        assert "if (!tested.has(`${point.name} ${point.provider} ${point.alias}`))" in body
+        assert "fetch('/api/provider-model'" in body
+        assert "popupNotice" in body

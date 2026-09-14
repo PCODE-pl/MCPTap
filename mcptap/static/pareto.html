@@ -52,6 +52,10 @@
     .pareto-popup__dots { display: flex; justify-content: center; gap: 4px; padding: 4px 6px 6px; }
     .pareto-popup__dots span { width: 6px; height: 6px; border-radius: 50%; background: #444; display: inline-block; }
     .pareto-popup__dots span.active { background: #63b3ed; }
+    .pareto-popup__actions { display: flex; gap: 8px; padding: 0 12px 10px; }
+    .pareto-popup__actions .chart-control:disabled { opacity: .4; cursor: not-allowed; }
+    .pareto-popup__notice { padding: 0 12px 10px; font-size: 12px; min-height: 18px; color: #9fd68a; }
+    .pareto-popup__notice[data-tone="error"] { color: #f0a3a3; }
     @media (max-width: 700px) {
       .content-layout { display: flex; flex-direction: column; overflow-y: auto; }
       .chart-container { flex: 0 0 min(65vh, 620px); }
@@ -179,6 +183,11 @@
               <button type="button" data-testid="pareto-popup-next" aria-label="Next model" @click="popupNext">›</button>
             </div>
             <div class="pareto-popup__card" data-testid="pareto-popup-card" v-html="popupCardHtml"></div>
+            <div class="pareto-popup__actions" data-testid="pareto-popup-actions">
+              <button type="button" class="chart-control" data-testid="pareto-act-model" :disabled="!popupActionable" :title="popupActionTitle" @click="handleActModel">Act model</button>
+              <button type="button" class="chart-control" data-testid="pareto-plan-model" :disabled="!popupActionable" :title="popupActionTitle" @click="handlePlanModel">Plan model</button>
+            </div>
+            <div class="pareto-popup__notice" data-testid="pareto-popup-notice" role="status" aria-live="polite" :data-tone="popupNoticeTone">{{ popupNotice }}</div>
             <div v-if="popupPoints.length > 1" class="pareto-popup__dots" data-testid="pareto-popup-dots"><span v-for="(_, idx) in popupPoints" :key="idx" :class="{active: idx === popupIndex}"></span></div>
           </div>
         </section>
@@ -703,6 +712,52 @@ const app = createApp({
     }
     function popupPrev() { if (popupPoints.value.length) popupIndex.value = (popupIndex.value - 1 + popupPoints.value.length) % popupPoints.value.length; }
 
+    const popupNotice = ref('');
+    const popupNoticeTone = ref('ok');
+    let popupNoticeTimer = null;
+
+    const popupActionReason = computed(() => {
+      const point = popupPoints.value[popupIndex.value];
+      if (!point) return 'no model selected';
+      if (!configuredProviders.value.includes(point.provider)) return 'Provider not configured';
+      const tested = buildTestedOfferKeys(rawTested.value);
+      if (!tested.has(`${point.name} ${point.provider} ${point.alias}`)) return 'Model not tested';
+      return '';
+    });
+
+    const popupActionable = computed(() => popupActionReason.value === '');
+
+    const popupActionTitle = computed(() => popupActionable.value ? '' : popupActionReason.value);
+
+    function setPopupNotice(message, tone) {
+      popupNotice.value = message;
+      popupNoticeTone.value = tone;
+      clearTimeout(popupNoticeTimer);
+      popupNoticeTimer = setTimeout(() => { popupNotice.value = ''; }, 4000);
+    }
+
+    async function setPopupModel(slot) {
+      const point = popupPoints.value[popupIndex.value];
+      if (!point || !popupActionable.value) return;
+      handlePopupEnter();
+      try {
+        const response = await fetch('/api/provider-model', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ provider: point.provider, alias: point.alias, slot }),
+        });
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(body.error || `HTTP ${response.status}`);
+        setPopupNotice(`${slot === 'act' ? 'Act' : 'Plan'} model set: ${body.model} (${body.provider})`, 'ok');
+      } catch (err) {
+        setPopupNotice(`Failed to set ${slot} model: ${err.message}`, 'error');
+      }
+    }
+
+    function handleActModel() { setPopupModel('act'); }
+
+    function handlePlanModel() { setPopupModel('plan'); }
+
     function handleScatterMouseOver(params) {
       if (selectionStart.value !== null) return;
       const point = params?.data;
@@ -1220,6 +1275,7 @@ const app = createApp({
       QUALITY_SLIDER_MAX, pairedSliderDefinitions, qualityControls, costMix, costMixLabel, handleCostMixChange, handleQualityChange, handleFilterUpdate,
       popupVisible, popupPoints, popupIndex, popupStyle, popupRef, popupCardHtml,
       handlePopupEnter, handlePopupLeave, popupNext, popupPrev,
+      popupActionable, popupActionTitle, popupNotice, popupNoticeTone, handleActModel, handlePlanModel,
     };
   },
 });
