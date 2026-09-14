@@ -65,6 +65,10 @@ def _uses_chat_completions(path: str) -> bool:
     return settings.use_chat_completions and path.rstrip("/").endswith("/responses")
 
 
+def _is_responses_stream_call(path: str, payload: Dict[str, Any]) -> bool:
+    return path.rstrip("/").endswith("/responses") and bool(payload.get("stream"))
+
+
 def _chat_upstream_path(path: str) -> str:
     if not _uses_chat_completions(path):
         return path
@@ -330,6 +334,48 @@ async def forward_rewritten(
             status=502,
         )
         return resp, error_body
+    if (
+        _is_responses_stream_call(request.path, payload)
+        and upstream_response.status < 400
+        and "text/event-stream" in (upstream_response.headers.get("Content-Type") or "")
+    ):
+        # Buffer first: a Chat-SSE masquerade must be converted before the
+        # client sees a single byte, and we cannot know which protocol the
+        # upstream speaks until the first chunk arrives.
+        response_body = bytearray()
+        try:
+            async for chunk in upstream_response.content.iter_any():
+                response_body.extend(chunk)
+        except (ConnectionResetError, BrokenPipeError):
+            LOGGER.info("Client disconnected during streamed response")
+        finally:
+            log_communication(
+                "upstream_response",
+                request.method,
+                target_url,
+                filtered_headers(upstream_response.headers),
+                bytes(response_body),
+                status=upstream_response.status,
+            )
+            upstream_response.release()
+        raw = bytes(response_body)
+        if looks_like_chat_completions_sse(raw):
+            LOGGER.warning("Upstream answered Responses call with Chat Completions SSE; converting")
+            response_id = f"resp_{uuid.uuid4().hex[:24]}"
+            raw, _response_json = convert_chat_response(raw, stream=True, response_id=response_id)
+        response = web.StreamResponse(
+            status=upstream_response.status,
+            reason=upstream_response.reason,
+            headers=filtered_headers(upstream_response.headers),
+        )
+        await response.prepare(request)
+        try:
+            await response.write(raw)
+            await response.write_eof()
+        except (ConnectionResetError, BrokenPipeError):
+            LOGGER.info("Client disconnected during streamed response")
+        LOGGER.info("%s %s -> HTTP %s", request.method, request.path_qs, upstream_response.status)
+        return response, raw
     response = web.StreamResponse(
         status=upstream_response.status,
         reason=upstream_response.reason,
