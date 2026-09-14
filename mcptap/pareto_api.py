@@ -11,6 +11,65 @@ _DEFAULT_PARETO_PATH = Path(__file__).resolve().parent.parent / "data" / "pareto
 _DEFAULT_TESTED_MODELS_PATH = Path(__file__).resolve().parent.parent / "data" / "tested_models.json"
 CONFIG_DIR = Path.home() / ".config/mcptap"
 
+_PROVIDER_MODEL_KEYS = {"act": "MCP_TAP_MODEL", "plan": "MCP_TAP_PLAN_MODE_MODEL"}
+
+
+def _provider_env_file(provider: str) -> Path | None:
+    name = provider.strip().lower()
+    if not name or not all(ch.isalnum() or ch in "-_" for ch in name):
+        return None
+    path = CONFIG_DIR / f"{name}.env"
+    if path.name != f"{name}.env" or not path.is_file():
+        return None
+    return path
+
+
+def _set_provider_model(path: Path, key: str, alias: str) -> None:
+    try:
+        content = path.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise RuntimeError(f"Cannot read {path.name}: {exc}") from exc
+    lines = content.splitlines()
+    updated = False
+    for index, line in enumerate(lines):
+        if line.strip().startswith(f"{key}="):
+            lines[index] = f"{key}={alias}"
+            updated = True
+            break
+    if not updated:
+        lines.append(f"{key}={alias}")
+    try:
+        path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    except OSError as exc:
+        raise RuntimeError(f"Cannot write {path.name}: {exc}") from exc
+
+
+async def handle_provider_model(request: web.Request) -> web.Response:
+    """Set MCP_TAP_MODEL (act) or MCP_TAP_PLAN_MODE_MODEL (plan) in a provider .env file."""
+    try:
+        payload = await request.json()
+    except Exception:
+        return web.json_response({"error": "Request body must be JSON"}, status=400)
+    if not isinstance(payload, dict):
+        return web.json_response({"error": "Request body must be a JSON object"}, status=400)
+    provider = str(payload.get("provider", ""))
+    alias = str(payload.get("alias", "")).strip()
+    slot = str(payload.get("slot", "")).strip().lower()
+    if slot not in _PROVIDER_MODEL_KEYS:
+        return web.json_response({"error": "slot must be 'act' or 'plan'"}, status=400)
+    if not alias or "\n" in alias or "\r" in alias:
+        return web.json_response({"error": "alias must be a non-empty single line"}, status=400)
+    path = _provider_env_file(provider)
+    if path is None:
+        return web.json_response({"error": f"Unknown provider: {provider}"}, status=400)
+    try:
+        _set_provider_model(path, _PROVIDER_MODEL_KEYS[slot], alias)
+    except RuntimeError as exc:
+        LOGGER.error("Failed to set provider model: %s", exc)
+        return web.json_response({"error": str(exc)}, status=500)
+    LOGGER.info("Provider model set: provider=%s slot=%s model=%s", path.stem, slot, alias)
+    return web.json_response({"provider": path.stem, "slot": slot, "model": alias})
+
 
 def _configured_providers() -> list[str]:
     providers: list[str] = []
