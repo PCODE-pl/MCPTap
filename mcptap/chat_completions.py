@@ -344,6 +344,32 @@ def _build_chat_sse_from_response(response: Dict[str, Any]) -> bytes:
     return "\n".join(lines).encode("utf-8")
 
 
+def looks_like_chat_completions_sse(raw: bytes) -> bool:
+    """Detect an upstream that answered a Responses call with Chat SSE.
+
+    Some providers (e.g. aihubmix) ignore /responses and stream native
+    ``chat.completion.chunk`` events (``choices[].delta``) instead of
+    Responses events (``response.*``).
+    """
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError:
+        return False
+    for line in text.splitlines():
+        if not line.startswith("data:"):
+            continue
+        data = line[len("data:") :].strip()
+        if data in {"", "[DONE]"}:
+            continue
+        try:
+            payload = json.loads(data)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(payload, dict) and payload.get("object") == "chat.completion.chunk":
+            return True
+    return False
+
+
 def chat_sse_to_responses(raw: bytes) -> Dict[str, Any]:
     """Aggregate Chat Completions SSE and return Responses JSON plus SSE bytes."""
     try:
