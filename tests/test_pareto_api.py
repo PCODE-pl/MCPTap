@@ -554,7 +554,8 @@ async def test_serve_pareto_page_returns_html():
         assert 'data-testid="pareto-popup-actions"' in body
         assert 'data-testid="pareto-act-model"' in body
         assert 'data-testid="pareto-plan-model"' in body
-        assert 'data-testid="pareto-popup-notice"' in body
+        assert 'data-testid="pareto-toast"' in body
+        assert "pareto-popup-notice" not in body
         assert ':disabled="!popupActionable"' in body
         assert ':title="popupActionTitle"' in body
         assert '@click="handleActModel"' in body
@@ -564,4 +565,6 @@ async def test_serve_pareto_page_returns_html():
         assert "buildTestedOfferKeys(rawTested.value)" in body
         assert "if (!tested.has(`${point.name} ${point.provider} ${point.alias}`))" in body
         assert "fetch('/api/provider-model'" in body
-        assert "popupNotice" in body
+        assert "toastMessage" in body
+        assert ".pareto-toast { position: fixed;" in body
+        assert "setTimeout(() => { toastMessage.value = ''; }, 5000)" in body
