@@ -1166,7 +1166,8 @@ const app = createApp({
         const countDifference = providerModelCounts.get(right).size - providerModelCounts.get(left).size;
         return countDifference || left.localeCompare(right);
       });
-      const paretoFrontier = computeParetoFrontier(points);
+      const hasActiveFilter = (selectedProviders.value && selectedProviders.value.length > 0) || (selectedModels.value && selectedModels.value.length > 0);
+      const paretoFrontier = hasActiveFilter ? [] : computeParetoFrontier(points);
       const frontierSet = new Set(paretoFrontier);
       const series = providers.map(provider => ({
         name: provider,
@@ -1175,7 +1176,7 @@ const app = createApp({
         data: points.filter(point => point.provider === provider).map(point => frontierSet.has(point) ? { ...point, itemStyle: { borderColor: '#ffffff', borderWidth: 1.8 } } : point),
         emphasis: { focus: 'series', scale: 1.6 },
       }));
-      if (paretoFrontier.length >= 2) {
+      if (!hasActiveFilter && paretoFrontier.length >= 2) {
         series.push({
           name: 'Pareto frontier',
           type: 'line',
@@ -1185,14 +1186,14 @@ const app = createApp({
           lineStyle: { color: 'rgba(255,255,255,0.9)', width: 1.6 },
           z: 10,
         });
-      } else if (paretoFrontier.length === 1) {
+      } else if (!hasActiveFilter && paretoFrontier.length === 1) {
         // single point frontier still gets border via scatter itemStyle, no line needed
       }
       const legendSelection = providers.reduce(
         (selection, provider) => ({ ...selection, [provider]: legendVisibility[provider] !== false }),
         {},
       );
-      legendSelection['Pareto frontier'] = legendVisibility['Pareto frontier'] !== false;
+      if (!hasActiveFilter) legendSelection['Pareto frontier'] = legendVisibility['Pareto frontier'] !== false;
       seriesCount.value = series.length;
       try {
         chart.value.setOption({
