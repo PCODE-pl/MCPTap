@@ -27,8 +27,9 @@
     #chart { width: 100%; height: 100%; min-height: 420px; }
     .controls { min-width: 0; padding: 16px; overflow-y: auto; border-left: 1px solid #28282f; box-sizing: border-box; }
     .controls h2 { margin: 0 0 16px; font-size: 15px; font-weight: 600; }
-    .controls .quality { display: block; }
-    .controls .router { display: block; margin-top: 16px; }
+    .controls .quality,
+    .controls .router { position: relative; border: 1px solid #3a3a45; border-radius: 8px; padding: 18px 12px 10px; margin-top: 10px; background: rgba(255,255,255,.02); }
+    .panel-title { position: absolute; top: -9px; left: 12px; background: #101014; padding: 0 6px; font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: #aab; border: 1px solid #3a3a45; border-radius: 4px; line-height: 16px; }
     .quality-slider { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; align-items: center; margin-bottom: 14px; }
     .quality-slider-row { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; margin-bottom: 14px; }
     .quality-slider-row .quality-slider { margin-bottom: 0; }
@@ -196,6 +197,7 @@
         </section>
         <aside class="controls" data-testid="controls" aria-label="Controls">
           <div class="quality" data-testid="quality" aria-label="Quality weights">
+            <span class="panel-title">Quality</span>
           <div class="quality-slider-row" data-testid="quality-slider-row-primary">
             <div class="quality-slider">
               <label for="quality-slider-accuracy">Accuracy</label>
@@ -271,6 +273,7 @@
           </div>
           </div>
           <div class="router" data-testid="router" aria-label="Router controls">
+            <span class="panel-title">Router</span>
             <div class="quality-slider-row" data-testid="router-slider-row">
               <div class="quality-slider">
                 <label for="router-slider-min-cost">Min Cost</label>
