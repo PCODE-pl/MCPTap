@@ -22,7 +22,10 @@
       .toolbar-actions { flex: 0 0 auto; }
       .toolbar-actions[data-testid="toolbar-secondary-actions"] { flex: 0 0 auto; }
     }
-    .content-layout { width: 100%; flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 340px; }
+    .content-layout { width: 100%; flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 340px; grid-template-rows: auto 1fr; }
+    .content-layout > .toolbar { grid-column: 1; grid-row: 1; }
+    .content-layout > .chart-container { grid-column: 1; grid-row: 2; min-height: 0; }
+    .content-layout > .controls { grid-column: 2; grid-row: 1 / span 2; }
     .chart-container { position: relative; width: 100%; min-width: 0; min-height: 420px; padding: 0 8px 8px; box-sizing: border-box; }
     #chart { width: 100%; height: 100%; min-height: 420px; }
     .controls { min-width: 0; padding: 4px; overflow-y: auto; border-left: 1px solid #28282f; box-sizing: border-box; }
@@ -73,6 +76,7 @@
 <main id="app" data-testid="pareto-page">
   <n-config-provider :theme="darkTheme">
     <n-layout style="height: 100vh" aria-label="MCPTap Pareto model comparison">
+      <div class="content-layout" data-testid="pareto-content-layout">
       <n-layout-header bordered class="toolbar" role="banner" data-testid="pareto-toolbar" aria-label="Pareto controls">
         <div class="toolbar-filters" data-testid="toolbar-filters">
         <div data-testid="provider-filter" role="group" aria-label="Filter chart by provider">
@@ -137,7 +141,6 @@
         <p class="hint" style="margin-left: auto" data-testid="pareto-error" role="alert" v-if="error">{{ error }}</p>
         </div>
       </n-layout-header>
-      <div class="content-layout" data-testid="pareto-content-layout">
         <section class="chart-container" role="region" data-testid="pareto-chart-region" aria-labelledby="pareto-chart-title" :aria-busy="loading">
           <h2 id="pareto-chart-title" class="sr-only">Pareto scatter chart</h2>
           <div
