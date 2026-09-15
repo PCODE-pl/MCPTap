@@ -393,7 +393,7 @@ async def test_serve_pareto_page_returns_html():
         assert 'data-testid="quality"' in body
         assert 'data-testid="router"' in body
         assert "<h2>Quality weights</h2>" not in body
-        assert "grid-template-columns: minmax(0, 1fr) 282px" in body
+        assert "grid-template-columns: minmax(0, 1fr) 340px" in body
         assert (
             ".toolbar-filters { display: flex; align-items: center; gap: 12px; flex: 0 0 60%; min-width: 0; flex-direction: column; align-items: stretch; }"
             in body
