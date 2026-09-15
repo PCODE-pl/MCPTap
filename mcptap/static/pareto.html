@@ -1104,6 +1104,28 @@ const app = createApp({
       };
     }
 
+    function computeParetoFrontier(points) {
+      if (!points.length) return [];
+      const sorted = [...points].sort((a, b) => {
+        if (a.weightedCost !== b.weightedCost) return a.weightedCost - b.weightedCost;
+        if (a.value[1] !== b.value[1]) return a.value[1] - b.value[1];
+        return a.name.localeCompare(b.name) || a.provider.localeCompare(b.provider);
+      });
+      const frontier = [];
+      let maxQuality = -Infinity;
+      for (const point of sorted) {
+        const isZeroCost = Math.abs(point.weightedCost) < 1e-9;
+        if (isZeroCost) {
+          frontier.push(point);
+          if (point.value[1] > maxQuality) maxQuality = point.value[1];
+        } else if (point.value[1] > maxQuality) {
+          frontier.push(point);
+          maxQuality = point.value[1];
+        }
+      }
+      return frontier;
+    }
+
     function renderChart(preserveViewport = false) {
       if (!chart.value) return;
       const previousViewRange = preserveViewport ? { ...viewRange.value } : null;
@@ -1144,17 +1166,33 @@ const app = createApp({
         const countDifference = providerModelCounts.get(right).size - providerModelCounts.get(left).size;
         return countDifference || left.localeCompare(right);
       });
+      const paretoFrontier = computeParetoFrontier(points);
+      const frontierSet = new Set(paretoFrontier);
       const series = providers.map(provider => ({
         name: provider,
         type: 'scatter',
         symbolSize: 10,
-        data: points.filter(point => point.provider === provider),
+        data: points.filter(point => point.provider === provider).map(point => frontierSet.has(point) ? { ...point, itemStyle: { borderColor: '#ffffff', borderWidth: 1.8 } } : point),
         emphasis: { focus: 'series', scale: 1.6 },
       }));
+      if (paretoFrontier.length >= 2) {
+        series.push({
+          name: 'Pareto frontier',
+          type: 'line',
+          data: paretoFrontier.map(point => point.value),
+          showSymbol: false,
+          silent: true,
+          lineStyle: { color: 'rgba(255,255,255,0.9)', width: 1.6 },
+          z: 10,
+        });
+      } else if (paretoFrontier.length === 1) {
+        // single point frontier still gets border via scatter itemStyle, no line needed
+      }
       const legendSelection = providers.reduce(
         (selection, provider) => ({ ...selection, [provider]: legendVisibility[provider] !== false }),
         {},
       );
+      legendSelection['Pareto frontier'] = legendVisibility['Pareto frontier'] !== false;
       seriesCount.value = series.length;
       try {
         chart.value.setOption({
