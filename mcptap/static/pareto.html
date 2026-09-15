@@ -270,7 +270,36 @@
             </div>
           </div>
           </div>
-          <div class="router" data-testid="router" aria-label="Router controls"></div>
+          <div class="router" data-testid="router" aria-label="Router controls">
+            <div class="quality-slider-row" data-testid="router-slider-row">
+              <div class="quality-slider">
+                <label for="router-slider-min-cost">Min Cost</label>
+                <output for="router-slider-min-cost">{{ routerMinCost.toFixed(1) }}</output>
+                <n-slider
+                  id="router-slider-min-cost"
+                  v-model:value="routerMinCost"
+                  :min="0"
+                  :max="5"
+                  :step="0.1"
+                  data-testid="router-slider-min-cost"
+                  @update:value="handleRouterMinCostChange"
+                />
+              </div>
+              <div class="quality-slider">
+                <label for="router-slider-max-cost">Max Cost</label>
+                <output for="router-slider-max-cost">{{ routerMaxCost.toFixed(1) }}</output>
+                <n-slider
+                  id="router-slider-max-cost"
+                  v-model:value="routerMaxCost"
+                  :min="routerMinCost"
+                  :max="70"
+                  :step="0.1"
+                  data-testid="router-slider-max-cost"
+                  @update:value="handleRouterMaxCostChange"
+                />
+              </div>
+            </div>
+          </div>
         </aside>
       </div>
     </n-layout>
@@ -382,6 +411,17 @@ const app = createApp({
     let renderCheckFrame = null;
         const qualityControls = Vue.reactive({ ...DEFAULT_QUALITY_CONTROLS });
     const costMix = ref(DEFAULT_COST_MIX);
+    const routerMinCost = ref(0);
+    const routerMaxCost = ref(5);
+    function handleRouterMinCostChange(value) {
+      const v = typeof value === 'number' && Number.isFinite(value) ? value : 0;
+      routerMinCost.value = v;
+      if (routerMaxCost.value < v) routerMaxCost.value = v;
+    }
+    function handleRouterMaxCostChange(value) {
+      const v = typeof value === 'number' && Number.isFinite(value) ? value : 0;
+      routerMaxCost.value = v < routerMinCost.value ? routerMinCost.value : v;
+    }
     const qualityWeights = Vue.reactive({ accuracy: qualityControls.accuracy });
     const areaZoomActive = ref(true);
     const selectionStart = ref(null);
@@ -1318,6 +1358,7 @@ const app = createApp({
       formatDiagnosticNumber, formatRange,
       areaZoomActive, zoomSelectionStyle, loadData, renderChart,
       QUALITY_SLIDER_MAX, pairedSliderDefinitions, qualityControls, costMix, costMixLabel, handleCostMixChange, handleQualityChange, handleFilterUpdate,
+      routerMinCost, routerMaxCost, handleRouterMinCostChange, handleRouterMaxCostChange,
       popupVisible, popupPoints, popupIndex, popupStyle, popupRef, popupCardHtml,
       handlePopupEnter, handlePopupLeave, popupNext, popupPrev,
       popupActionable, popupActionTitle, toastMessage, toastTone, handleActModel, handlePlanModel,
