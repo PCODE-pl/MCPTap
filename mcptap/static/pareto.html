@@ -449,7 +449,7 @@ const app = createApp({
     const costMix = ref(DEFAULT_COST_MIX);
     const routerMinCost = ref(0);
     const routerMaxCost = ref(10);
-    const routerMinQuality = ref(0);
+    const routerMinQuality = ref(55);
     const routerCostSplit = ref(5);
     const routerQualityMinBound = ref(0);
     const routerQualityMaxBound = ref(100);
@@ -460,22 +460,26 @@ const app = createApp({
       if (routerMaxCost.value < v) routerMaxCost.value = v;
       if (routerCostSplit.value < routerMinCost.value) routerCostSplit.value = routerMinCost.value;
       if (routerCostSplit.value > routerMaxCost.value) routerCostSplit.value = routerMaxCost.value;
+      scheduleRenderChart();
     }
     function handleRouterMaxCostChange(value) {
       const v = typeof value === 'number' && Number.isFinite(value) ? value : 0;
       routerMaxCost.value = v < routerMinCost.value ? routerMinCost.value : v;
       if (routerCostSplit.value < routerMinCost.value) routerCostSplit.value = routerMinCost.value;
       if (routerCostSplit.value > routerMaxCost.value) routerCostSplit.value = routerMaxCost.value;
+      scheduleRenderChart();
     }
     function handleRouterMinQualityChange(value) {
       const v = typeof value === 'number' && Number.isFinite(value) ? value : 0;
       const lo = routerQualityMinBound.value;
       const hi = routerQualityMaxBound.value;
       routerMinQuality.value = Math.max(lo, Math.min(hi, v));
+      scheduleRenderChart();
     }
     function handleRouterCostSplitChange(value) {
       const v = typeof value === 'number' && Number.isFinite(value) ? value : routerMinCost.value;
       routerCostSplit.value = Math.max(routerMinCost.value, Math.min(routerMaxCost.value, v));
+      scheduleRenderChart();
     }
     function updateRouterQualityBounds() {
       const pts = routerAllPoints.value;
@@ -1289,7 +1293,8 @@ const app = createApp({
         return countDifference || left.localeCompare(right);
       });
       const hasActiveFilter = (selectedProviders.value && selectedProviders.value.length > 0) || (selectedModels.value && selectedModels.value.length > 0);
-      const paretoFrontier = hasActiveFilter ? [] : computeParetoFrontier(points);
+      const routerFilteredPoints = points.filter(p => p.weightedCost >= routerMinCost.value && p.weightedCost <= routerMaxCost.value && (typeof p.accuracy !== 'number' || p.accuracy >= routerMinQuality.value));
+      const paretoFrontier = hasActiveFilter ? [] : computeParetoFrontier(routerFilteredPoints);
       const frontierSet = new Set(paretoFrontier);
       const series = providers.map(provider => ({
         name: provider,
