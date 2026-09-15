@@ -25,8 +25,10 @@
     .content-layout { width: 100%; flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 282px; }
     .chart-container { position: relative; width: 100%; min-width: 0; min-height: 420px; padding: 0 8px 8px; box-sizing: border-box; }
     #chart { width: 100%; height: 100%; min-height: 420px; }
-    .quality-controls { min-width: 0; padding: 16px; overflow-y: auto; border-left: 1px solid #28282f; box-sizing: border-box; }
-    .quality-controls h2 { margin: 0 0 16px; font-size: 15px; font-weight: 600; }
+    .controls { min-width: 0; padding: 16px; overflow-y: auto; border-left: 1px solid #28282f; box-sizing: border-box; }
+    .controls h2 { margin: 0 0 16px; font-size: 15px; font-weight: 600; }
+    .controls .quality { display: block; }
+    .controls .router { display: block; margin-top: 16px; }
     .quality-slider { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; align-items: center; margin-bottom: 14px; }
     .quality-slider-row { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; margin-bottom: 14px; }
     .quality-slider-row .quality-slider { margin-bottom: 0; }
@@ -60,7 +62,7 @@
     @media (max-width: 700px) {
       .content-layout { display: flex; flex-direction: column; overflow-y: auto; }
       .chart-container { flex: 0 0 min(65vh, 620px); }
-      .quality-controls { flex: 0 0 auto; border-top: 1px solid #28282f; border-left: 0; }
+      .controls { flex: 0 0 auto; border-top: 1px solid #28282f; border-left: 0; }
     }
   </style>
 </head>
@@ -192,7 +194,8 @@
           </div>
           <div v-if="toastMessage" class="pareto-toast" data-testid="pareto-toast" role="status" aria-live="polite" :data-tone="toastTone">{{ toastMessage }}</div>
         </section>
-        <aside class="quality-controls" data-testid="quality-controls" aria-label="Quality weights">
+        <aside class="controls" data-testid="controls" aria-label="Controls">
+          <div class="quality" data-testid="quality" aria-label="Quality weights">
           <div class="quality-slider-row" data-testid="quality-slider-row-primary">
             <div class="quality-slider">
               <label for="quality-slider-accuracy">Accuracy</label>
@@ -266,6 +269,8 @@
               />
             </div>
           </div>
+          </div>
+          <div class="router" data-testid="router" aria-label="Router controls"></div>
         </aside>
       </div>
     </n-layout>
