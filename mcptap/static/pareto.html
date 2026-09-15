@@ -415,7 +415,7 @@ const app = createApp({
         const qualityControls = Vue.reactive({ ...DEFAULT_QUALITY_CONTROLS });
     const costMix = ref(DEFAULT_COST_MIX);
     const routerMinCost = ref(0);
-    const routerMaxCost = ref(5);
+    const routerMaxCost = ref(10);
     function handleRouterMinCostChange(value) {
       const v = typeof value === 'number' && Number.isFinite(value) ? value : 0;
       routerMinCost.value = v;
