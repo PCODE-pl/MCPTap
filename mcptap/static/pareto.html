@@ -1300,7 +1300,7 @@ const app = createApp({
         name: provider,
         type: 'scatter',
         symbolSize: 10,
-        data: points.filter(point => point.provider === provider).map(point => frontierSet.has(point) ? { ...point, itemStyle: { borderColor: '#ffffff', borderWidth: 1.8 } } : point),
+        data: points.filter(point => point.provider === provider).map(point => frontierSet.has(point) ? { ...point, itemStyle: { borderColor: '#ffffff', borderWidth: 3.6 } } : point),
         emphasis: { focus: 'series', scale: 1.6 },
       }));
       if (!hasActiveFilter && paretoFrontier.length >= 2) {
@@ -1310,7 +1310,7 @@ const app = createApp({
           data: paretoFrontier.map(point => point.value),
           showSymbol: false,
           silent: true,
-          lineStyle: { color: 'rgba(255,255,255,0.9)', width: 1.6 },
+          lineStyle: { color: 'rgba(255,255,255,0.9)', width: 3.2 },
           z: 10,
         });
       } else if (!hasActiveFilter && paretoFrontier.length === 1) {
