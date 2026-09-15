@@ -477,7 +477,7 @@ const app = createApp({
     function updateRouterQualityBounds() {
       const pts = routerAllPoints.value;
       if (!pts.length) { routerQualityMinBound.value = 0; routerQualityMaxBound.value = 100; return; }
-      const ys = pts.map(p => p.value[1]).filter(y => typeof y === 'number' && Number.isFinite(y));
+      const ys = pts.map(p => p.accuracy).filter(y => typeof y === 'number' && Number.isFinite(y));
       if (!ys.length) { routerQualityMinBound.value = 0; routerQualityMaxBound.value = 100; return; }
       const yMin = Math.min(...ys);
       const yMax = Math.max(...ys);
