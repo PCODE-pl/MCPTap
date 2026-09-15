@@ -304,6 +304,34 @@
                 />
               </div>
             </div>
+            <div class="quality-slider-row" data-testid="router-slider-row-quality">
+              <div class="quality-slider">
+                <label for="router-slider-min-quality">Min Quality</label>
+                <output for="router-slider-min-quality">{{ routerMinQuality.toFixed(0) }}</output>
+                <n-slider
+                  id="router-slider-min-quality"
+                  v-model:value="routerMinQuality"
+                  :min="routerQualityMinBound"
+                  :max="routerQualityMaxBound"
+                  :step="1"
+                  data-testid="router-slider-min-quality"
+                  @update:value="handleRouterMinQualityChange"
+                />
+              </div>
+              <div class="quality-slider">
+                <label for="router-slider-cost-split">Cost Split</label>
+                <output for="router-slider-cost-split">{{ routerCostSplit.toFixed(1) }}</output>
+                <n-slider
+                  id="router-slider-cost-split"
+                  v-model:value="routerCostSplit"
+                  :min="routerMinCost"
+                  :max="routerMaxCost"
+                  :step="0.1"
+                  data-testid="router-slider-cost-split"
+                  @update:value="handleRouterCostSplitChange"
+                />
+              </div>
+            </div>
           </div>
         </aside>
       </div>
@@ -418,14 +446,53 @@ const app = createApp({
     const costMix = ref(DEFAULT_COST_MIX);
     const routerMinCost = ref(0);
     const routerMaxCost = ref(10);
+    const routerMinQuality = ref(0);
+    const routerCostSplit = ref(5);
+    const routerQualityMinBound = ref(0);
+    const routerQualityMaxBound = ref(100);
+    const routerAllPoints = ref([]);
     function handleRouterMinCostChange(value) {
       const v = typeof value === 'number' && Number.isFinite(value) ? value : 0;
       routerMinCost.value = v;
       if (routerMaxCost.value < v) routerMaxCost.value = v;
+      if (routerCostSplit.value < routerMinCost.value) routerCostSplit.value = routerMinCost.value;
+      if (routerCostSplit.value > routerMaxCost.value) routerCostSplit.value = routerMaxCost.value;
     }
     function handleRouterMaxCostChange(value) {
       const v = typeof value === 'number' && Number.isFinite(value) ? value : 0;
       routerMaxCost.value = v < routerMinCost.value ? routerMinCost.value : v;
+      if (routerCostSplit.value < routerMinCost.value) routerCostSplit.value = routerMinCost.value;
+      if (routerCostSplit.value > routerMaxCost.value) routerCostSplit.value = routerMaxCost.value;
+    }
+    function handleRouterMinQualityChange(value) {
+      const v = typeof value === 'number' && Number.isFinite(value) ? value : 0;
+      const lo = routerQualityMinBound.value;
+      const hi = routerQualityMaxBound.value;
+      routerMinQuality.value = Math.max(lo, Math.min(hi, v));
+    }
+    function handleRouterCostSplitChange(value) {
+      const v = typeof value === 'number' && Number.isFinite(value) ? value : routerMinCost.value;
+      routerCostSplit.value = Math.max(routerMinCost.value, Math.min(routerMaxCost.value, v));
+    }
+    function updateRouterQualityBounds() {
+      const pts = routerAllPoints.value;
+      if (!pts.length) { routerQualityMinBound.value = 0; routerQualityMaxBound.value = 100; return; }
+      const ys = pts.map(p => p.value[1]).filter(y => typeof y === 'number' && Number.isFinite(y));
+      if (!ys.length) { routerQualityMinBound.value = 0; routerQualityMaxBound.value = 100; return; }
+      const yMin = Math.min(...ys);
+      const yMax = Math.max(...ys);
+      const lo = Math.floor(yMin);
+      const hi = Math.ceil(yMax);
+      routerQualityMinBound.value = lo;
+      routerQualityMaxBound.value = hi === lo ? hi + 1 : hi;
+      if (routerMinQuality.value < lo) routerMinQuality.value = lo;
+      if (routerMinQuality.value > routerQualityMaxBound.value) routerMinQuality.value = routerQualityMaxBound.value;
+    }
+    function updateRouterCostSplitDefault() {
+      const lo = routerMinCost.value;
+      const hi = routerMaxCost.value;
+      const mid = lo + (hi - lo) / 2;
+      routerCostSplit.value = Math.max(lo, Math.min(hi, mid));
     }
     const qualityWeights = Vue.reactive({ accuracy: qualityControls.accuracy });
     const areaZoomActive = ref(true);
@@ -1182,6 +1249,8 @@ const app = createApp({
       const previousPoints = preserveViewport ? renderedPoints : null;
       updateQualityWeights();
       const points = buildPoints();
+      routerAllPoints.value = points;
+      updateRouterQualityBounds();
       const preservedRange = preserveViewportForVisiblePoints(previousPoints, points, previousViewRange);
       chartState.value = 'rendering';
       renderError.value = '';
@@ -1363,7 +1432,7 @@ const app = createApp({
       formatDiagnosticNumber, formatRange,
       areaZoomActive, zoomSelectionStyle, loadData, renderChart,
       QUALITY_SLIDER_MAX, pairedSliderDefinitions, qualityControls, costMix, costMixLabel, handleCostMixChange, handleQualityChange, handleFilterUpdate,
-      routerMinCost, routerMaxCost, handleRouterMinCostChange, handleRouterMaxCostChange,
+      routerMinCost, routerMaxCost, routerMinQuality, routerCostSplit, routerQualityMinBound, routerQualityMaxBound, handleRouterMinCostChange, handleRouterMaxCostChange, handleRouterMinQualityChange, handleRouterCostSplitChange,
       popupVisible, popupPoints, popupIndex, popupStyle, popupRef, popupCardHtml,
       handlePopupEnter, handlePopupLeave, popupNext, popupPrev,
       popupActionable, popupActionTitle, toastMessage, toastTone, handleActModel, handlePlanModel,
