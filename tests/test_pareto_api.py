@@ -472,11 +472,11 @@ async def test_serve_pareto_page_returns_html():
         assert "const previousPoints = preserveViewport ? renderedPoints : null;" in body
         assert "const visiblePointKeys = new Set" in body
         assert "let renderedPoints = [];" in body
-        assert "renderedPoints = points;" in body
+        assert "renderedPoints = displayPoints;" in body
         assert "Math.min(...previousXValues) - range.xMin" in body
         assert "range.xMax - Math.max(...previousXValues)" in body
         assert (
-            "const preservedRange = preserveViewportForVisiblePoints(previousPoints, points, previousViewRange);"
+            "const preservedRange = preserveViewportForVisiblePoints(previousPoints, displayPoints, previousViewRange);"
             in body
         )
         assert "const previousViewRange = preserveViewport ? { ...viewRange.value } : null;" in body
