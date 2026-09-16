@@ -212,7 +212,8 @@
                 v-model:value="qualityControls.accuracy"
                 :min="0.05"
                 :max="1"
-                :step="0.05"
+                :step="0.05"                  :format-tooltip="formatTooltipTwoDecimals"
+
                 data-testid="quality-slider-accuracy"
                 @update:value="handleQualityChange"
               />
@@ -225,7 +226,8 @@
                 v-model:value="costMix"
                 :min="0"
                 :max="1"
-                :step="0.05"
+                :step="0.05"                  :format-tooltip="formatTooltipTwoDecimals"
+
                 data-testid="quality-slider-cost-mix"
                 @update:value="handleCostMixChange"
               />
@@ -236,6 +238,7 @@
               <label :for="`quality-slider-${control.key}`">{{ control.label }}</label>
               <output :for="`quality-slider-${control.key}`">{{ qualityControls[control.key].toFixed(2) }}</output>
               <n-slider
+                  :format-tooltip="formatTooltipTwoDecimals"
                 :id="`quality-slider-${control.key}`"
                 v-model:value="qualityControls[control.key]"
                 :min="control.min ?? 0"
@@ -251,6 +254,7 @@
               <label :for="`quality-slider-${control.key}`">{{ control.label }}</label>
               <output :for="`quality-slider-${control.key}`">{{ qualityControls[control.key].toFixed(2) }}</output>
               <n-slider
+                  :format-tooltip="formatTooltipTwoDecimals"
                 :id="`quality-slider-${control.key}`"
                 v-model:value="qualityControls[control.key]"
                 :min="control.min ?? 0"
@@ -266,6 +270,7 @@
               <label :for="`quality-slider-${control.key}`">{{ control.label }}</label>
               <output :for="`quality-slider-${control.key}`">{{ qualityControls[control.key].toFixed(2) }}</output>
               <n-slider
+                  :format-tooltip="formatTooltipTwoDecimals"
                 :id="`quality-slider-${control.key}`"
                 v-model:value="qualityControls[control.key]"
                 :min="control.min ?? 0"
@@ -288,7 +293,8 @@
                   v-model:value="routerMinCost"
                   :min="0"
                   :max="5"
-                  :step="0.1"
+                  :step="0.1"                  :format-tooltip="formatTooltipTwoDecimals"
+
                   data-testid="router-slider-min-cost"
                   @update:value="handleRouterMinCostChange"
                 />
@@ -301,7 +307,8 @@
                   v-model:value="routerMaxCost"
                   :min="routerMinCost + 0.05"
                   :max="70"
-                  :step="0.1"
+                  :step="0.1"                  :format-tooltip="formatTooltipTwoDecimals"
+
                   data-testid="router-slider-max-cost"
                   @update:value="handleRouterMaxCostChange"
                 />
@@ -316,7 +323,8 @@
                   v-model:value="routerMinQuality"
                   :min="routerQualityMinBound"
                   :max="routerQualityMaxBound"
-                  :step="1"
+                  :step="1"                  :format-tooltip="formatTooltipTwoDecimals"
+
                   data-testid="router-slider-min-quality"
                   @update:value="handleRouterMinQualityChange"
                 />
@@ -329,7 +337,8 @@
                   v-model:value="routerCostSplit"
                   :min="routerMinCost"
                   :max="routerMaxCost"
-                  :step="0.1"
+                  :step="0.1"                  :format-tooltip="formatTooltipTwoDecimals"
+
                   data-testid="router-slider-cost-split"
                   @update:value="handleRouterCostSplitChange"
                 />
@@ -503,6 +512,11 @@ const app = createApp({
       const hi = routerMaxCost.value;
       const mid = lo + (hi - lo) / 2;
       routerCostSplit.value = Math.max(lo, Math.min(hi, mid));
+    }
+    function formatTooltipTwoDecimals(value) {
+      if (typeof value !== 'number' || !Number.isFinite(value)) return '';
+      const s = value.toFixed(2);
+      return s.replace(/\.00$/, '').replace(/(\.\d*?[1-9])0$/, '$1');
     }
     const qualityWeights = Vue.reactive({ accuracy: qualityControls.accuracy });
     const areaZoomActive = ref(true);
@@ -1459,7 +1473,7 @@ const app = createApp({
       seriesCount, canvasCount, chartState, renderer, renderError, viewRange,
       formatDiagnosticNumber, formatRange,
       areaZoomActive, zoomSelectionStyle, loadData, renderChart,
-      QUALITY_SLIDER_MAX, pairedSliderDefinitions, qualityControls, costMix, costMixLabel, handleCostMixChange, handleQualityChange, handleFilterUpdate,
+      QUALITY_SLIDER_MAX, pairedSliderDefinitions, qualityControls, costMix, costMixLabel, handleCostMixChange, handleQualityChange, handleFilterUpdate, formatTooltipTwoDecimals,
       routerMinCost, routerMaxCost, routerMinQuality, routerCostSplit, routerQualityMinBound, routerQualityMaxBound, handleRouterMinCostChange, handleRouterMaxCostChange, handleRouterMinQualityChange, handleRouterCostSplitChange,
       popupVisible, popupPoints, popupIndex, popupStyle, popupRef, popupCardHtml,
       handlePopupEnter, handlePopupLeave, popupNext, popupPrev,
