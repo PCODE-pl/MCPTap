@@ -1323,7 +1323,7 @@ const app = createApp({
       const series = [...baseSeries];
       if (!hasActiveFilter && paretoFrontier.length >= 2) {
         series.unshift({
-          name: 'Pareto frontier',
+          name: 'Pareto',
           type: 'line',
           data: paretoFrontier.map(point => point.value),
           showSymbol: false,
@@ -1337,7 +1337,7 @@ const app = createApp({
         (selection, provider) => ({ ...selection, [provider]: legendVisibility[provider] !== false }),
         {},
       );
-      if (!hasActiveFilter) legendSelection['Pareto frontier'] = legendVisibility['Pareto frontier'] !== false;
+      if (!hasActiveFilter) legendSelection['Pareto'] = legendVisibility['Pareto'] !== false;
       seriesCount.value = series.length;
       try {
         chart.value.setOption({
