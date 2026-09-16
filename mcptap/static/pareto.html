@@ -299,7 +299,7 @@
                 <n-slider
                   id="router-slider-max-cost"
                   v-model:value="routerMaxCost"
-                  :min="routerMinCost"
+                  :min="routerMinCost + 0.05"
                   :max="70"
                   :step="0.1"
                   data-testid="router-slider-max-cost"
@@ -457,14 +457,17 @@ const app = createApp({
     function handleRouterMinCostChange(value) {
       const v = typeof value === 'number' && Number.isFinite(value) ? value : 0;
       routerMinCost.value = v;
-      if (routerMaxCost.value < v) routerMaxCost.value = v;
+      const minMax = v + 0.05;
+      if (routerMaxCost.value < minMax) routerMaxCost.value = Math.min(70, minMax);
       if (routerCostSplit.value < routerMinCost.value) routerCostSplit.value = routerMinCost.value;
       if (routerCostSplit.value > routerMaxCost.value) routerCostSplit.value = routerMaxCost.value;
       scheduleRenderChart();
     }
     function handleRouterMaxCostChange(value) {
       const v = typeof value === 'number' && Number.isFinite(value) ? value : 0;
-      routerMaxCost.value = v < routerMinCost.value ? routerMinCost.value : v;
+      const minMax = routerMinCost.value + 0.05;
+      const clamped = v < minMax ? minMax : v;
+      routerMaxCost.value = clamped > 70 ? 70 : clamped;
       if (routerCostSplit.value < routerMinCost.value) routerCostSplit.value = routerMinCost.value;
       if (routerCostSplit.value > routerMaxCost.value) routerCostSplit.value = routerMaxCost.value;
       scheduleRenderChart();
