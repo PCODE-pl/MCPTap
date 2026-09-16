@@ -330,7 +330,7 @@
                 />
               </div>
               <div class="quality-slider">
-                <label for="router-slider-cost-split">Act/Plan Split</label>
+                <label for="router-slider-cost-split">Plan/Act Split</label>
                 <output for="router-slider-cost-split">{{ routerCostSplit.toFixed(1) }} $</output>
                 <n-slider
                   id="router-slider-cost-split"
@@ -459,7 +459,7 @@ const app = createApp({
     const routerMinCost = ref(0);
     const routerMaxCost = ref(10);
     const routerMinQuality = ref(55);
-    const routerCostSplit = ref(5);
+    const routerCostSplit = ref(2);
     const routerQualityMinBound = ref(0);
     const routerQualityMaxBound = ref(100);
     const routerAllPoints = ref([]);
