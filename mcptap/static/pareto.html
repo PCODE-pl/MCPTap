@@ -1304,7 +1304,7 @@ const app = createApp({
         emphasis: { focus: 'series', scale: false },
       }));
       if (!hasActiveFilter && paretoFrontier.length >= 2) {
-        series.push({
+        series.unshift({
           name: 'Pareto frontier',
           type: 'line',
           data: paretoFrontier.map(point => point.value),
