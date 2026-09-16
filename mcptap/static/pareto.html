@@ -1258,13 +1258,14 @@ const app = createApp({
       const points = buildPoints();
       routerAllPoints.value = points;
       updateRouterQualityBounds();
-      const preservedRange = preserveViewportForVisiblePoints(previousPoints, points, previousViewRange);
+      const displayPoints = points.filter(p => p.weightedCost >= routerMinCost.value && p.weightedCost <= routerMaxCost.value && (typeof p.accuracy !== 'number' || p.accuracy >= routerMinQuality.value));
+      const preservedRange = preserveViewportForVisiblePoints(previousPoints, displayPoints, previousViewRange);
       chartState.value = 'rendering';
       renderError.value = '';
-      pointCount.value = points.length;
-      modelCount.value = new Set(points.map(point => point.name)).size;
-      const xValues = points.map(point => point.value[0]);
-      const yValues = points.map(point => point.value[1]);
+      pointCount.value = displayPoints.length;
+      modelCount.value = new Set(displayPoints.map(point => point.name)).size;
+      const xValues = displayPoints.map(point => point.value[0]);
+      const yValues = displayPoints.map(point => point.value[1]);
       const xMinValue = Math.min(...xValues);
       const xMaxValue = Math.max(...xValues);
       const yMinValue = Math.min(...yValues);
@@ -1284,7 +1285,7 @@ const app = createApp({
         yMin: Math.max(baseRange.yMin, nextViewRange.yMin),
       };
       const providerModelCounts = new Map();
-      for (const point of points) {
+      for (const point of displayPoints) {
         if (!providerModelCounts.has(point.provider)) providerModelCounts.set(point.provider, new Set());
         providerModelCounts.get(point.provider).add(point.name);
       }
@@ -1293,8 +1294,7 @@ const app = createApp({
         return countDifference || left.localeCompare(right);
       });
       const hasActiveFilter = (selectedProviders.value && selectedProviders.value.length > 0) || (selectedModels.value && selectedModels.value.length > 0);
-      const routerFilteredPoints = points.filter(p => p.weightedCost >= routerMinCost.value && p.weightedCost <= routerMaxCost.value && (typeof p.accuracy !== 'number' || p.accuracy >= routerMinQuality.value));
-      const paretoFrontier = hasActiveFilter ? [] : computeParetoFrontier(routerFilteredPoints);
+      const paretoFrontier = hasActiveFilter ? [] : computeParetoFrontier(displayPoints);
       const frontierSet = new Set(paretoFrontier);
       const PROVIDER_COLORS = ['#63b3ed', '#f6ad55', '#68d391', '#fc8181', '#b794f4', '#4fd1c5', '#f687b3'];
       const providerColorMap = new Map(providers.map((p, i) => [p, PROVIDER_COLORS[i % PROVIDER_COLORS.length]]));
@@ -1302,7 +1302,7 @@ const app = createApp({
         name: provider,
         type: 'scatter',
         symbolSize: 10,
-        data: points.filter(p => p.provider === provider && !frontierSet.has(p)),
+        data: displayPoints.filter(p => p.provider === provider && !frontierSet.has(p)),
         emphasis: { focus: 'series', scale: false },
         z: 4,
         itemStyle: { color: providerColorMap.get(provider) },
@@ -1363,7 +1363,7 @@ const app = createApp({
           yAxis: { name: 'Quality', nameLocation: 'middle', nameGap: 48, type: 'value', min: viewRange.value.yMin, max: viewRange.value.yMax, axisLabel: { color: '#aaa', formatter: value => Number.isInteger(value) ? value : value.toFixed(1) }, nameTextStyle: { color: '#ccc' }, splitLine: { lineStyle: { color: '#28282f' } } },
           series,
         }, { notMerge: true, lazyUpdate: false });
-        renderedPoints = points;
+        renderedPoints = displayPoints;
         updateCanvasDiagnostics();
         chartState.value = 'ready';
         requestAnimationFrame(() => updateScaleOverlay());
