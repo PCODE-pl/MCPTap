@@ -1315,6 +1315,8 @@ const app = createApp({
       const paretoPlan = paretoFrontier.filter(p => p.weightedCost < routerCostSplit.value - 1e-9);
       const paretoAct = paretoFrontier.filter(p => p.weightedCost >= routerCostSplit.value - 1e-9);
       const frontierSet = new Set(paretoFrontier);
+      const planSet = new Set(paretoPlan);
+      const actSet = new Set(paretoAct);
       const PROVIDER_COLORS = ['#63b3ed', '#f6ad55', '#68d391', '#fc8181', '#b794f4', '#4fd1c5', '#f687b3'];
       const providerColorMap = new Map(providers.map((p, i) => [p, PROVIDER_COLORS[i % PROVIDER_COLORS.length]]));
       const baseSeries = providers.map((provider, idx) => ({
@@ -1334,7 +1336,10 @@ const app = createApp({
           name: provider,
           type: 'scatter',
           symbolSize: 10,
-          data: fpts.map(p => ({ ...p, itemStyle: { borderColor: '#ffffff', borderWidth: 2.52, color: col }, emphasis: { scale: false, itemStyle: { borderColor: '#ffffff', borderWidth: 2.52, color: col } } })),
+          data: fpts.map(p => {
+            const bc = planSet.has(p) ? '#63b3ed' : '#8B4513';
+            return { ...p, itemStyle: { borderColor: bc, borderWidth: 2.52, color: col }, emphasis: { scale: false, itemStyle: { borderColor: bc, borderWidth: 2.52, color: col } } };
+          }),
           emphasis: { focus: 'series', scale: false },
           z: 5,
         };
@@ -1362,7 +1367,7 @@ const app = createApp({
           data: paretoAct.map(point => point.value),
           showSymbol: false,
           silent: true,
-          lineStyle: { color: '#ff6467', width: 3.2 },
+          lineStyle: { color: '#8B4513', width: 3.2 },
           z: 1,
         });
       }
