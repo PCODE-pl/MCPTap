@@ -1312,6 +1312,8 @@ const app = createApp({
       });
       const hasActiveFilter = (selectedProviders.value && selectedProviders.value.length > 0) || (selectedModels.value && selectedModels.value.length > 0);
       const paretoFrontier = hasActiveFilter ? [] : computeParetoFrontier(displayPoints);
+      const paretoPlan = paretoFrontier.filter(p => p.weightedCost < routerCostSplit.value - 1e-9);
+      const paretoAct = paretoFrontier.filter(p => p.weightedCost >= routerCostSplit.value - 1e-9);
       const frontierSet = new Set(paretoFrontier);
       const PROVIDER_COLORS = ['#63b3ed', '#f6ad55', '#68d391', '#fc8181', '#b794f4', '#4fd1c5', '#f687b3'];
       const providerColorMap = new Map(providers.map((p, i) => [p, PROVIDER_COLORS[i % PROVIDER_COLORS.length]]));
@@ -1338,14 +1340,29 @@ const app = createApp({
         };
       }).filter(Boolean);
       const series = [...baseSeries];
-      if (!hasActiveFilter && paretoFrontier.length >= 2) {
+      const isPlanEmpty = paretoPlan.length === 0;
+      const isActEmpty = paretoAct.length === 0;
+      const isSplitAtMin = routerCostSplit.value <= routerMinCost.value + 1e-9;
+      const isSplitAtMax = routerCostSplit.value >= routerMaxCost.value - 1e-9;
+      if (!hasActiveFilter && paretoPlan.length >= 2 && !isPlanEmpty && !isSplitAtMin) {
         series.unshift({
-          name: 'pareto',
+          name: 'pareto plan',
           type: 'line',
-          data: paretoFrontier.map(point => point.value),
+          data: paretoPlan.map(point => point.value),
           showSymbol: false,
           silent: true,
-          lineStyle: { color: 'rgba(255,255,255,0.9)', width: 3.2 },
+          lineStyle: { color: '#63b3ed', width: 3.2 },
+          z: 1,
+        });
+      }
+      if (!hasActiveFilter && paretoAct.length >= 2 && !isActEmpty && !isSplitAtMax) {
+        series.unshift({
+          name: 'pareto act',
+          type: 'line',
+          data: paretoAct.map(point => point.value),
+          showSymbol: false,
+          silent: true,
+          lineStyle: { color: '#ff6467', width: 3.2 },
           z: 1,
         });
       }
@@ -1354,7 +1371,8 @@ const app = createApp({
         (selection, provider) => ({ ...selection, [provider]: legendVisibility[provider] !== false }),
         {},
       );
-      if (!hasActiveFilter) legendSelection['pareto'] = legendVisibility['pareto'] !== false;
+      if (!hasActiveFilter && paretoPlan.length >= 2 && !isSplitAtMin) legendSelection['pareto plan'] = legendVisibility['pareto plan'] !== false;
+      if (!hasActiveFilter && paretoAct.length >= 2 && !isSplitAtMax) legendSelection['pareto act'] = legendVisibility['pareto act'] !== false;
       seriesCount.value = series.length;
       try {
         chart.value.setOption({
