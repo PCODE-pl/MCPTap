@@ -360,7 +360,10 @@ async def test_serve_pareto_page_returns_html():
         assert "if (clampToBase && limits.max !== null && nextMax > limits.max)" in body
         assert "const anchor = chart.value.convertFromPixel({ xAxisIndex: 0, yAxisIndex: 0 }, pixel);" in body
         assert "const internalX = numeric(params.zrX) ?? numeric(event.zrX);" in body
-        assert "if (internalX !== null && internalY !== null) return [internalX, internalY];" in body
+        assert (
+            "if (internalX !== null && internalY !== null) {\n        lastPointerPixel = [internalX, internalY];\n        return [internalX, internalY];\n      }"
+            in body
+        )
         assert "const nextYRange = zoomRangeAroundAnchor(anchor[1], {" in body
         assert "yMin: nextYRange.min" in body
         assert "yMax: nextYRange.max" in body
