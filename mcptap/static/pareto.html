@@ -782,7 +782,13 @@ const app = createApp({
       return { overlapping, anchorPixel };
     }
 
-    let popupShowBlindUntil = 0;
+    let popupShowBlindTimer = null;
+
+    function startPopupShowBlind() {
+      popupShowBlindUntil = Date.now() + 500;
+      clearTimeout(popupShowBlindTimer);
+      popupShowBlindTimer = null;
+    }
 
     function showPopupForPoint(point) {
       if (selectionStart.value !== null) return;
@@ -796,7 +802,6 @@ const app = createApp({
       popupIndex.value = anchorIdx >= 0 ? anchorIdx : 0;
       popupAnchor = point.value.slice();
       popupVisible.value = true;
-      popupShowBlindUntil = Date.now() + 500;
       Vue.nextTick(() => {
         if (!popupRef.value) {
           popupStyle.value = formatPopupPosition(result.anchorPixel);
@@ -908,7 +913,12 @@ const app = createApp({
       if (selectionStart.value !== null) return;
       const point = params?.data;
       if (!point || !point.value || !Array.isArray(point.value)) return;
-      showPopupForPoint(point);
+      if (!popupVisible.value) {
+        showPopupForPoint(point);
+        return;
+      }
+      // popup already shown: first mouse move (over another point) re-arms the blind window
+      startPopupShowBlind();
     }
 
     function handleScatterMouseOut() { hidePopup(); }
