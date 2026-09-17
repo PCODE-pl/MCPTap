@@ -792,7 +792,7 @@ const app = createApp({
 
     function showPopupForPoint(point) {
       if (selectionStart.value !== null) return;
-      if (Date.now() < popupShowBlindUntil) return;
+      if (popupVisible.value && Date.now() < popupShowBlindUntil) return;
       clearTimeout(popupHideTimer);
       popupHideTimer = null;
       const result = findOverlappingPoints(point.value);
@@ -815,6 +815,7 @@ const app = createApp({
     }
 
     function hidePopup() {
+      popupShowBlindUntil = 0;
       clearTimeout(popupHideTimer);
       popupHideTimer = setTimeout(() => {
         if (!popupInside) {
