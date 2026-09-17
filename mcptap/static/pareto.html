@@ -782,8 +782,11 @@ const app = createApp({
       return { overlapping, anchorPixel };
     }
 
+    let popupShowBlindUntil = 0;
+
     function showPopupForPoint(point) {
       if (selectionStart.value !== null) return;
+      if (Date.now() < popupShowBlindUntil) return;
       clearTimeout(popupHideTimer);
       popupHideTimer = null;
       const result = findOverlappingPoints(point.value);
@@ -793,6 +796,7 @@ const app = createApp({
       popupIndex.value = anchorIdx >= 0 ? anchorIdx : 0;
       popupAnchor = point.value.slice();
       popupVisible.value = true;
+      popupShowBlindUntil = Date.now() + 500;
       Vue.nextTick(() => {
         if (!popupRef.value) {
           popupStyle.value = formatPopupPosition(result.anchorPixel);
