@@ -783,6 +783,7 @@ const app = createApp({
     }
 
     let popupShowBlindTimer = null;
+    let lastPointerPixel = null;
 
     function startPopupShowBlind() {
       popupShowBlindUntil = Date.now() + 500;
@@ -822,9 +823,28 @@ const app = createApp({
           popupVisible.value = false;
           popupPoints.value = [];
           popupAnchor = null;
+          reshowPopupAtPointer();
         }
         popupHideTimer = null;
       }, 900);
+    }
+
+    function reshowPopupAtPointer() {
+      if (lastPointerPixel === null || selectionStart.value !== null) return;
+      const anchor = chart.value.convertFromPixel({ xAxisIndex: 0, yAxisIndex: 0 }, lastPointerPixel);
+      if (!Array.isArray(anchor)) return;
+      let best = null;
+      let bestDist = Infinity;
+      for (const point of renderedPoints) {
+        const pixel = chart.value.convertToPixel({ xAxisIndex: 0, yAxisIndex: 0 }, point.value);
+        if (!Array.isArray(pixel)) continue;
+        const dist = Math.hypot(pixel[0] - lastPointerPixel[0], pixel[1] - lastPointerPixel[1]);
+        if (dist <= POPUP_OVERLAP_PX && dist < bestDist) {
+          best = point;
+          bestDist = dist;
+        }
+      }
+      if (best) showPopupForPoint(best);
     }
 
     function handlePopupEnter() {
@@ -933,11 +953,16 @@ const app = createApp({
       const event = params.event || params;
       const internalX = numeric(params.zrX) ?? numeric(event.zrX);
       const internalY = numeric(params.zrY) ?? numeric(event.zrY);
-      if (internalX !== null && internalY !== null) return [internalX, internalY];
-      return [
+      if (internalX !== null && internalY !== null) {
+        lastPointerPixel = [internalX, internalY];
+        return [internalX, internalY];
+      }
+      const offset = [
         numeric(event.offsetX),
         numeric(event.offsetY),
       ];
+      if (offset[0] !== null && offset[1] !== null) lastPointerPixel = offset;
+      return offset;
     }
 
     function isInPlot([x, y]) {
