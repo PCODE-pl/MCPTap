@@ -193,8 +193,8 @@
             </div>
             <div class="pareto-popup__card" data-testid="pareto-popup-card" v-html="popupCardHtml"></div>
             <div class="pareto-popup__actions" data-testid="pareto-popup-actions">
-              <button type="button" class="chart-control" data-testid="pareto-act-model" :disabled="!popupActionable" :title="popupActionTitle" @click="handleActModel">Act model</button>
-              <button type="button" class="chart-control" data-testid="pareto-plan-model" :disabled="!popupActionable" :title="popupActionTitle" @click="handlePlanModel">Plan model</button>
+              <button type="button" class="chart-control" data-testid="pareto-act-model" :disabled="!popupActionable" :title="popupActionable ? 'Set as act model' : popupActionTitle" @click="handleActModel">Act model</button>
+              <button type="button" class="chart-control" data-testid="pareto-plan-model" :disabled="!popupActionable" :title="popupActionable ? 'Set as plan model' : popupActionTitle" @click="handlePlanModel">Plan model</button>
             </div>
             <div v-if="popupPoints.length > 1" class="pareto-popup__dots" data-testid="pareto-popup-dots"><span v-for="(_, idx) in popupPoints" :key="idx" :class="{active: idx === popupIndex}"></span></div>
           </div>

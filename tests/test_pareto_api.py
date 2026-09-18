@@ -588,7 +588,9 @@ async def test_serve_pareto_page_returns_html():
         assert 'data-testid="pareto-toast"' in body
         assert "pareto-popup-notice" not in body
         assert ':disabled="!popupActionable"' in body
-        assert ':title="popupActionTitle"' in body
+        assert ":title=\"popupActionable ? 'Set as act model' : popupActionTitle\"" in body
+        assert ":title=\"popupActionable ? 'Set as plan model' : popupActionTitle\"" in body
+        assert "const popupActionTitle = computed(() => popupActionable.value ? '' : popupActionReason.value);" in body
         assert '@click="handleActModel"' in body
         assert '@click="handlePlanModel"' in body
         assert "const popupActionReason = computed(() => {" in body
