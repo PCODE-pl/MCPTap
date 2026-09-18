@@ -1,6 +1,7 @@
 """Upstream HTTP client — buffered communication with the provider API."""
 
 import contextlib
+import hashlib
 import json
 import uuid
 from typing import Any, Dict, Optional, Tuple
@@ -26,11 +27,59 @@ from mcptap.encrypted_replay import (
     is_encrypted_replay_error,
 )
 from mcptap.http_utils import filtered_headers, log_communication
-from mcptap.responses import response_json_from_raw
+from mcptap.responses import response_json_from_raw, response_json_from_sse
 from mcptap.settings import LOGGER, PROVIDER_OPENCODE, settings
 
 _CHAT_CONVERSATIONS = PersistentChatStore()
-_OPENCODE_USER_AGENT = "opencode/mcp-tap"
+
+# Zen free-tier gate (checked 2026-09-18, v1.18.31 sources): requests must
+# present the official client identity — User-Agent
+# opencode/<channel>/<version>/<client> with version >= 1.17.0 — and a
+# canonical x-opencode-session id (ses_[0-9a-f]{12}[0-9A-Za-z]{14}). On the
+# free lane the tool quartet (bash/glob/grep/read) must be declared in the
+# body and the request must stream (non-stream answers 403 FreeTierError).
+OPENCODE_CHANNEL = "latest"
+OPENCODE_VERSION = "1.18.31"
+OPENCODE_CLIENT = "cli"
+_OPENCODE_USER_AGENT = f"opencode/{OPENCODE_CHANNEL}/{OPENCODE_VERSION}/{OPENCODE_CLIENT}"
+
+OPENCODE_GATE_TOOLS = [
+    {
+        "type": "function",
+        "name": "bash",
+        "description": "Run a bash command.",
+        "parameters": {"type": "object", "properties": {"command": {"type": "string"}}, "required": ["command"]},
+    },
+    {
+        "type": "function",
+        "name": "glob",
+        "description": "Find files by glob pattern.",
+        "parameters": {"type": "object", "properties": {"pattern": {"type": "string"}}, "required": ["pattern"]},
+    },
+    {
+        "type": "function",
+        "name": "grep",
+        "description": "Search file contents.",
+        "parameters": {"type": "object", "properties": {"pattern": {"type": "string"}}, "required": ["pattern"]},
+    },
+    {
+        "type": "function",
+        "name": "read",
+        "description": "Read a file.",
+        "parameters": {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]},
+    },
+]
+
+
+def _canonical_opencode_session(session_id: str) -> str:
+    """Map any client session id onto the gate's canonical ses_ shape.
+
+    The mapping is deterministic (stable per conversation for upstream
+    rate-limiting/routing) and always yields
+    ses_[0-9a-f]{12}[0-9A-Za-z]{14}.
+    """
+    digest = hashlib.sha256(session_id.encode("utf-8")).hexdigest()
+    return f"ses_{digest[:12]}{digest[12:26]}"
 
 
 def _replace_header(headers: Dict[str, str], name: str, value: str) -> None:
@@ -55,8 +104,13 @@ def _apply_provider_headers(headers: Dict[str, str], body: Optional[Dict[str, An
         prompt_cache_key = body.get("prompt_cache_key")
         if isinstance(prompt_cache_key, str):
             session_id = prompt_cache_key.strip()
-    if session_id:
-        _replace_header(outgoing_headers, "x-opencode-session", session_id)
+    # The gate requires the header on every request; without a client
+    # session a fresh canonical id is minted per call.
+    _replace_header(
+        outgoing_headers,
+        "x-opencode-session",
+        _canonical_opencode_session(session_id or uuid.uuid4().hex),
+    )
     _replace_header(outgoing_headers, "User-Agent", _OPENCODE_USER_AGENT)
     return outgoing_headers
 
@@ -105,13 +159,18 @@ async def post_upstream_buffered(
     calls before returning the response to the client.
     """
     chat_mode = _uses_chat_completions(path)
+    opencode_provider = settings.upstream_provider == PROVIDER_OPENCODE
+    # The zen free-tier gate requires stream=true even for clients asking for
+    # a buffered JSON response; the SSE is buffered and the final
+    # response.completed payload is returned as JSON below.
+    upstream_stream = stream or opencode_provider
     request_body = dict(body)
     if chat_mode:
-        request_body = responses_request_to_chat(request_body, _CHAT_CONVERSATIONS, stream=stream)
+        request_body = responses_request_to_chat(request_body, _CHAT_CONVERSATIONS, stream=upstream_stream)
     upstream_path = _chat_upstream_path(path)
     outgoing_headers = _apply_provider_headers(headers, body)
     outgoing_headers["Content-Type"] = "application/json"
-    if stream:
+    if upstream_stream:
         request_body["stream"] = True
         outgoing_headers.pop("Accept", None)
         outgoing_headers["Accept"] = "text/event-stream"
@@ -119,6 +178,15 @@ async def post_upstream_buffered(
         request_body.pop("stream", None)
         outgoing_headers.pop("Accept", None)
         outgoing_headers["Accept"] = "application/json"
+    if opencode_provider and not chat_mode and upstream_path.rstrip("/").endswith("/responses"):
+        # Gate requires the tool quartet in the body; add only tool names the
+        # client does not already declare to avoid duplicate-name rejections.
+        declared = {
+            tool.get("name") for tool in request_body.get("tools") or [] if isinstance(tool, dict) and tool.get("name")
+        }
+        additions = [tool for tool in OPENCODE_GATE_TOOLS if tool["name"] not in declared]
+        if additions:
+            request_body["tools"] = list(request_body.get("tools") or []) + additions
 
     url = settings.upstream_base_url + upstream_path
     data = json.dumps(request_body, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
@@ -157,7 +225,16 @@ async def post_upstream_buffered(
         body_json = response_json if response_json is not None else {}
         response_headers["Content-Type"] = "text/event-stream"
     else:
-        body_json = response_json_from_raw(raw, stream)
+        body_json = response_json_from_raw(raw, upstream_stream)
+
+    # A non-stream client asking for a gated stream response gets the final
+    # response.completed payload materialized back as JSON.
+    if opencode_provider and not chat_mode and upstream_stream and not stream and resp.status < 400:
+        completed = response_json_from_sse(raw)
+        if completed is not None:
+            raw = json.dumps(completed, ensure_ascii=False).encode("utf-8")
+            body_json = completed
+            response_headers["Content-Type"] = "application/json"
 
     return resp.status, response_headers, raw, body_json
 

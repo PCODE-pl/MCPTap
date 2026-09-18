@@ -4,7 +4,7 @@ import pytest
 from aiohttp import ClientSession, web
 from aiohttp.test_utils import TestClient, TestServer
 
-from mcptap.upstream import passthrough, post_upstream_buffered
+from mcptap.upstream import _OPENCODE_USER_AGENT, _canonical_opencode_session, passthrough, post_upstream_buffered
 
 
 @pytest.mark.asyncio
@@ -36,8 +36,12 @@ async def test_opencode_headers_identify_session_and_client(monkeypatch):
     finally:
         await client.close()
 
-    assert received_headers["x-opencode-session"] == "session-123"
-    assert received_headers["User-Agent"] == "opencode/mcp-tap"
+    # Gate requires the canonical session shape; the mapping is deterministic
+    # per client session id.
+    expected_session = _canonical_opencode_session("session-123")
+    assert received_headers["x-opencode-session"] == expected_session
+    assert expected_session.startswith("ses_") and len(expected_session) == 30
+    assert received_headers["User-Agent"] == _OPENCODE_USER_AGENT
 
 
 @pytest.mark.asyncio
@@ -69,8 +73,8 @@ async def test_opencode_headers_fall_back_to_prompt_cache_key(monkeypatch):
     finally:
         await client.close()
 
-    assert received_headers["x-opencode-session"] == "pck_session_123"
-    assert received_headers["User-Agent"] == "opencode/mcp-tap"
+    assert received_headers["x-opencode-session"] == _canonical_opencode_session("pck_session_123")
+    assert received_headers["User-Agent"] == _OPENCODE_USER_AGENT
 
 
 @pytest.mark.asyncio
@@ -112,8 +116,8 @@ async def test_passthrough_sends_opencode_headers(monkeypatch):
         await upstream_session.close()
         await upstream_server.close()
 
-    assert received_headers["x-opencode-session"] == "session-123"
-    assert received_headers["User-Agent"] == "opencode/mcp-tap"
+    assert received_headers["x-opencode-session"] == _canonical_opencode_session("session-123")
+    assert received_headers["User-Agent"] == _OPENCODE_USER_AGENT
 
 
 @pytest.mark.asyncio
@@ -147,3 +151,152 @@ async def test_non_opencode_headers_are_not_rewritten(monkeypatch):
 
     assert "x-opencode-session" not in received_headers
     assert received_headers["User-Agent"] == "hermes/test"
+
+
+@pytest.mark.asyncio
+async def test_opencode_buffered_non_stream_gains_gate_stream_and_tools(monkeypatch):
+    """A buffered non-stream call upstream streams with the tool quartet and
+    the final response.completed payload is materialized back as JSON."""
+    received = {}
+
+    async def handler(request):
+        import json
+
+        received["headers"] = dict(request.headers)
+        received["payload"] = await request.json()
+        sse = (
+            "event: response.completed\n"
+            + "data: "
+            + json.dumps(
+                {
+                    "type": "response.completed",
+                    "response": {"id": "resp_1", "model": "m", "output": [{"type": "message", "content": "hi"}]},
+                }
+            )
+            + "\n\n"
+        )
+        return web.Response(body=sse.encode(), content_type="text/event-stream")
+
+    server = TestServer(web.Application())
+    server.app.router.add_post("/v1/responses", handler)
+    client = TestClient(server)
+    await client.start_server()
+    try:
+        from mcptap.settings import settings
+
+        monkeypatch.setattr(settings, "upstream_provider", "opencode")
+        monkeypatch.setattr(settings, "upstream_base_url", str(server.make_url("/v1")))
+        monkeypatch.setattr(settings, "api_key", "test-key")
+        monkeypatch.setattr(settings, "use_chat_completions", False)
+        status, response_headers, raw, body_json = await post_upstream_buffered(
+            client.session,
+            "/responses",
+            {"session-id": "session-123", "User-Agent": "hermes/test"},
+            {"model": "m", "input": "Hello", "tools": [{"type": "function", "name": "grep", "parameters": {}}]},
+            False,
+        )
+    finally:
+        await client.close()
+
+    payload = received["payload"]
+    # Gate stream + tools injected upstream; client-declared tool names kept.
+    assert payload["stream"] is True
+    names = [tool["name"] for tool in payload["tools"]]
+    assert names == ["grep", "bash", "glob", "read"]
+    # Final response.completed materialized as JSON for the non-stream client.
+    assert status == 200
+    assert body_json["output"] == [{"type": "message", "content": "hi"}]
+    assert response_headers["Content-Type"].startswith("application/json")
+    assert raw.startswith(b'{"id"')
+
+
+@pytest.mark.asyncio
+async def test_opencode_stream_client_request_is_forwarded_unchanged(monkeypatch):
+    """A streaming client keeps its SSE response; gate tools are merged in."""
+    received = {}
+
+    async def handler(request):
+        import json
+
+        received["payload"] = await request.json()
+        sse = (
+            "event: response.completed\n"
+            + "data: "
+            + json.dumps({"type": "response.completed", "response": {"id": "resp_1", "output": []}})
+            + "\n\n"
+        )
+        return web.Response(body=sse.encode(), content_type="text/event-stream")
+
+    server = TestServer(web.Application())
+    server.app.router.add_post("/v1/responses", handler)
+    client = TestClient(server)
+    await client.start_server()
+    try:
+        from mcptap.settings import settings
+
+        monkeypatch.setattr(settings, "upstream_provider", "opencode")
+        monkeypatch.setattr(settings, "upstream_base_url", str(server.make_url("/v1")))
+        monkeypatch.setattr(settings, "api_key", "test-key")
+        monkeypatch.setattr(settings, "use_chat_completions", False)
+        status, response_headers, raw, _body_json = await post_upstream_buffered(
+            client.session,
+            "/responses",
+            {"User-Agent": "hermes/test"},
+            {"model": "m", "input": "Hello"},
+            True,
+        )
+    finally:
+        await client.close()
+
+    payload = received["payload"]
+    assert payload["stream"] is True
+    assert [tool["name"] for tool in payload["tools"]] == ["bash", "glob", "grep", "read"]
+    assert response_headers["Content-Type"].startswith("text/event-stream")
+
+
+def test_canonical_session_shape_is_stable():
+    a = _canonical_opencode_session("abc")
+    b = _canonical_opencode_session("abc")
+    other = _canonical_opencode_session("abcd")
+    import re
+
+    for value in (a, b, other):
+        assert re.fullmatch(r"ses_[0-9a-f]{12}[0-9A-Za-z]{14}", value)
+    assert a == b
+    assert a != other
+
+
+@pytest.mark.asyncio
+async def test_opencode_session_header_always_present(monkeypatch):
+    """Without a client session the gate header is minted canonically."""
+    received_headers = {}
+
+    async def handler(request):
+        received_headers.update(request.headers)
+        return web.json_response({"id": "resp_1", "model": "m", "output": []})
+
+    server = TestServer(web.Application())
+    server.app.router.add_post("/v1/responses", handler)
+    client = TestClient(server)
+    await client.start_server()
+    try:
+        from mcptap.settings import settings
+
+        monkeypatch.setattr(settings, "upstream_provider", "opencode")
+        monkeypatch.setattr(settings, "upstream_base_url", str(server.make_url("/v1")))
+        monkeypatch.setattr(settings, "api_key", "test-key")
+        monkeypatch.setattr(settings, "use_chat_completions", False)
+        await post_upstream_buffered(
+            client.session,
+            "/responses",
+            {"User-Agent": "hermes/test"},
+            {"model": "m", "input": "Hello"},
+            False,
+        )
+    finally:
+        await client.close()
+
+    import re
+
+    session = received_headers.get("x-opencode-session", "")
+    assert re.fullmatch(r"ses_[0-9a-f]{12}[0-9A-Za-z]{14}", session)
