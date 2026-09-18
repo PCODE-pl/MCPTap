@@ -803,6 +803,7 @@ const app = createApp({
       popupIndex.value = anchorIdx >= 0 ? anchorIdx : 0;
       popupAnchor = point.value.slice();
       popupVisible.value = true;
+      startPopupShowBlind();
       Vue.nextTick(() => {
         if (!popupRef.value) {
           popupStyle.value = formatPopupPosition(result.anchorPixel);
@@ -935,12 +936,11 @@ const app = createApp({
       if (selectionStart.value !== null) return;
       const point = params?.data;
       if (!point || !point.value || !Array.isArray(point.value)) return;
-      if (!popupVisible.value) {
-        showPopupForPoint(point);
+      if (popupVisible.value && Date.now() < popupShowBlindUntil) {
+        // blind window: just refresh the hide timer, no popup change
         return;
       }
-      // popup already shown: first mouse move (over another point) re-arms the blind window
-      startPopupShowBlind();
+      showPopupForPoint(point);
     }
 
     function handleScatterMouseOut() { hidePopup(); }
@@ -1058,6 +1058,7 @@ const app = createApp({
     }
 
     function handleChartMouseMove(params) {
+      pointerPosition(params);
       if (!selectionStart.value) return;
       updateZoomSelection(selectionStart.value, pointerPosition(params));
     }
