@@ -137,6 +137,36 @@ def _chat_upstream_path(path: str) -> str:
     return normalized[: -len("responses")] + "chat/completions"
 
 
+def _dedupe_function_call_outputs(body: Dict[str, Any]) -> None:
+    """Drop duplicate function_call_output items from a Responses input list.
+
+    Upstream (Console) rejects the request with 400 invalid_request_error
+    when a call_id carries more than one function_call_output ("Each
+    function_call must have exactly one matching function_call_output").
+    A duplicated call_id happens in long agent histories (replayed
+    tool results). The last occurrence wins — it is the freshest output
+    for the call. Items without a call_id are left untouched.
+    """
+    input_value = body.get("input")
+    if not isinstance(input_value, list):
+        return
+    seen: set = set()
+    deduped = []
+    for item in reversed(input_value):
+        if (
+            isinstance(item, dict)
+            and item.get("type") in {"function_call_output", "custom_tool_call_output"}
+            and isinstance(item.get("call_id"), str)
+            and item["call_id"]
+        ):
+            if item["call_id"] in seen:
+                continue
+            seen.add(item["call_id"])
+        deduped.append(item)
+    deduped.reverse()
+    body["input"] = deduped
+
+
 def _parse_json_object(raw: bytes) -> Optional[Dict[str, Any]]:
     try:
         candidate = json.loads(raw.decode("utf-8"))
@@ -165,6 +195,7 @@ async def post_upstream_buffered(
     # response.completed payload is returned as JSON below.
     upstream_stream = stream or opencode_provider
     request_body = dict(body)
+    _dedupe_function_call_outputs(request_body)
     if chat_mode:
         request_body = responses_request_to_chat(request_body, _CHAT_CONVERSATIONS, stream=upstream_stream)
     upstream_path = _chat_upstream_path(path)
