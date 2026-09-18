@@ -137,15 +137,18 @@ def _chat_upstream_path(path: str) -> str:
     return normalized[: -len("responses")] + "chat/completions"
 
 
-def _dedupe_function_call_outputs(body: Dict[str, Any]) -> None:
-    """Drop duplicate function_call_output items from a Responses input list.
+def _repair_function_call_pairs(body: Dict[str, Any]) -> None:
+    """Make every function_call in a Responses input have exactly one output.
 
     Upstream (Console) rejects the request with 400 invalid_request_error
     when a call_id carries more than one function_call_output ("Each
-    function_call must have exactly one matching function_call_output").
-    A duplicated call_id happens in long agent histories (replayed
-    tool results). The last occurrence wins — it is the freshest output
-    for the call. Items without a call_id are left untouched.
+    function_call must have exactly one matching function_call_output") or
+    when a function_call has no output at all ("invalid parameters", live
+    verified 2026-09-18). Long agent histories replay tool results, which
+    produces both shapes. Duplicate outputs: the last occurrence wins —
+    it is the freshest output for the call. Orphan calls: a synthetic
+    "(tool result missing)" output is appended so the call/model context
+    is preserved. Items without a call_id are left untouched.
     """
     input_value = body.get("input")
     if not isinstance(input_value, list):
@@ -164,6 +167,23 @@ def _dedupe_function_call_outputs(body: Dict[str, Any]) -> None:
             seen.add(item["call_id"])
         deduped.append(item)
     deduped.reverse()
+    call_types = {"function_call": "function_call_output", "custom_tool_call": "custom_tool_call_output"}
+    for item in list(deduped):
+        if (
+            isinstance(item, dict)
+            and item.get("type") in call_types
+            and isinstance(item.get("call_id"), str)
+            and item["call_id"]
+            and item["call_id"] not in seen
+        ):
+            seen.add(item["call_id"])
+            deduped.append(
+                {
+                    "type": call_types[item["type"]],
+                    "call_id": item["call_id"],
+                    "output": "(tool result missing)",
+                }
+            )
     body["input"] = deduped
 
 
@@ -195,7 +215,7 @@ async def post_upstream_buffered(
     # response.completed payload is returned as JSON below.
     upstream_stream = stream or opencode_provider
     request_body = dict(body)
-    _dedupe_function_call_outputs(request_body)
+    _repair_function_call_pairs(request_body)
     if chat_mode:
         request_body = responses_request_to_chat(request_body, _CHAT_CONVERSATIONS, stream=upstream_stream)
     upstream_path = _chat_upstream_path(path)
