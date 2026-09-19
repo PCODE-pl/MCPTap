@@ -106,11 +106,11 @@ def _apply_provider_headers(headers: Dict[str, str], body: Optional[Dict[str, An
             session_id = prompt_cache_key.strip()
     # The gate requires the header on every request; without a client
     # session a fresh canonical id is minted per call.
-    _replace_header(
-        outgoing_headers,
-        "x-opencode-session",
-        _canonical_opencode_session(session_id or uuid.uuid4().hex),
-    )
+    opencode_session = _canonical_opencode_session(session_id or uuid.uuid4().hex)
+    _replace_header(outgoing_headers, "x-opencode-session", opencode_session)
+    _replace_header(outgoing_headers, "x-opencode-client", OPENCODE_CLIENT)
+    _replace_header(outgoing_headers, "x-opencode-request", f"msg_{uuid.uuid4().hex}")
+    _replace_header(outgoing_headers, "x-opencode-sesion", opencode_session.removeprefix("ses_"))
     _replace_header(outgoing_headers, "User-Agent", _OPENCODE_USER_AGENT)
     return outgoing_headers
 

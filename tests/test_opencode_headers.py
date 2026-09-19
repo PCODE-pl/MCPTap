@@ -45,6 +45,48 @@ async def test_opencode_headers_identify_session_and_client(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_opencode_headers_forward_the_complete_client_fingerprint(monkeypatch):
+    received_headers = []
+
+    async def handler(request):
+        received_headers.append(dict(request.headers))
+        return web.json_response({"id": "resp_1", "model": "m", "output": []})
+
+    server = TestServer(web.Application())
+    server.app.router.add_post("/v1/responses", handler)
+    client = TestClient(server)
+    await client.start_server()
+    try:
+        from mcptap.settings import settings
+
+        monkeypatch.setattr(settings, "upstream_provider", "opencode")
+        monkeypatch.setattr(settings, "upstream_base_url", str(server.make_url("/v1")))
+        monkeypatch.setattr(settings, "api_key", "test-key")
+        monkeypatch.setattr(settings, "use_chat_completions", False)
+        request_headers = {"session-id": "session-123", "User-Agent": "hermes/test"}
+        for _ in range(2):
+            await post_upstream_buffered(
+                client.session,
+                "/responses",
+                request_headers,
+                {"model": "m", "input": "Hello"},
+                False,
+            )
+    finally:
+        await client.close()
+
+    assert len(received_headers) == 2
+    expected_session = _canonical_opencode_session("session-123")
+    for headers in received_headers:
+        assert headers["x-opencode-client"] == "cli"
+        assert headers["x-opencode-session"] == expected_session
+        assert headers["x-opencode-sesion"] == expected_session.removeprefix("ses_")
+        assert headers["x-opencode-request"].startswith("msg_")
+        assert len(headers["x-opencode-request"]) == len("msg_") + 32
+    assert received_headers[0]["x-opencode-request"] != received_headers[1]["x-opencode-request"]
+
+
+@pytest.mark.asyncio
 async def test_opencode_headers_fall_back_to_prompt_cache_key(monkeypatch):
     received_headers = {}
 
@@ -116,7 +158,11 @@ async def test_passthrough_sends_opencode_headers(monkeypatch):
         await upstream_session.close()
         await upstream_server.close()
 
+    assert received_headers["x-opencode-client"] == "cli"
     assert received_headers["x-opencode-session"] == _canonical_opencode_session("session-123")
+    assert received_headers["x-opencode-sesion"] == _canonical_opencode_session("session-123").removeprefix("ses_")
+    assert received_headers["x-opencode-request"].startswith("msg_")
+    assert len(received_headers["x-opencode-request"]) == len("msg_") + 32
     assert received_headers["User-Agent"] == _OPENCODE_USER_AGENT
 
 
