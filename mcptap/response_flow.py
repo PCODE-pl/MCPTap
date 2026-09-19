@@ -63,7 +63,7 @@ async def handle_responses_with_intercept(
     """Talk to upstream in a loop, resolving intercepted tool calls locally
     until the model returns a final response with no intercepted calls.
 
-    When MCP_TAP_USE_TOOL_HOOK is configured, batches of client function calls
+    When MCPTAP_USE_TOOL_HOOK is configured, batches of client function calls
     are intercepted: a synthetic get_goal call is returned to the client, and
     on the next request the hook script decides whether to allow or block.
     """
@@ -314,7 +314,7 @@ async def handle_responses_with_intercept(
         break
     else:
         LOGGER.warning(
-            "Intercept loop reached MCP_TAP_INTERCEPT_MAX_ITERATIONS=%d without a final answer",
+            "Intercept loop reached MCPTAP_INTERCEPT_MAX_ITERATIONS=%d without a final answer",
             settings.intercept_max_iterations,
         )
 

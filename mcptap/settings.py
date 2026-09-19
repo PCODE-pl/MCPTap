@@ -113,9 +113,9 @@ def get_provider_api_key(provider: str) -> str:
     if provider_env_file is None:
         raise ValueError(f"Unsupported provider: {provider}")
 
-    api_key = (dotenv_values(CONFIG_DIR / provider_env_file).get("MCP_TAP_API_KEY") or "").strip()
+    api_key = (dotenv_values(CONFIG_DIR / provider_env_file).get("MCPTAP_API_KEY") or "").strip()
     if not api_key:
-        raise RuntimeError(f"MCP_TAP_API_KEY must not be empty in {provider_env_file}")
+        raise RuntimeError(f"MCPTAP_API_KEY must not be empty in {provider_env_file}")
     return api_key
 
 
@@ -123,14 +123,14 @@ def get_provider_api_key(provider: str) -> str:
 # cleaned from ``os.environ`` before loading a different provider file to avoid
 # stale values leaking across provider switches.
 _PROVIDER_ENV_KEYS = [
-    "MCP_TAP_API_KEY",
-    "MCP_TAP_MODEL",
-    "MCP_TAP_PLAN_MODE_MODEL",
-    "MCP_TAP_OPENROUTER_PROVIDER",
-    "MCP_TAP_OPENROUTER_DISABLE_PROVIDER_FALLBACKS",
-    "MCP_TAP_CREDITS_URL",
-    "MCP_TAP_CREDITS_API_KEY",
-    "MCP_TAP_USE_CHAT_COMPLETIONS",
+    "MCPTAP_API_KEY",
+    "MCPTAP_MODEL",
+    "MCPTAP_PLAN_MODE_MODEL",
+    "MCPTAP_OPENROUTER_PROVIDER",
+    "MCPTAP_OPENROUTER_DISABLE_PROVIDER_FALLBACKS",
+    "MCPTAP_CREDITS_URL",
+    "MCPTAP_CREDITS_API_KEY",
+    "MCPTAP_USE_CHAT_COMPLETIONS",
 ]
 
 
@@ -239,12 +239,12 @@ def _load_env_files() -> None:
     """
     load_dotenv(CONFIG_DIR / "proxy.env", override=True)
 
-    upstream_provider = (os.environ.get("MCP_TAP_UPSTREAM_PROVIDER") or "").strip().lower()
+    upstream_provider = (os.environ.get("MCPTAP_UPSTREAM_PROVIDER") or "").strip().lower()
 
     provider_env_file = _PROVIDER_ENV_FILES.get(upstream_provider, "")
     if not provider_env_file:
         raise RuntimeError(
-            "MCP_TAP_UPSTREAM_PROVIDER must be one of 'openrouter', 'requesty', 'meta', 'nano-gpt', 'llmtr'"
+            "MCPTAP_UPSTREAM_PROVIDER must be one of 'openrouter', 'requesty', 'meta', 'nano-gpt', 'llmtr'"
         )
 
     # Remove stale provider-specific keys before loading the new provider file.
@@ -256,23 +256,23 @@ def _load_env_files() -> None:
 
 def _build_settings() -> Settings:
     """Build a Settings instance from the current os.environ."""
-    upstream_provider = (os.environ.get("MCP_TAP_UPSTREAM_PROVIDER") or "").strip().lower()
+    upstream_provider = (os.environ.get("MCPTAP_UPSTREAM_PROVIDER") or "").strip().lower()
 
     upstream_base_url = _UPSTREAM_BASE_URLS.get(upstream_provider, "")
     provider_env_file = _PROVIDER_ENV_FILES.get(upstream_provider, "")
     if not upstream_base_url:
         raise RuntimeError(
-            "MCP_TAP_UPSTREAM_PROVIDER must be one of 'openrouter', 'requesty', 'meta', 'nano-gpt', 'llmtr'"
+            "MCPTAP_UPSTREAM_PROVIDER must be one of 'openrouter', 'requesty', 'meta', 'nano-gpt', 'llmtr'"
         )
 
-    api_key = (os.environ.get("MCP_TAP_API_KEY") or "").strip()
+    api_key = (os.environ.get("MCPTAP_API_KEY") or "").strip()
     if not api_key:
-        raise RuntimeError("MCP_TAP_API_KEY must not be empty")
+        raise RuntimeError("MCPTAP_API_KEY must not be empty")
 
-    model = (os.environ.get("MCP_TAP_MODEL") or "").strip()
-    plan_mode_model = (os.environ.get("MCP_TAP_PLAN_MODE_MODEL") or "").strip()
+    model = (os.environ.get("MCPTAP_MODEL") or "").strip()
+    plan_mode_model = (os.environ.get("MCPTAP_PLAN_MODE_MODEL") or "").strip()
     if not model or not plan_mode_model:
-        raise RuntimeError("MCP_TAP_MODEL and MCP_TAP_PLAN_MODE_MODEL must not be empty")
+        raise RuntimeError("MCPTAP_MODEL and MCPTAP_PLAN_MODE_MODEL must not be empty")
 
     # Requesty model name normalization
     if PROVIDER_REQUESTY == upstream_provider:
@@ -285,16 +285,16 @@ def _build_settings() -> Settings:
         model = model.split(":")[0]
         plan_mode_model = plan_mode_model.split(":")[0]
 
-    openrouter_provider = (os.environ.get("MCP_TAP_OPENROUTER_PROVIDER") or "").strip()
+    openrouter_provider = (os.environ.get("MCPTAP_OPENROUTER_PROVIDER") or "").strip()
     openrouter_disable_provider_fallbacks = os.environ.get(
-        "MCP_TAP_OPENROUTER_DISABLE_PROVIDER_FALLBACKS", "1"
+        "MCPTAP_OPENROUTER_DISABLE_PROVIDER_FALLBACKS", "1"
     ).lower() not in {"0", "false", "no", "off"}
 
-    credits_url = (os.environ.get("MCP_TAP_CREDITS_URL") or "").strip()
-    credits_api_key = (os.environ.get("MCP_TAP_CREDITS_API_KEY") or "").strip()
-    credits_check_interval = int(os.environ.get("MCP_TAP_CREDITS_CHECK_INTERVAL", "300"))
-    credits_discrepancy_threshold = float(os.environ.get("MCP_TAP_CREDITS_DISCREPANCY_THRESHOLD", "0.01"))
-    use_chat_completions = os.environ.get("MCP_TAP_USE_CHAT_COMPLETIONS", "0").lower() not in {
+    credits_url = (os.environ.get("MCPTAP_CREDITS_URL") or "").strip()
+    credits_api_key = (os.environ.get("MCPTAP_CREDITS_API_KEY") or "").strip()
+    credits_check_interval = int(os.environ.get("MCPTAP_CREDITS_CHECK_INTERVAL", "300"))
+    credits_discrepancy_threshold = float(os.environ.get("MCPTAP_CREDITS_DISCREPANCY_THRESHOLD", "0.01"))
+    use_chat_completions = os.environ.get("MCPTAP_USE_CHAT_COMPLETIONS", "0").lower() not in {
         "0",
         "false",
         "no",
@@ -302,16 +302,16 @@ def _build_settings() -> Settings:
         "",
     }
 
-    telegram_bot_token = (os.environ.get("MCP_TAP_TELEGRAM_BOT_TOKEN") or "").strip()
-    telegram_chat_id = (os.environ.get("MCP_TAP_TELEGRAM_CHAT_ID") or "").strip()
-    telegram_alert_level = (os.environ.get("MCP_TAP_TELEGRAM_ALERT_LEVEL") or "mismatch").strip().lower()
+    telegram_bot_token = (os.environ.get("MCPTAP_TELEGRAM_BOT_TOKEN") or "").strip()
+    telegram_chat_id = (os.environ.get("MCPTAP_TELEGRAM_CHAT_ID") or "").strip()
+    telegram_alert_level = (os.environ.get("MCPTAP_TELEGRAM_ALERT_LEVEL") or "mismatch").strip().lower()
 
-    _synthetic_tool_env = os.environ.get("MCP_TAP_USE_TOOL_HOOK_SYNTHETIC_TOOL")
+    _synthetic_tool_env = os.environ.get("MCPTAP_USE_TOOL_HOOK_SYNTHETIC_TOOL")
     use_tool_hook_synthetic_tool = _synthetic_tool_env.strip() if _synthetic_tool_env is not None else "get_goal"
 
     return Settings(
-        listen_host=os.environ.get("MCP_TAP_LISTEN_HOST", "127.0.0.1"),
-        listen_port=int(os.environ.get("MCP_TAP_LISTEN_PORT", "8787")),
+        listen_host=os.environ.get("MCPTAP_LISTEN_HOST", "127.0.0.1"),
+        listen_port=int(os.environ.get("MCPTAP_LISTEN_PORT", "8787")),
         upstream_provider=upstream_provider,
         upstream_base_url=upstream_base_url,
         provider_env_file=provider_env_file,
@@ -319,8 +319,8 @@ def _build_settings() -> Settings:
         use_chat_completions=use_chat_completions,
         model=model,
         plan_mode_model=plan_mode_model,
-        plan_mode_trigger=(os.environ.get("MCP_TAP_PLAN_MODE_TRIGGER") or "max").strip(),
-        plan_mode_max_input_size=int(os.environ.get("MCP_TAP_PLAN_MODE_MAX_INPUT_SIZE", 100000)),
+        plan_mode_trigger=(os.environ.get("MCPTAP_PLAN_MODE_TRIGGER") or "max").strip(),
+        plan_mode_max_input_size=int(os.environ.get("MCPTAP_PLAN_MODE_MAX_INPUT_SIZE", 100000)),
         openrouter_provider=openrouter_provider,
         openrouter_disable_provider_fallbacks=openrouter_disable_provider_fallbacks,
         credits_url=credits_url,
@@ -330,24 +330,24 @@ def _build_settings() -> Settings:
         telegram_bot_token=telegram_bot_token,
         telegram_chat_id=telegram_chat_id,
         telegram_alert_level=telegram_alert_level,
-        intercept_yaml=(os.environ.get("MCP_TAP_INTERCEPT_YAML") or "").strip(),
-        intercept_max_iterations=int(os.environ.get("MCP_TAP_INTERCEPT_MAX_ITERATIONS", "8")),
-        intercept_tool_timeout=float(os.environ.get("MCP_TAP_INTERCEPT_TOOL_TIMEOUT", "120")),
-        per_model_yaml=(os.environ.get("MCP_TAP_PER_MODEL_YAML") or "").strip(),
-        log_level=(os.environ.get("MCP_TAP_LOG_LEVEL") or "INFO").upper(),
-        log_file=(os.environ.get("MCP_TAP_LOG_FILE") or "").strip(),
+        intercept_yaml=(os.environ.get("MCPTAP_INTERCEPT_YAML") or "").strip(),
+        intercept_max_iterations=int(os.environ.get("MCPTAP_INTERCEPT_MAX_ITERATIONS", "8")),
+        intercept_tool_timeout=float(os.environ.get("MCPTAP_INTERCEPT_TOOL_TIMEOUT", "120")),
+        per_model_yaml=(os.environ.get("MCPTAP_PER_MODEL_YAML") or "").strip(),
+        log_level=(os.environ.get("MCPTAP_LOG_LEVEL") or "INFO").upper(),
+        log_file=(os.environ.get("MCPTAP_LOG_FILE") or "").strip(),
         log_file_redact_headers=(
             os.environ.get("LOG_FILE_REDACT_HEADERS", "0").lower() not in {"0", "false", "no", "off"}
         ),
         log_payload_keys=["tools"],
-        use_tool_hook=(os.environ.get("MCP_TAP_USE_TOOL_HOOK") or "").strip(),
-        use_tool_hook_timeout=float(os.environ.get("MCP_TAP_USE_TOOL_HOOK_TIMEOUT", "30")),
+        use_tool_hook=(os.environ.get("MCPTAP_USE_TOOL_HOOK") or "").strip(),
+        use_tool_hook_timeout=float(os.environ.get("MCPTAP_USE_TOOL_HOOK_TIMEOUT", "30")),
         use_tool_hook_synthetic_tool=use_tool_hook_synthetic_tool,
-        use_tool_hook_pending_ttl=float(os.environ.get("MCP_TAP_USE_TOOL_HOOK_PENDING_TTL", "600")),
-        per_session_dir=(os.environ.get("MCP_TAP_PER_SESSION_DIR") or "/tmp/mcptap/per_session").strip(),
-        log_db_path=(os.environ.get("MCP_TAP_LOG_DB") or os.path.expanduser("~/.local/share/mcptap/logs.db")).strip(),
-        log_retention_days=int(os.environ.get("MCP_TAP_LOG_RETENTION_DAYS", "7")),
-        pareto_provider=(os.environ.get("MCP_TAP_PARETO_PROVIDER") or PROVIDER_OPENROUTER).strip().lower(),
+        use_tool_hook_pending_ttl=float(os.environ.get("MCPTAP_USE_TOOL_HOOK_PENDING_TTL", "600")),
+        per_session_dir=(os.environ.get("MCPTAP_PER_SESSION_DIR") or "/tmp/mcptap/per_session").strip(),
+        log_db_path=(os.environ.get("MCPTAP_LOG_DB") or os.path.expanduser("~/.local/share/mcptap/logs.db")).strip(),
+        log_retention_days=int(os.environ.get("MCPTAP_LOG_RETENTION_DAYS", "7")),
+        pareto_provider=(os.environ.get("MCPTAP_PARETO_PROVIDER") or PROVIDER_OPENROUTER).strip().lower(),
     )
 
 

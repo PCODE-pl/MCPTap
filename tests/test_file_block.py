@@ -128,7 +128,7 @@ def make_hook_script_with_blocked_files(blocked_files: list) -> str:
 
 class TestGenericHookMode:
     def test_synthetic_tool_config_default(self):
-        """Default MCP_TAP_USE_TOOL_HOOK_SYNTHETIC_TOOL is 'get_goal'."""
+        """Default MCPTAP_USE_TOOL_HOOK_SYNTHETIC_TOOL is 'get_goal'."""
         # This is set from env at import time; just verify the constant exists
         assert hasattr(proxy, "settings") and hasattr(mcptap_settings, "use_tool_hook_synthetic_tool")
 

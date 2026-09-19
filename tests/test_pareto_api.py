@@ -173,9 +173,9 @@ async def test_handle_configured_providers_lists_real_keys_only(monkeypatch, tmp
         monkeypatch,
         tmp_path,
         {
-            "openrouter.env": "MCP_TAP_API_KEY=sk-or-abcdef\n",
-            "zenmux.env": "MCP_TAP_API_KEY=sk-ai-...a8bd\n",
-            "tokenrouter.env": "MCP_TAP_API_KEY=\n",
+            "openrouter.env": "MCPTAP_API_KEY=sk-or-abcdef\n",
+            "zenmux.env": "MCPTAP_API_KEY=sk-ai-...a8bd\n",
+            "tokenrouter.env": "MCPTAP_API_KEY=\n",
         },
     )
 
@@ -190,7 +190,7 @@ async def test_handle_configured_providers_lists_real_keys_only(monkeypatch, tmp
 
 @pytest.mark.asyncio
 async def test_handle_configured_providers_empty_when_no_real_keys(monkeypatch, tmp_path: Path):
-    app = _configured_app(monkeypatch, tmp_path, {"openrouter.env": "MCP_TAP_API_KEY=sk-....\n"})
+    app = _configured_app(monkeypatch, tmp_path, {"openrouter.env": "MCPTAP_API_KEY=sk-....\n"})
 
     async with TestClient(TestServer(app)) as client:
         response = await client.get("/api/configured-providers")
@@ -217,9 +217,9 @@ async def test_handle_provider_model_sets_act_model(monkeypatch, tmp_path: Path)
         monkeypatch,
         tmp_path,
         {
-            "proxy.env": 'MCP_TAP_UPSTREAM_PROVIDER="openrouter"\nMCP_TAP_LISTEN_PORT=8787\n',
-            "openrouter.env": "MCP_TAP_API_KEY=sk-or-abcdef\nMCP_TAP_MODEL=old/model\nMCP_TAP_PLAN_MODE_MODEL=old/plan\n",
-            "zenmux.env": "MCP_TAP_API_KEY=sk-zm-abcdef\nMCP_TAP_MODEL=old/model\nMCP_TAP_PLAN_MODE_MODEL=old/plan\n",
+            "proxy.env": 'MCPTAP_UPSTREAM_PROVIDER="openrouter"\nMCPTAP_LISTEN_PORT=8787\n',
+            "openrouter.env": "MCPTAP_API_KEY=sk-or-abcdef\nMCPTAP_MODEL=old/model\nMCPTAP_PLAN_MODE_MODEL=old/plan\n",
+            "zenmux.env": "MCPTAP_API_KEY=sk-zm-abcdef\nMCPTAP_MODEL=old/model\nMCPTAP_PLAN_MODE_MODEL=old/plan\n",
         },
     )
 
@@ -237,8 +237,8 @@ async def test_handle_provider_model_sets_act_model(monkeypatch, tmp_path: Path)
             "upstream_provider": "openrouter",
         }
         content = (tmp_path / "mcptap" / "openrouter.env").read_text(encoding="utf-8")
-        assert "MCP_TAP_MODEL=new/model:floor" in content
-        assert "MCP_TAP_PLAN_MODE_MODEL=old/plan" in content
+        assert "MCPTAP_MODEL=new/model:floor" in content
+        assert "MCPTAP_PLAN_MODE_MODEL=old/plan" in content
 
 
 @pytest.mark.asyncio
@@ -247,9 +247,9 @@ async def test_handle_provider_model_switches_upstream_provider(monkeypatch, tmp
         monkeypatch,
         tmp_path,
         {
-            "proxy.env": 'MCP_TAP_UPSTREAM_PROVIDER="openrouter"\n',
-            "openrouter.env": "MCP_TAP_API_KEY=sk-or-abcdef\nMCP_TAP_MODEL=old/model\n",
-            "zenmux.env": "MCP_TAP_API_KEY=sk-zm-abcdef\nMCP_TAP_MODEL=old/model\n",
+            "proxy.env": 'MCPTAP_UPSTREAM_PROVIDER="openrouter"\n',
+            "openrouter.env": "MCPTAP_API_KEY=sk-or-abcdef\nMCPTAP_MODEL=old/model\n",
+            "zenmux.env": "MCPTAP_API_KEY=sk-zm-abcdef\nMCPTAP_MODEL=old/model\n",
         },
     )
 
@@ -262,11 +262,11 @@ async def test_handle_provider_model_switches_upstream_provider(monkeypatch, tmp
         body = await response.json()
         assert body["upstream_provider"] == "zenmux"
         proxy = (tmp_path / "mcptap" / "proxy.env").read_text(encoding="utf-8")
-        assert 'MCP_TAP_UPSTREAM_PROVIDER="zenmux"' in proxy
+        assert 'MCPTAP_UPSTREAM_PROVIDER="zenmux"' in proxy
         zenmux = (tmp_path / "mcptap" / "zenmux.env").read_text(encoding="utf-8")
-        assert "MCP_TAP_PLAN_MODE_MODEL=new/model" in zenmux
+        assert "MCPTAP_PLAN_MODE_MODEL=new/model" in zenmux
         untouched = (tmp_path / "mcptap" / "openrouter.env").read_text(encoding="utf-8")
-        assert "MCP_TAP_MODEL=old/model" in untouched
+        assert "MCPTAP_MODEL=old/model" in untouched
 
 
 @pytest.mark.asyncio
@@ -275,8 +275,8 @@ async def test_handle_provider_model_appends_missing_key(monkeypatch, tmp_path: 
         monkeypatch,
         tmp_path,
         {
-            "proxy.env": 'MCP_TAP_UPSTREAM_PROVIDER="openrouter"\n',
-            "openrouter.env": "MCP_TAP_API_KEY=sk-or-abcdef\n",
+            "proxy.env": 'MCPTAP_UPSTREAM_PROVIDER="openrouter"\n',
+            "openrouter.env": "MCPTAP_API_KEY=sk-or-abcdef\n",
         },
     )
 
@@ -287,9 +287,9 @@ async def test_handle_provider_model_appends_missing_key(monkeypatch, tmp_path: 
         )
         assert response.status == 200
         content = (tmp_path / "mcptap" / "openrouter.env").read_text(encoding="utf-8")
-        assert "MCP_TAP_MODEL=new/model" in content
+        assert "MCPTAP_MODEL=new/model" in content
         proxy = (tmp_path / "mcptap" / "proxy.env").read_text(encoding="utf-8")
-        assert 'MCP_TAP_UPSTREAM_PROVIDER="openrouter"' in proxy
+        assert 'MCPTAP_UPSTREAM_PROVIDER="openrouter"' in proxy
 
 
 @pytest.mark.asyncio
@@ -306,7 +306,7 @@ async def test_handle_provider_model_rejects_unknown_provider(monkeypatch, tmp_p
 
 @pytest.mark.asyncio
 async def test_handle_provider_model_rejects_bad_slot(monkeypatch, tmp_path: Path):
-    app = _provider_model_app(monkeypatch, tmp_path, {"openrouter.env": "MCP_TAP_API_KEY=x\n"})
+    app = _provider_model_app(monkeypatch, tmp_path, {"openrouter.env": "MCPTAP_API_KEY=x\n"})
 
     async with TestClient(TestServer(app)) as client:
         response = await client.post(
@@ -318,7 +318,7 @@ async def test_handle_provider_model_rejects_bad_slot(monkeypatch, tmp_path: Pat
 
 @pytest.mark.asyncio
 async def test_handle_provider_model_rejects_empty_alias(monkeypatch, tmp_path: Path):
-    app = _provider_model_app(monkeypatch, tmp_path, {"openrouter.env": "MCP_TAP_API_KEY=x\n"})
+    app = _provider_model_app(monkeypatch, tmp_path, {"openrouter.env": "MCPTAP_API_KEY=x\n"})
 
     async with TestClient(TestServer(app)) as client:
         response = await client.post(

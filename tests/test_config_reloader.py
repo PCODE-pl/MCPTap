@@ -132,32 +132,32 @@ class TestStaleEnvCleanup:
 
         proxy_env = config_dir / "proxy.env"
         proxy_env.write_text(
-            'MCP_TAP_UPSTREAM_PROVIDER="openrouter"\nMCP_TAP_LISTEN_HOST=127.0.0.1\nMCP_TAP_LISTEN_PORT=8787\n'
+            'MCPTAP_UPSTREAM_PROVIDER="openrouter"\nMCPTAP_LISTEN_HOST=127.0.0.1\nMCPTAP_LISTEN_PORT=8787\n'
         )
 
         openrouter_env = config_dir / "openrouter.env"
         openrouter_env.write_text(
-            "MCP_TAP_API_KEY=sk-or-key\nMCP_TAP_MODEL=openai/gpt-4o\nMCP_TAP_PLAN_MODE_MODEL=openai/gpt-4o\n"
+            "MCPTAP_API_KEY=sk-or-key\nMCPTAP_MODEL=openai/gpt-4o\nMCPTAP_PLAN_MODE_MODEL=openai/gpt-4o\n"
         )
 
         requesty_env = config_dir / "requesty.env"
         requesty_env.write_text(
-            "MCP_TAP_API_KEY=rqsty-key\nMCP_TAP_MODEL=nvidia/model\nMCP_TAP_PLAN_MODE_MODEL=zai/model\n"
+            "MCPTAP_API_KEY=rqsty-key\nMCPTAP_MODEL=nvidia/model\nMCPTAP_PLAN_MODE_MODEL=zai/model\n"
         )
 
         with patch("mcptap.settings.CONFIG_DIR", config_dir):
             # Load with openrouter
             _load_env_files()
-            assert os.environ.get("MCP_TAP_API_KEY") == "sk-or-key"
-            assert os.environ.get("MCP_TAP_MODEL") == "openai/gpt-4o"
+            assert os.environ.get("MCPTAP_API_KEY") == "sk-or-key"
+            assert os.environ.get("MCPTAP_MODEL") == "openai/gpt-4o"
 
             # Switch to requesty
             proxy_env.write_text(
-                'MCP_TAP_UPSTREAM_PROVIDER="requesty"\nMCP_TAP_LISTEN_HOST=127.0.0.1\nMCP_TAP_LISTEN_PORT=8787\n'
+                'MCPTAP_UPSTREAM_PROVIDER="requesty"\nMCPTAP_LISTEN_HOST=127.0.0.1\nMCPTAP_LISTEN_PORT=8787\n'
             )
             _load_env_files()
-            assert os.environ.get("MCP_TAP_API_KEY") == "rqsty-key"
-            assert os.environ.get("MCP_TAP_MODEL") == "nvidia/model"
+            assert os.environ.get("MCPTAP_API_KEY") == "rqsty-key"
+            assert os.environ.get("MCPTAP_MODEL") == "nvidia/model"
 
 
 # ---------------------------------------------------------------------------

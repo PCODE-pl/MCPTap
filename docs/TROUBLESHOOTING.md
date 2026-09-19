@@ -1,20 +1,20 @@
 # Troubleshooting
 
-## `MCP_TAP_UPSTREAM_PROVIDER must be one of 'openrouter' or 'requesty'`
+## `MCPTAP_UPSTREAM_PROVIDER must be one of 'openrouter' or 'requesty'`
 
 Check `proxy.env`:
 
 ```env
-MCP_TAP_UPSTREAM_PROVIDER=openrouter
+MCPTAP_UPSTREAM_PROVIDER=openrouter
 ```
 
 or:
 
 ```env
-MCP_TAP_UPSTREAM_PROVIDER=requesty
+MCPTAP_UPSTREAM_PROVIDER=requesty
 ```
 
-## `MCP_TAP_API_KEY must not be empty`
+## `MCPTAP_API_KEY must not be empty`
 
 Set your API key in the selected provider file:
 
@@ -37,16 +37,16 @@ or:
 Example:
 
 ```env
-MCP_TAP_API_KEY=sk-or-v1-...
+MCPTAP_API_KEY=sk-or-v1-...
 ```
 
-## `MCP_TAP_MODEL and MCP_TAP_PLAN_MODE_MODEL must not be empty`
+## `MCPTAP_MODEL and MCPTAP_PLAN_MODE_MODEL must not be empty`
 
 Set both variables in the selected provider file:
 
 ```env
-MCP_TAP_MODEL=deepseek/deepseek-v4-flash:floor
-MCP_TAP_PLAN_MODE_MODEL=z-ai/glm-5.2:floor
+MCPTAP_MODEL=deepseek/deepseek-v4-flash:floor
+MCPTAP_PLAN_MODE_MODEL=z-ai/glm-5.2:floor
 ```
 
 ## Health endpoint does not respond
@@ -66,8 +66,8 @@ journalctl --user -u mcptap.service -f
 Also verify the configured host and port:
 
 ```env
-MCP_TAP_LISTEN_HOST=127.0.0.1
-MCP_TAP_LISTEN_PORT=8787
+MCPTAP_LISTEN_HOST=127.0.0.1
+MCPTAP_LISTEN_PORT=8787
 ```
 
 ## MCP tool is not resolved
@@ -94,8 +94,8 @@ Verify:
 Check:
 
 ```env
-MCP_TAP_PLAN_MODE_TRIGGER=max
-MCP_TAP_PLAN_MODE_MAX_INPUT_SIZE=100000
+MCPTAP_PLAN_MODE_TRIGGER=max
+MCPTAP_PLAN_MODE_MAX_INPUT_SIZE=100000
 ```
 
 If the request input is larger than the configured limit, MCPTap rejects it before forwarding.
@@ -107,6 +107,6 @@ MCPTap supports streaming SSE responses. For intercepted `/v1/responses` calls, 
 If you are debugging streaming behavior, enable:
 
 ```env
-MCP_TAP_LOG_LEVEL=DEBUG
-MCP_TAP_LOG_FILE=/tmp/mcptap.log
+MCPTAP_LOG_LEVEL=DEBUG
+MCPTAP_LOG_FILE=/tmp/mcptap.log
 ```

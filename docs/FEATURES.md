@@ -15,7 +15,7 @@ The client may send:
 MCPTap rewrites it to the configured model:
 
 ```env
-MCP_TAP_MODEL=deepseek/deepseek-v4-flash:floor
+MCPTAP_MODEL=deepseek/deepseek-v4-flash:floor
 ```
 
 This lets you keep client configuration stable while changing the actual upstream model from MCPTap's config files.
@@ -27,19 +27,19 @@ MCPTap can use a different model when the request has a configured reasoning eff
 Default trigger:
 
 ```env
-MCP_TAP_PLAN_MODE_TRIGGER=max
+MCPTAP_PLAN_MODE_TRIGGER=max
 ```
 
 Normal model:
 
 ```env
-MCP_TAP_MODEL=deepseek/deepseek-v4-flash:floor
+MCPTAP_MODEL=deepseek/deepseek-v4-flash:floor
 ```
 
 Plan mode model:
 
 ```env
-MCP_TAP_PLAN_MODE_MODEL=z-ai/glm-5.2:floor
+MCPTAP_PLAN_MODE_MODEL=z-ai/glm-5.2:floor
 ```
 
 When the incoming payload contains:
@@ -52,12 +52,12 @@ When the incoming payload contains:
 }
 ```
 
-MCPTap switches from `MCP_TAP_MODEL` to `MCP_TAP_PLAN_MODE_MODEL`.
+MCPTap switches from `MCPTAP_MODEL` to `MCPTAP_PLAN_MODE_MODEL`.
 
 You can also limit plan mode input size:
 
 ```env
-MCP_TAP_PLAN_MODE_MAX_INPUT_SIZE=100000
+MCPTAP_PLAN_MODE_MAX_INPUT_SIZE=100000
 ```
 
 If the input is larger than the configured limit, MCPTap returns an error instead of forwarding the request.
@@ -69,25 +69,25 @@ When using OpenRouter, MCPTap can control provider routing.
 Optional provider pinning:
 
 ```env
-MCP_TAP_OPENROUTER_PROVIDER=
+MCPTAP_OPENROUTER_PROVIDER=
 ```
 
 Set it to an OpenRouter provider slug to force only that provider:
 
 ```env
-MCP_TAP_OPENROUTER_PROVIDER=some-provider-slug
+MCPTAP_OPENROUTER_PROVIDER=some-provider-slug
 ```
 
 Disable provider fallback:
 
 ```env
-MCP_TAP_OPENROUTER_DISABLE_PROVIDER_FALLBACKS=1
+MCPTAP_OPENROUTER_DISABLE_PROVIDER_FALLBACKS=1
 ```
 
 Allow provider fallback:
 
 ```env
-MCP_TAP_OPENROUTER_DISABLE_PROVIDER_FALLBACKS=0
+MCPTAP_OPENROUTER_DISABLE_PROVIDER_FALLBACKS=0
 ```
 
 MCPTap also removes incoming `models` fallback configuration from the client payload so the configured forced model remains the only selected model.
@@ -97,7 +97,7 @@ MCPTap also removes incoming `models` fallback configuration from the client pay
 When using Requesty:
 
 ```env
-MCP_TAP_UPSTREAM_PROVIDER=requesty
+MCPTAP_UPSTREAM_PROVIDER=requesty
 ```
 
 MCPTap forwards requests to:
@@ -127,7 +127,7 @@ MCPTap also strips trailing model suffix descriptors such as `:floor` before sen
 When using NanoGPT:
 
 ```env
-MCP_TAP_UPSTREAM_PROVIDER=nano-gpt
+MCPTAP_UPSTREAM_PROVIDER=nano-gpt
 ```
 
 MCPTap forwards requests to:
@@ -148,7 +148,7 @@ limit (32 MiB) required for long-running agents.
 When using LLMTR:
 
 ```env
-MCP_TAP_UPSTREAM_PROVIDER=llmtr
+MCPTAP_UPSTREAM_PROVIDER=llmtr
 ```
 
 MCPTap forwards requests to:
@@ -166,7 +166,7 @@ needed; LLMTR accepts the standard OpenAI-compatible tool schemas.
 
 ### Responses compatibility mode
 
-Codex continues to use `/v1/responses`. When `MCP_TAP_USE_CHAT_COMPLETIONS=true`,
+Codex continues to use `/v1/responses`. When `MCPTAP_USE_CHAT_COMPLETIONS=true`,
 MCPTap converts requests to `/v1/chat/completions`, preserves function tool
 calls and conversation history, then converts the response back to Responses
 format. Chat Completions streaming is buffered and returned as
@@ -192,9 +192,9 @@ The client never sees the intercepted tool calls.
 In `proxy.env`:
 
 ```env
-MCP_TAP_INTERCEPT_YAML=@/home/user/.config/mcptap/mcp-intercept.yaml
-MCP_TAP_INTERCEPT_TOOL_TIMEOUT=300
-MCP_TAP_INTERCEPT_MAX_ITERATIONS=8
+MCPTAP_INTERCEPT_YAML=@/home/user/.config/mcptap/mcp-intercept.yaml
+MCPTAP_INTERCEPT_TOOL_TIMEOUT=300
+MCPTAP_INTERCEPT_MAX_ITERATIONS=8
 ```
 
 The `@` prefix means: load YAML from this file path.
@@ -267,7 +267,7 @@ MCPTap can inject additional instructions based on the forced model.
 Enable it in `proxy.env`:
 
 ```env
-MCP_TAP_PER_MODEL_YAML=@/home/user/.config/mcptap/per-model.yaml
+MCPTAP_PER_MODEL_YAML=@/home/user/.config/mcptap/per-model.yaml
 ```
 
 Example `per-model.yaml`:
@@ -313,7 +313,7 @@ usage, elapsed time, or the current goal state.
 When the model returns client function calls (tools executed by the client, not
 intercepted MCP tools), MCPTap has two modes:
 
-**Synthetic tool mode** (default, ``MCP_TAP_USE_TOOL_HOOK_SYNTHETIC_TOOL=get_goal``):
+**Synthetic tool mode** (default, ``MCPTAP_USE_TOOL_HOOK_SYNTHETIC_TOOL=get_goal``):
 
 1. MCPTap saves the model's response.
 2. MCPTap returns a synthetic ``get_goal`` function call to the client.
@@ -326,7 +326,7 @@ intercepted MCP tools), MCPTap has two modes:
    model and passes through the model's next response once without re-running
    the hook.
 
-**Direct hook mode** (``MCP_TAP_USE_TOOL_HOOK_SYNTHETIC_TOOL=`` empty):
+**Direct hook mode** (``MCPTAP_USE_TOOL_HOOK_SYNTHETIC_TOOL=`` empty):
 
 1. MCPTap saves the model's response.
 2. MCPTap runs the configured hook script immediately, passing session info
@@ -338,7 +338,7 @@ intercepted MCP tools), MCPTap has two modes:
 
 In both modes, the hook can optionally return a ``blocked_files`` list in an
 ``allow`` response. MCPTap writes the list to a per-session control file at
-``<MCP_TAP_PER_SESSION_DIR>/<session_id>/blocked_files``. The LD_PRELOAD library
+``<MCPTAP_PER_SESSION_DIR>/<session_id>/blocked_files``. The LD_PRELOAD library
 (loaded once when Codex/Hermes Agent starts) reads this file automatically and blocks
 access to the listed files at the libc level. No per-command prefixing is
 needed — the library is active for the entire Codex/Hermes Agent session.
@@ -352,8 +352,8 @@ MCPTap resolves the intercepted ones first and defers client calls to the hook.
 In ``proxy.env``:
 
 ```env
-MCP_TAP_USE_TOOL_HOOK=/home/user/.config/mcptap/use_tool_hook.py
-MCP_TAP_USE_TOOL_HOOK_TIMEOUT=30
+MCPTAP_USE_TOOL_HOOK=/home/user/.config/mcptap/use_tool_hook.py
+MCPTAP_USE_TOOL_HOOK_TIMEOUT=30
 ```
 
 ### Hook contract
@@ -430,7 +430,7 @@ body when updates are applied.
 
 When ``blocked_files`` is present in an ``allow`` response, MCPTap writes the
 list to a per-session control file at
-``<MCP_TAP_PER_SESSION_DIR>/<session_id>/blocked_files``. The
+``<MCPTAP_PER_SESSION_DIR>/<session_id>/blocked_files``. The
 ``libmcptap_fileblock.so`` library (loaded via ``LD_PRELOAD`` when Codex
 starts) reads this file automatically. It identifies the session via the
 ``CODEX_THREAD_ID`` environment variable (set by Codex CLI/Hermes Agent for all child
@@ -510,9 +510,9 @@ make install  # installs to ~/.local/lib/libmcptap_fileblock.so
 2/ Configure MCPTap:
 
 ```env
-MCP_TAP_USE_TOOL_HOOK=/home/user/.config/mcptap/use_tool_hook.py
+MCPTAP_USE_TOOL_HOOK=/home/user/.config/mcptap/use_tool_hook.py
 # Optional: use direct hook mode (no synthetic get_goal call)
-MCP_TAP_USE_TOOL_HOOK_SYNTHETIC_TOOL=
+MCPTAP_USE_TOOL_HOOK_SYNTHETIC_TOOL=
 ```
 
 3/ Start Codex/Hermes Agent CLI with ``LD_PRELOAD`` set once:
@@ -638,7 +638,7 @@ The UI is served directly by the proxy on the same host and port as the
 API traffic:
 
 ```text
-http://<MCP_TAP_LISTEN_HOST>:<MCP_TAP_LISTEN_PORT>/ui/logs
+http://<MCPTAP_LISTEN_HOST>:<MCPTAP_LISTEN_PORT>/ui/logs
 ```
 
 In default installation this url is [http://127.0.0.1:8787/ui/logs](http://127.0.0.1:8787/ui/logs).
@@ -715,7 +715,7 @@ bodies.
 All log data is persisted in a local SQLite database (WAL mode):
 
 ```env
-MCP_TAP_LOG_DB=/home/user/.local/share/mcptap/logs.db
+MCPTAP_LOG_DB=/home/user/.local/share/mcptap/logs.db
 ```
 
 If the variable is unset, the default path is used:
@@ -750,7 +750,7 @@ A background task automatically purges log entries older than a configurable
 number of days:
 
 ```env
-MCP_TAP_LOG_RETENTION_DAYS=30
+MCPTAP_LOG_RETENTION_DAYS=30
 ```
 
 The task runs every hour and deletes expired records from the SQLite
@@ -780,19 +780,19 @@ tail -f ~/Library/Logs/mcptap.log ~/Library/Logs/mcptap.error.log
 You can also enable communication logging to a file:
 
 ```env
-MCP_TAP_LOG_FILE=/tmp/mcptap.log
+MCPTAP_LOG_FILE=/tmp/mcptap.log
 ```
 
 Set log level:
 
 ```env
-MCP_TAP_LOG_LEVEL=INFO
+MCPTAP_LOG_LEVEL=INFO
 ```
 
 or:
 
 ```env
-MCP_TAP_LOG_LEVEL=DEBUG
+MCPTAP_LOG_LEVEL=DEBUG
 ```
 
 Redact sensitive headers in communication logs:
