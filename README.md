@@ -160,17 +160,17 @@ Edit:
 Example for OpenRouter:
 
 ```env
-MCP_TAP_UPSTREAM_PROVIDER=openrouter
-MCP_TAP_LISTEN_HOST=127.0.0.1
-MCP_TAP_LISTEN_PORT=8787
+MCPTAP_UPSTREAM_PROVIDER=openrouter
+MCPTAP_LISTEN_HOST=127.0.0.1
+MCPTAP_LISTEN_PORT=8787
 ```
 
 Example for Requesty:
 
 ```env
-MCP_TAP_UPSTREAM_PROVIDER=requesty
-MCP_TAP_LISTEN_HOST=127.0.0.1
-MCP_TAP_LISTEN_PORT=8787
+MCPTAP_UPSTREAM_PROVIDER=requesty
+MCPTAP_LISTEN_HOST=127.0.0.1
+MCPTAP_LISTEN_PORT=8787
 ```
 
 Supported upstream providers:
@@ -207,9 +207,9 @@ For OpenRouter, edit:
 Example:
 
 ```env
-MCP_TAP_API_KEY=sk-or-v1-...
-MCP_TAP_MODEL=deepseek/deepseek-v4-flash:floor
-MCP_TAP_PLAN_MODE_MODEL=z-ai/glm-5.2:floor
+MCPTAP_API_KEY=sk-or-v1-...
+MCPTAP_MODEL=deepseek/deepseek-v4-flash:floor
+MCPTAP_PLAN_MODE_MODEL=z-ai/glm-5.2:floor
 ```
 
 For Requesty, edit:
@@ -221,9 +221,9 @@ For Requesty, edit:
 Example:
 
 ```env
-MCP_TAP_API_KEY=rqsty-sk-...
-MCP_TAP_MODEL=nvidia/nemotron-3-nano-30b-a3b:free
-MCP_TAP_PLAN_MODE_MODEL=zai/glm-5.2:floor
+MCPTAP_API_KEY=rqsty-sk-...
+MCPTAP_MODEL=nvidia/nemotron-3-nano-30b-a3b:free
+MCPTAP_PLAN_MODE_MODEL=zai/glm-5.2:floor
 ```
 
 For Meta, edit:
@@ -241,9 +241,9 @@ For NanoGPT, edit:
 Example:
 
 ```env
-MCP_TAP_API_KEY=sk-nano-...
-MCP_TAP_MODEL=openai/gpt-5.6-sol
-MCP_TAP_PLAN_MODE_MODEL=openai/gpt-5.6-sol
+MCPTAP_API_KEY=sk-nano-...
+MCPTAP_MODEL=openai/gpt-5.6-sol
+MCPTAP_PLAN_MODE_MODEL=openai/gpt-5.6-sol
 ```
 
 For LLMTR, edit:
@@ -255,10 +255,10 @@ For LLMTR, edit:
 Example:
 
 ```env
-MCP_TAP_API_KEY=llmtr-...
-MCP_TAP_MODEL=zai/glm-5.2
-MCP_TAP_PLAN_MODE_MODEL=zai/glm-5.2
-MCP_TAP_USE_CHAT_COMPLETIONS=true
+MCPTAP_API_KEY=llmtr-...
+MCPTAP_MODEL=zai/glm-5.2
+MCPTAP_PLAN_MODE_MODEL=zai/glm-5.2
+MCPTAP_USE_CHAT_COMPLETIONS=true
 ```
 
 ## Codex configuration
@@ -270,13 +270,13 @@ model_provider = "mcptap"
 model = "openai/gpt-5.5"
 model_context_window = 1000000
 
-# This value must be different from MCP_TAP_PLAN_MODE_TRIGGER.
-# For this reasoning effort, MCPTap will use MCP_TAP_MODEL
+# This value must be different from MCPTAP_PLAN_MODE_TRIGGER.
+# For this reasoning effort, MCPTap will use MCPTAP_MODEL
 # from the selected provider env file.
 model_reasoning_effort = "xhigh"
 
-# This value must match MCP_TAP_PLAN_MODE_TRIGGER.
-# For this reasoning effort, MCPTap will use MCP_TAP_PLAN_MODE_MODEL
+# This value must match MCPTAP_PLAN_MODE_TRIGGER.
+# For this reasoning effort, MCPTap will use MCPTAP_PLAN_MODE_MODEL
 # from the selected provider env file.
 plan_mode_reasoning_effort = "max"
 
@@ -411,7 +411,7 @@ See [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) for common issues and the
 
 ## Security notes
 
-If `MCP_TAP_LOG_FILE` is enabled, consider:
+If `MCPTAP_LOG_FILE` is enabled, consider:
 
 ```env
 LOG_FILE_REDACT_HEADERS=1
@@ -433,33 +433,33 @@ The list of issues that MCPTap addresses (at least partially): [docs/ISSUES.md](
 
 | Variable | Default Value | Description |
 | --- | ---: | --- |
-| `MCP_TAP_UPSTREAM_PROVIDER` | required | `openrouter`, `requesty`, `meta`, `nano-gpt`, or `llmtr`. |
-| `MCP_TAP_LISTEN_HOST` | `127.0.0.1` | Local host/interface to bind. |
-| `MCP_TAP_LISTEN_PORT` | `8787` | Local port to listen on. |
-| `MCP_TAP_OPENROUTER_PROVIDER` | empty | Optional OpenRouter provider slug. |
-| `MCP_TAP_OPENROUTER_DISABLE_PROVIDER_FALLBACKS` | `1` | Disable OpenRouter provider fallback when true. |
-| `MCP_TAP_PLAN_MODE_TRIGGER` | `max` | Reasoning effort value that activates plan mode model. |
-| `MCP_TAP_PLAN_MODE_MAX_INPUT_SIZE` | `300000` | Maximum accepted input size for plan mode. |
-| `MCP_TAP_INTERCEPT_YAML` | empty | MCP interception YAML or `@/path/to/file.yaml`. |
-| `MCP_TAP_INTERCEPT_MAX_ITERATIONS` | `8` | Maximum hidden tool-call loop iterations. |
-| `MCP_TAP_INTERCEPT_TOOL_TIMEOUT` | `120` | Timeout for one MCP tool call, in seconds. |
-| `MCP_TAP_PER_MODEL_YAML` | empty | Per-model instruction YAML or `@/path/to/file.yaml`. |
-| `MCP_TAP_USE_TOOL_HOOK` | empty | Path to a Python hook script run before client tool calls. |
-| `MCP_TAP_USE_TOOL_HOOK_TIMEOUT` | `30` | Timeout for the hook script, in seconds. |
-| `MCP_TAP_USE_TOOL_HOOK_SYNTHETIC_TOOL` | `get_goal` | Synthetic tool name to inject before the hook. Empty = direct mode. |
-| `MCP_TAP_PER_SESSION_DIR` | `/tmp/mcptap/per_session` | Directory for per-session control files. |
-| `MCP_TAP_LOG_LEVEL` | `INFO` | Python logging level. |
-| `MCP_TAP_LOG_FILE` | empty | Optional communication log file path. |
+| `MCPTAP_UPSTREAM_PROVIDER` | required | `openrouter`, `requesty`, `meta`, `nano-gpt`, or `llmtr`. |
+| `MCPTAP_LISTEN_HOST` | `127.0.0.1` | Local host/interface to bind. |
+| `MCPTAP_LISTEN_PORT` | `8787` | Local port to listen on. |
+| `MCPTAP_OPENROUTER_PROVIDER` | empty | Optional OpenRouter provider slug. |
+| `MCPTAP_OPENROUTER_DISABLE_PROVIDER_FALLBACKS` | `1` | Disable OpenRouter provider fallback when true. |
+| `MCPTAP_PLAN_MODE_TRIGGER` | `max` | Reasoning effort value that activates plan mode model. |
+| `MCPTAP_PLAN_MODE_MAX_INPUT_SIZE` | `300000` | Maximum accepted input size for plan mode. |
+| `MCPTAP_INTERCEPT_YAML` | empty | MCP interception YAML or `@/path/to/file.yaml`. |
+| `MCPTAP_INTERCEPT_MAX_ITERATIONS` | `8` | Maximum hidden tool-call loop iterations. |
+| `MCPTAP_INTERCEPT_TOOL_TIMEOUT` | `120` | Timeout for one MCP tool call, in seconds. |
+| `MCPTAP_PER_MODEL_YAML` | empty | Per-model instruction YAML or `@/path/to/file.yaml`. |
+| `MCPTAP_USE_TOOL_HOOK` | empty | Path to a Python hook script run before client tool calls. |
+| `MCPTAP_USE_TOOL_HOOK_TIMEOUT` | `30` | Timeout for the hook script, in seconds. |
+| `MCPTAP_USE_TOOL_HOOK_SYNTHETIC_TOOL` | `get_goal` | Synthetic tool name to inject before the hook. Empty = direct mode. |
+| `MCPTAP_PER_SESSION_DIR` | `/tmp/mcptap/per_session` | Directory for per-session control files. |
+| `MCPTAP_LOG_LEVEL` | `INFO` | Python logging level. |
+| `MCPTAP_LOG_FILE` | empty | Optional communication log file path. |
 | `LOG_FILE_REDACT_HEADERS` | `0` | Redact sensitive headers in communication logs when true. |
 
 ### `openrouter.env`, `requesty.env`, `meta.env`, `nano-gpt.env`, `llmtr.env`
 
 | Variable | Required | Description |
 | --- | ---: | --- |
-| `MCP_TAP_API_KEY` | yes | Upstream provider API key. |
-| `MCP_TAP_MODEL` | yes | Default forced model. |
-| `MCP_TAP_PLAN_MODE_MODEL` | yes | Forced model used when plan mode is active. |
-| `MCP_TAP_USE_CHAT_COMPLETIONS` | no | Convert Responses requests to Chat Completions for providers/models that require it. |
+| `MCPTAP_API_KEY` | yes | Upstream provider API key. |
+| `MCPTAP_MODEL` | yes | Default forced model. |
+| `MCPTAP_PLAN_MODE_MODEL` | yes | Forced model used when plan mode is active. |
+| `MCPTAP_USE_CHAT_COMPLETIONS` | no | Convert Responses requests to Chat Completions for providers/models that require it. |
 
 ### `LD_PRELOAD` file-block library
 

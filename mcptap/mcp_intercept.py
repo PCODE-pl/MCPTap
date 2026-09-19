@@ -192,7 +192,7 @@ def serialize_mcp_result(result: Any) -> str:
 def load_intercept_config() -> Optional[Dict[str, Any]]:
     """Return the intercept config as a validated dict, or None if disabled.
 
-    MCP_TAP_INTERCEPT_YAML is a YAML object describing a single MCP server plus a
+    MCPTAP_INTERCEPT_YAML is a YAML object describing a single MCP server plus a
     list of mappings. Server fields (mcp_command/mcp_args/mcp_env/mcp_cwd) live
     on the top-level object; each entry in `mappings` carries `expose_as`,
     `mcp_tool`, and optionally `description`/`parameters`.
@@ -209,22 +209,22 @@ def load_intercept_config() -> Optional[Dict[str, Any]]:
     data = yaml.safe_load(payload)
 
     if not isinstance(data, dict):
-        raise RuntimeError("MCP_TAP_INTERCEPT_YAML must be a YAML object with 'mcp_command' and 'mappings'")
+        raise RuntimeError("MCPTAP_INTERCEPT_YAML must be a YAML object with 'mcp_command' and 'mappings'")
     if "mcp_command" not in data:
-        raise RuntimeError("MCP_TAP_INTERCEPT_YAML must contain 'mcp_command'")
+        raise RuntimeError("MCPTAP_INTERCEPT_YAML must contain 'mcp_command'")
     mappings = data.get("mappings")
     if not isinstance(mappings, list) or not mappings:
-        raise RuntimeError("MCP_TAP_INTERCEPT_YAML must contain a non-empty 'mappings' list")
+        raise RuntimeError("MCPTAP_INTERCEPT_YAML must contain a non-empty 'mappings' list")
     seen: Set[str] = set()
     for mapping in mappings:
         if not isinstance(mapping, dict):
-            raise RuntimeError("Each mapping in MCP_TAP_INTERCEPT_YAML must be an object")
+            raise RuntimeError("Each mapping in MCPTAP_INTERCEPT_YAML must be an object")
         for required in ("expose_as", "mcp_tool"):
             if required not in mapping:
                 raise RuntimeError(f"MCP intercept mapping missing required field: {required!r}")
         name = mapping["expose_as"]
         if name in seen:
-            raise RuntimeError(f"Duplicate expose_as in MCP_TAP_INTERCEPT_YAML: {name!r}")
+            raise RuntimeError(f"Duplicate expose_as in MCPTAP_INTERCEPT_YAML: {name!r}")
 
         seen.add(name)
     return {

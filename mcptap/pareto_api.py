@@ -11,7 +11,7 @@ _DEFAULT_PARETO_PATH = Path(__file__).resolve().parent.parent / "data" / "pareto
 _DEFAULT_TESTED_MODELS_PATH = Path(__file__).resolve().parent.parent / "data" / "tested_models.json"
 CONFIG_DIR = Path.home() / ".config/mcptap"
 
-_PROVIDER_MODEL_KEYS = {"act": "MCP_TAP_MODEL", "plan": "MCP_TAP_PLAN_MODE_MODEL"}
+_PROVIDER_MODEL_KEYS = {"act": "MCPTAP_MODEL", "plan": "MCPTAP_PLAN_MODE_MODEL"}
 
 
 def _provider_env_file(provider: str) -> Path | None:
@@ -50,9 +50,9 @@ def _set_provider_model(path: Path, key: str, alias: str) -> None:
 
 
 async def handle_provider_model(request: web.Request) -> web.Response:
-    """Set the provider model slot and switch MCP_TAP_UPSTREAM_PROVIDER to it.
+    """Set the provider model slot and switch MCPTAP_UPSTREAM_PROVIDER to it.
 
-    Writes MCP_TAP_MODEL (act) or MCP_TAP_PLAN_MODE_MODEL (plan) into the
+    Writes MCPTAP_MODEL (act) or MCPTAP_PLAN_MODE_MODEL (plan) into the
     provider .env file and points proxy.env at that provider. The
     ConfigReloader picks both files up live.
     """
@@ -74,7 +74,7 @@ async def handle_provider_model(request: web.Request) -> web.Response:
         return web.json_response({"error": f"Unknown provider: {provider}"}, status=400)
     try:
         _set_provider_model(path, _PROVIDER_MODEL_KEYS[slot], alias)
-        _set_env_key(CONFIG_DIR / "proxy.env", "MCP_TAP_UPSTREAM_PROVIDER", path.stem, quoted=True)
+        _set_env_key(CONFIG_DIR / "proxy.env", "MCPTAP_UPSTREAM_PROVIDER", path.stem, quoted=True)
     except RuntimeError as exc:
         LOGGER.error("Failed to set provider model: %s", exc)
         return web.json_response({"error": str(exc)}, status=500)
@@ -94,7 +94,7 @@ def _configured_providers() -> list[str]:
         key = ""
         for line in content.splitlines():
             stripped = line.strip()
-            if stripped.startswith("MCP_TAP_API_KEY="):
+            if stripped.startswith("MCPTAP_API_KEY="):
                 key = stripped.split("=", 1)[1].strip()
                 break
         if key and "..." not in key:
@@ -103,7 +103,7 @@ def _configured_providers() -> list[str]:
 
 
 async def handle_configured_providers(_request: web.Request) -> web.Response:
-    """Return providers with a real (non-placeholder) MCP_TAP_API_KEY."""
+    """Return providers with a real (non-placeholder) MCPTAP_API_KEY."""
     return web.json_response({"providers": _configured_providers()})
 
 

@@ -376,11 +376,11 @@ wire_file_block_in_proxy_env() {
     lib_path="$HOME/.local/lib/libmcptap_fileblock.so"
     hook_path="$CONFIG_DIR/use_tool_hook.py"
 
-    # Enable MCP_TAP_USE_TOOL_HOOK with the real path
-    sed -i "s|^#MCP_TAP_USE_TOOL_HOOK=.*|MCP_TAP_USE_TOOL_HOOK=$hook_path|" "$proxy_env"
-    sed -i "s|^MCP_TAP_USE_TOOL_HOOK=$|#MCP_TAP_USE_TOOL_HOOK=|" "$proxy_env"
+    # Enable MCPTAP_USE_TOOL_HOOK with the real path
+    sed -i "s|^#MCPTAP_USE_TOOL_HOOK=.*|MCPTAP_USE_TOOL_HOOK=$hook_path|" "$proxy_env"
+    sed -i "s|^MCPTAP_USE_TOOL_HOOK=$|#MCPTAP_USE_TOOL_HOOK=|" "$proxy_env"
 
-    log "Enabled MCP_TAP_USE_TOOL_HOOK in $proxy_env"
+    log "Enabled MCPTAP_USE_TOOL_HOOK in $proxy_env"
 }
 
 install_systemd_user_service() {
@@ -546,7 +546,7 @@ Next steps:
   1. Edit $CONFIG_DIR/proxy.env
   2. Edit $CONFIG_DIR/{openrouter,requesty,meta,nano-gpt,llmtr,[...]}.env
   3. If using MCP interception, edit $CONFIG_DIR/mcp-intercept.yaml and set:
-       MCP_TAP_INTERCEPT_YAML=@$CONFIG_DIR/mcp-intercept.yaml
+       MCPTAP_INTERCEPT_YAML=@$CONFIG_DIR/mcp-intercept.yaml
 
 Health check after service start:
   curl http://127.0.0.1:8787/health

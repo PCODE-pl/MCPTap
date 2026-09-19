@@ -16,7 +16,7 @@ from mcptap.settings import (  # noqa: E402
 
 
 def test_build_settings_reads_global_pareto_provider(monkeypatch):
-    monkeypatch.setenv("MCP_TAP_PARETO_PROVIDER", "openrouter")
+    monkeypatch.setenv("MCPTAP_PARETO_PROVIDER", "openrouter")
 
     assert _build_settings().pareto_provider == "openrouter"
 
@@ -24,9 +24,9 @@ def test_build_settings_reads_global_pareto_provider(monkeypatch):
 def test_get_provider_api_key_reads_requested_provider_env_file(tmp_path, monkeypatch):
     config_dir = tmp_path / "mcptap"
     config_dir.mkdir()
-    (config_dir / "openrouter.env").write_text("MCP_TAP_API_KEY=openrouter-token\n")
-    (config_dir / "requesty.env").write_text("MCP_TAP_API_KEY=requesty-token\n")
-    monkeypatch.setenv("MCP_TAP_API_KEY", "active-upstream-token")
+    (config_dir / "openrouter.env").write_text("MCPTAP_API_KEY=openrouter-token\n")
+    (config_dir / "requesty.env").write_text("MCPTAP_API_KEY=requesty-token\n")
+    monkeypatch.setenv("MCPTAP_API_KEY", "active-upstream-token")
 
     with patch("mcptap.settings.CONFIG_DIR", config_dir):
         assert get_provider_api_key("openrouter") == "openrouter-token"
@@ -37,17 +37,17 @@ def test_nano_gpt_provider_loads_settings_and_credentials(tmp_path, monkeypatch)
     config_dir = tmp_path / "mcptap"
     config_dir.mkdir()
     (config_dir / "proxy.env").write_text(
-        "MCP_TAP_UPSTREAM_PROVIDER= NANO-GPT \nMCP_TAP_LISTEN_HOST=127.0.0.1\nMCP_TAP_LISTEN_PORT=8787\n"
+        "MCPTAP_UPSTREAM_PROVIDER= NANO-GPT \nMCPTAP_LISTEN_HOST=127.0.0.1\nMCPTAP_LISTEN_PORT=8787\n"
     )
     (config_dir / "nano-gpt.env").write_text(
-        "MCP_TAP_API_KEY=sk-nano-test\nMCP_TAP_MODEL=openai/gpt-5.6-sol\nMCP_TAP_PLAN_MODE_MODEL=openai/gpt-5.6-sol\n"
+        "MCPTAP_API_KEY=sk-nano-test\nMCPTAP_MODEL=openai/gpt-5.6-sol\nMCPTAP_PLAN_MODE_MODEL=openai/gpt-5.6-sol\n"
     )
     for key in (
-        "MCP_TAP_API_KEY",
-        "MCP_TAP_MODEL",
-        "MCP_TAP_PLAN_MODE_MODEL",
-        "MCP_TAP_UPSTREAM_PROVIDER",
-        "MCP_TAP_USE_CHAT_COMPLETIONS",
+        "MCPTAP_API_KEY",
+        "MCPTAP_MODEL",
+        "MCPTAP_PLAN_MODE_MODEL",
+        "MCPTAP_UPSTREAM_PROVIDER",
+        "MCPTAP_USE_CHAT_COMPLETIONS",
     ):
         monkeypatch.delenv(key, raising=False)
 
@@ -65,18 +65,18 @@ def test_llmtr_provider_loads_settings_and_credentials(tmp_path, monkeypatch):
     config_dir = tmp_path / "mcptap"
     config_dir.mkdir()
     (config_dir / "proxy.env").write_text(
-        "MCP_TAP_UPSTREAM_PROVIDER= LLMTR \nMCP_TAP_LISTEN_HOST=127.0.0.1\nMCP_TAP_LISTEN_PORT=8787\n"
+        "MCPTAP_UPSTREAM_PROVIDER= LLMTR \nMCPTAP_LISTEN_HOST=127.0.0.1\nMCPTAP_LISTEN_PORT=8787\n"
     )
     (config_dir / "llmtr.env").write_text(
-        "MCP_TAP_API_KEY=llmtr-test\nMCP_TAP_MODEL=zai/glm-5.2\nMCP_TAP_PLAN_MODE_MODEL=zai/glm-5.2\n"
-        "MCP_TAP_USE_CHAT_COMPLETIONS=true\n"
+        "MCPTAP_API_KEY=llmtr-test\nMCPTAP_MODEL=zai/glm-5.2\nMCPTAP_PLAN_MODE_MODEL=zai/glm-5.2\n"
+        "MCPTAP_USE_CHAT_COMPLETIONS=true\n"
     )
     for key in (
-        "MCP_TAP_API_KEY",
-        "MCP_TAP_MODEL",
-        "MCP_TAP_PLAN_MODE_MODEL",
-        "MCP_TAP_UPSTREAM_PROVIDER",
-        "MCP_TAP_USE_CHAT_COMPLETIONS",
+        "MCPTAP_API_KEY",
+        "MCPTAP_MODEL",
+        "MCPTAP_PLAN_MODE_MODEL",
+        "MCPTAP_UPSTREAM_PROVIDER",
+        "MCPTAP_USE_CHAT_COMPLETIONS",
     ):
         monkeypatch.delenv(key, raising=False)
 
@@ -95,18 +95,18 @@ def test_orcarouter_provider_loads_settings_and_credentials(tmp_path, monkeypatc
     config_dir = tmp_path / "mcptap"
     config_dir.mkdir()
     (config_dir / "proxy.env").write_text(
-        "MCP_TAP_UPSTREAM_PROVIDER= ORCAROUTER \nMCP_TAP_LISTEN_HOST=127.0.0.1\nMCP_TAP_LISTEN_PORT=8787\n"
+        "MCPTAP_UPSTREAM_PROVIDER= ORCAROUTER \nMCPTAP_LISTEN_HOST=127.0.0.1\nMCPTAP_LISTEN_PORT=8787\n"
     )
     (config_dir / "orcarouter.env").write_text(
-        "MCP_TAP_API_KEY=orcarouter-test\nMCP_TAP_MODEL=zai/glm-5.2\nMCP_TAP_PLAN_MODE_MODEL=zai/glm-5.2\n"
-        "MCP_TAP_USE_CHAT_COMPLETIONS=false\n"
+        "MCPTAP_API_KEY=orcarouter-test\nMCPTAP_MODEL=zai/glm-5.2\nMCPTAP_PLAN_MODE_MODEL=zai/glm-5.2\n"
+        "MCPTAP_USE_CHAT_COMPLETIONS=false\n"
     )
     for key in (
-        "MCP_TAP_API_KEY",
-        "MCP_TAP_MODEL",
-        "MCP_TAP_PLAN_MODE_MODEL",
-        "MCP_TAP_UPSTREAM_PROVIDER",
-        "MCP_TAP_USE_CHAT_COMPLETIONS",
+        "MCPTAP_API_KEY",
+        "MCPTAP_MODEL",
+        "MCPTAP_PLAN_MODE_MODEL",
+        "MCPTAP_UPSTREAM_PROVIDER",
+        "MCPTAP_USE_CHAT_COMPLETIONS",
     ):
         monkeypatch.delenv(key, raising=False)
 
@@ -125,18 +125,18 @@ def test_aihubmix_provider_loads_settings_and_credentials(tmp_path, monkeypatch)
     config_dir = tmp_path / "mcptap"
     config_dir.mkdir()
     (config_dir / "proxy.env").write_text(
-        "MCP_TAP_UPSTREAM_PROVIDER= AIHUBMIX \nMCP_TAP_LISTEN_HOST=127.0.0.1\nMCP_TAP_LISTEN_PORT=8787\n"
+        "MCPTAP_UPSTREAM_PROVIDER= AIHUBMIX \nMCPTAP_LISTEN_HOST=127.0.0.1\nMCPTAP_LISTEN_PORT=8787\n"
     )
     (config_dir / "aihubmix.env").write_text(
-        "MCP_TAP_API_KEY=aihubmix-test\nMCP_TAP_MODEL=zai/glm-5.2\nMCP_TAP_PLAN_MODE_MODEL=zai/glm-5.2\n"
-        "MCP_TAP_USE_CHAT_COMPLETIONS=false\n"
+        "MCPTAP_API_KEY=aihubmix-test\nMCPTAP_MODEL=zai/glm-5.2\nMCPTAP_PLAN_MODE_MODEL=zai/glm-5.2\n"
+        "MCPTAP_USE_CHAT_COMPLETIONS=false\n"
     )
     for key in (
-        "MCP_TAP_API_KEY",
-        "MCP_TAP_MODEL",
-        "MCP_TAP_PLAN_MODE_MODEL",
-        "MCP_TAP_UPSTREAM_PROVIDER",
-        "MCP_TAP_USE_CHAT_COMPLETIONS",
+        "MCPTAP_API_KEY",
+        "MCPTAP_MODEL",
+        "MCPTAP_PLAN_MODE_MODEL",
+        "MCPTAP_UPSTREAM_PROVIDER",
+        "MCPTAP_USE_CHAT_COMPLETIONS",
     ):
         monkeypatch.delenv(key, raising=False)
 
@@ -155,18 +155,18 @@ def test_tokenrouter_provider_loads_settings_and_credentials(tmp_path, monkeypat
     config_dir = tmp_path / "mcptap"
     config_dir.mkdir()
     (config_dir / "proxy.env").write_text(
-        "MCP_TAP_UPSTREAM_PROVIDER= TOKENROUTER \nMCP_TAP_LISTEN_HOST=127.0.0.1\nMCP_TAP_LISTEN_PORT=8787\n"
+        "MCPTAP_UPSTREAM_PROVIDER= TOKENROUTER \nMCPTAP_LISTEN_HOST=127.0.0.1\nMCPTAP_LISTEN_PORT=8787\n"
     )
     (config_dir / "tokenrouter.env").write_text(
-        "MCP_TAP_API_KEY=tokenrouter-test\nMCP_TAP_MODEL=zai/glm-5.2\nMCP_TAP_PLAN_MODE_MODEL=zai/glm-5.2\n"
-        "MCP_TAP_USE_CHAT_COMPLETIONS=false\n"
+        "MCPTAP_API_KEY=tokenrouter-test\nMCPTAP_MODEL=zai/glm-5.2\nMCPTAP_PLAN_MODE_MODEL=zai/glm-5.2\n"
+        "MCPTAP_USE_CHAT_COMPLETIONS=false\n"
     )
     for key in (
-        "MCP_TAP_API_KEY",
-        "MCP_TAP_MODEL",
-        "MCP_TAP_PLAN_MODE_MODEL",
-        "MCP_TAP_UPSTREAM_PROVIDER",
-        "MCP_TAP_USE_CHAT_COMPLETIONS",
+        "MCPTAP_API_KEY",
+        "MCPTAP_MODEL",
+        "MCPTAP_PLAN_MODE_MODEL",
+        "MCPTAP_UPSTREAM_PROVIDER",
+        "MCPTAP_USE_CHAT_COMPLETIONS",
     ):
         monkeypatch.delenv(key, raising=False)
 
@@ -196,18 +196,18 @@ def test_gateway_provider_loads_settings_and_credentials(provider_upper, env_fil
     config_dir = tmp_path / "mcptap"
     config_dir.mkdir()
     (config_dir / "proxy.env").write_text(
-        f"MCP_TAP_UPSTREAM_PROVIDER= {provider_upper} \nMCP_TAP_LISTEN_HOST=127.0.0.1\nMCP_TAP_LISTEN_PORT=8787\n"
+        f"MCPTAP_UPSTREAM_PROVIDER= {provider_upper} \nMCPTAP_LISTEN_HOST=127.0.0.1\nMCPTAP_LISTEN_PORT=8787\n"
     )
     (config_dir / env_file).write_text(
-        "MCP_TAP_API_KEY=gateway-test\nMCP_TAP_MODEL=zai/glm-5.2\nMCP_TAP_PLAN_MODE_MODEL=zai/glm-5.2\n"
-        "MCP_TAP_USE_CHAT_COMPLETIONS=false\n"
+        "MCPTAP_API_KEY=gateway-test\nMCPTAP_MODEL=zai/glm-5.2\nMCPTAP_PLAN_MODE_MODEL=zai/glm-5.2\n"
+        "MCPTAP_USE_CHAT_COMPLETIONS=false\n"
     )
     for key in (
-        "MCP_TAP_API_KEY",
-        "MCP_TAP_MODEL",
-        "MCP_TAP_PLAN_MODE_MODEL",
-        "MCP_TAP_UPSTREAM_PROVIDER",
-        "MCP_TAP_USE_CHAT_COMPLETIONS",
+        "MCPTAP_API_KEY",
+        "MCPTAP_MODEL",
+        "MCPTAP_PLAN_MODE_MODEL",
+        "MCPTAP_UPSTREAM_PROVIDER",
+        "MCPTAP_USE_CHAT_COMPLETIONS",
     ):
         monkeypatch.delenv(key, raising=False)
 
@@ -228,6 +228,6 @@ def test_get_provider_api_key_rejects_unknown_provider():
 
 
 def test_chat_completions_mode_defaults_to_disabled(monkeypatch):
-    monkeypatch.delenv("MCP_TAP_USE_CHAT_COMPLETIONS", raising=False)
+    monkeypatch.delenv("MCPTAP_USE_CHAT_COMPLETIONS", raising=False)
 
     assert _build_settings().use_chat_completions is False

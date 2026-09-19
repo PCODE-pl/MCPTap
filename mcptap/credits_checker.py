@@ -39,7 +39,7 @@ class CreditsCheckerTask:
             return
         if not self._active_credits_url:
             LOGGER.info(
-                "CreditsCheckerTask skipped (MCP_TAP_CREDITS_URL is empty for %s)",
+                "CreditsCheckerTask skipped (MCPTAP_CREDITS_URL is empty for %s)",
                 self._active_provider,
             )
             return

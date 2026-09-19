@@ -842,7 +842,7 @@ class TestEndToEndFlow:
 
     @pytest.mark.asyncio
     async def test_no_hook_preserves_existing_behavior(self):
-        """When MCP_TAP_USE_TOOL_HOOK is empty, hook gateway is disabled."""
+        """When MCPTAP_USE_TOOL_HOOK is empty, hook gateway is disabled."""
         with patch.object(mcptap_settings, "use_tool_hook", ""):
             tracker = proxy.SessionTracker()
             gw = proxy.ToolHookGateway(tracker)

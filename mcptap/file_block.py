@@ -14,7 +14,7 @@ def blocklist_file_path(session_id: str) -> str:
     """Return the path to the per-session blocklist control file.
 
     The LD_PRELOAD library reads this file to know which paths to block.
-    The path is: <MCP_TAP_PER_SESSION_DIR>/<session_id>/blocked_files
+    The path is: <MCPTAP_PER_SESSION_DIR>/<session_id>/blocked_files
     """
     session_dir = os.path.join(settings.per_session_dir, session_id)
     os.makedirs(session_dir, exist_ok=True)

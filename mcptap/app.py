@@ -283,7 +283,7 @@ async def _close_client_session(app: web.Application) -> None:
 async def _start_mcp_intercept(app: web.Application) -> None:
     intercept: MCPInterceptor = app["mcp_intercept"]
     if not intercept.enabled:
-        LOGGER.info("MCP intercept disabled (MCP_TAP_INTERCEPT_YAML is empty)")
+        LOGGER.info("MCP intercept disabled (MCPTAP_INTERCEPT_YAML is empty)")
         return
     try:
         await intercept.start()
@@ -398,13 +398,13 @@ def build_app() -> web.Application:
     try:
         intercept_config = load_intercept_config()
     except Exception as exc:
-        LOGGER.exception("Invalid MCP_TAP_INTERCEPT_YAML; disabling intercept (%s)", exc)
+        LOGGER.exception("Invalid MCPTAP_INTERCEPT_YAML; disabling intercept (%s)", exc)
         intercept_config = None
 
     try:
         per_model_config = load_per_model_config()
     except Exception as exc:
-        LOGGER.exception("Invalid MCP_TAP_PER_MODEL_YAML; disabling per-model config (%s)", exc)
+        LOGGER.exception("Invalid MCPTAP_PER_MODEL_YAML; disabling per-model config (%s)", exc)
         per_model_config = None
 
     session_tracker = SessionTracker()
@@ -417,9 +417,9 @@ def build_app() -> web.Application:
         log_store = LogStore(settings.log_db_path, enabled=False)
 
     if not per_model_config:
-        LOGGER.info("Per-model config disabled (MCP_TAP_PER_MODEL_YAML is empty)")
+        LOGGER.info("Per-model config disabled (MCPTAP_PER_MODEL_YAML is empty)")
     if not hook_gateway.enabled:
-        LOGGER.info("Tool hook disabled (MCP_TAP_USE_TOOL_HOOK is empty)")
+        LOGGER.info("Tool hook disabled (MCPTAP_USE_TOOL_HOOK is empty)")
 
     app["mcp_intercept"] = MCPInterceptor(intercept_config)
     app["per_model_config"] = per_model_config

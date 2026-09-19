@@ -1230,7 +1230,7 @@ static int  _mcptap_addr_loaded = 0;
 static time_t _mcptap_addr_last_check = 0;
 static pthread_mutex_t _mcptap_addr_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-/* Read MCP_TAP_LISTEN_HOST and MCP_TAP_LISTEN_PORT from
+/* Read MCPTAP_LISTEN_HOST and MCPTAP_LISTEN_PORT from
  * /proc/<pid>/environ, where <pid> is read from the proxy.pid file.
  * The environ file is a sequence of NUL-terminated KEY=VALUE strings. */
 static void _load_mcptap_addr(void) {
@@ -1294,13 +1294,13 @@ static void _load_mcptap_addr(void) {
         size_t len = strnlen(p, env_end - p);
         if (len == 0)
             break;
-        if (strncmp(p, "MCP_TAP_LISTEN_HOST=", 20) == 0 && len > 20) {
+        if (strncmp(p, "MCPTAP_LISTEN_HOST=", 20) == 0 && len > 20) {
             size_t copy = len - 20;
             if (copy >= sizeof(host_buf))
                 copy = sizeof(host_buf) - 1;
             memcpy(host_buf, p + 20, copy);
             host_buf[copy] = '\0';
-        } else if (strncmp(p, "MCP_TAP_LISTEN_PORT=", 20) == 0 && len > 20) {
+        } else if (strncmp(p, "MCPTAP_LISTEN_PORT=", 20) == 0 && len > 20) {
             size_t copy = len - 20;
             if (copy >= sizeof(port_buf))
                 copy = sizeof(port_buf) - 1;

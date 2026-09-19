@@ -18,7 +18,7 @@ from mcptap.settings import (
 
 
 def load_per_model_config() -> Dict[str, Dict[str, Any]]:
-    """Load per-model configuration from MCP_TAP_PER_MODEL_YAML.
+    """Load per-model configuration from MCPTAP_PER_MODEL_YAML.
 
     Returns a dict mapping model identifiers to their config (e.g. instructions
     or per-model tool compatibility options such as disabling custom tools).
@@ -36,7 +36,7 @@ def load_per_model_config() -> Dict[str, Dict[str, Any]]:
 
     data = yaml.safe_load(payload)
     if not isinstance(data, dict):
-        LOGGER.warning("MCP_TAP_PER_MODEL_YAML must be a YAML dict")
+        LOGGER.warning("MCPTAP_PER_MODEL_YAML must be a YAML dict")
         return {}
 
     result: Dict[str, Dict[str, Any]] = {}
@@ -72,7 +72,7 @@ def _apply_model_and_provider(
         input_size = deep_getsizeof(payload.get("input", None))
         if input_size > settings.plan_mode_max_input_size:
             raise RuntimeError(
-                f"Input size ({input_size}) exceeds MCP_TAP_PLAN_MODE_MAX_INPUT_SIZE "
+                f"Input size ({input_size}) exceeds MCPTAP_PLAN_MODE_MAX_INPUT_SIZE "
                 f"({settings.plan_mode_max_input_size})"
             )
         payload["model"] = settings.plan_mode_model
