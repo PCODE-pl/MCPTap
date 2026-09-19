@@ -302,9 +302,9 @@ def _build_settings() -> Settings:
         "",
     }
 
-    telegram_bot_token = (os.environ.get("MCPTAP_TELEGRAM_BOT_TOKEN") or "").strip()
-    telegram_chat_id = (os.environ.get("MCPTAP_TELEGRAM_CHAT_ID") or "").strip()
-    telegram_alert_level = (os.environ.get("MCPTAP_TELEGRAM_ALERT_LEVEL") or "mismatch").strip().lower()
+    telegram_bot_token = (os.environ.get("MCP_TAP_TELEGRAM_BOT_TOKEN") or "").strip()
+    telegram_chat_id = (os.environ.get("MCP_TAP_TELEGRAM_CHAT_ID") or "").strip()
+    telegram_alert_level = (os.environ.get("MCP_TAP_TELEGRAM_ALERT_LEVEL") or "mismatch").strip().lower()
 
     _synthetic_tool_env = os.environ.get("MCP_TAP_USE_TOOL_HOOK_SYNTHETIC_TOOL")
     use_tool_hook_synthetic_tool = _synthetic_tool_env.strip() if _synthetic_tool_env is not None else "get_goal"
@@ -346,7 +346,7 @@ def _build_settings() -> Settings:
         use_tool_hook_pending_ttl=float(os.environ.get("MCP_TAP_USE_TOOL_HOOK_PENDING_TTL", "600")),
         per_session_dir=(os.environ.get("MCP_TAP_PER_SESSION_DIR") or "/tmp/mcptap/per_session").strip(),
         log_db_path=(os.environ.get("MCP_TAP_LOG_DB") or os.path.expanduser("~/.local/share/mcptap/logs.db")).strip(),
-        log_retention_days=int(os.environ.get("MCP_TAP_LOG_RETENTION_DAYS", "30")),
+        log_retention_days=int(os.environ.get("MCP_TAP_LOG_RETENTION_DAYS", "7")),
         pareto_provider=(os.environ.get("MCP_TAP_PARETO_PROVIDER") or PROVIDER_OPENROUTER).strip().lower(),
     )
 

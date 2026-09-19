@@ -162,8 +162,8 @@ selection is controlled only by the provider setting.
   `MCP_TAP_CREDITS_URL`, `MCP_TAP_CREDITS_API_KEY`,
   `MCP_TAP_CREDITS_CHECK_INTERVAL`,
   `MCP_TAP_CREDITS_DISCREPANCY_THRESHOLD`,
-  `MCPTAP_TELEGRAM_BOT_TOKEN`, `MCPTAP_TELEGRAM_CHAT_ID`, and
-  `MCPTAP_TELEGRAM_ALERT_LEVEL` settings, with OpenRouter and Requesty
+  `MCP_TAP_TELEGRAM_BOT_TOKEN`, `MCP_TAP_TELEGRAM_CHAT_ID`, and
+  `MCP_TAP_TELEGRAM_ALERT_LEVEL` settings, with OpenRouter and Requesty
   example configuration updates.
 
 - **Expanded file-block interception** — the LD_PRELOAD library now covers
