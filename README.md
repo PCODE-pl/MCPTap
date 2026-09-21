@@ -198,6 +198,7 @@ abliteration-ai
 above
 agentrouter
 agnes
+ai-router
 ```
 
 ### 2. Configure the provider
