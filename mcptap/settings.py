@@ -104,6 +104,8 @@ PROVIDER_CEREBRAS = "cerebras"
 
 PROVIDER_CHUTES = "chutes"
 
+PROVIDER_CLARIFAI = "clarifai"
+
 SYNTHETIC_GET_GOAL_CALL_ID = "synthetic_get_goal"
 SYNTHETIC_GET_GOAL_TOOL_NAME = "get_goal"
 
@@ -182,6 +184,7 @@ _PROVIDER_ENV_FILES = {
     PROVIDER_BOTHUB: "bothub.env",
     PROVIDER_CEREBRAS: "cerebras.env",
     PROVIDER_CHUTES: "chutes.env",
+    PROVIDER_CLARIFAI: "clarifai.env",
 }
 
 _UPSTREAM_BASE_URLS = {
@@ -237,6 +240,7 @@ _UPSTREAM_BASE_URLS = {
     PROVIDER_BOTHUB: "https://openai.bothub.ru/v1",
     PROVIDER_CEREBRAS: "https://api.cerebras.ai/v1",
     PROVIDER_CHUTES: "https://llm.chutes.ai/v1",
+    PROVIDER_CLARIFAI: "https://api.clarifai.com/v2/ext/openai/v1",
 }
 
 

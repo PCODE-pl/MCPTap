@@ -228,6 +228,7 @@ blueclaw
 bothub
 cerebras
 chutes
+clarifai
 ```
 
 ### 2. Configure the provider
