@@ -204,6 +204,7 @@ ainetcafe
 aixy
 aki-io
 alibaba
+302ai
 ```
 
 ### 2. Configure the provider

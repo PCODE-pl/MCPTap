@@ -44,6 +44,7 @@ from mcptap.settings import (
     DEBUG_PAYLOAD_KEYS,
     HOP_BY_HOP_HEADERS,
     LOGGER,
+    PROVIDER_302AI,
     PROVIDER_ABLITERATION_AI,
     PROVIDER_ABOVE,
     PROVIDER_AGENTROUTER,
@@ -160,6 +161,7 @@ __all__ = [
     "PROVIDER_AIXY",
     "PROVIDER_AKI_IO",
     "PROVIDER_ALIBABA",
+    "PROVIDER_302AI",
 ]
 
 if __name__ == "__main__":

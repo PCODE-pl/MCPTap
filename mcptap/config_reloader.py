@@ -60,6 +60,7 @@ _FILE_AINETCAFE_ENV = "ainetcafe.env"
 _FILE_AIXY_ENV = "aixy.env"
 _FILE_AKI_IO_ENV = "aki-io.env"
 _FILE_ALIBABA_ENV = "alibaba.env"
+_FILE_302AI_ENV = "302ai.env"
 _FILE_INTERCEPT_YAML = "mcp-intercept.yaml"
 _FILE_PER_MODEL_YAML = "per-model.yaml"
 _FILE_USE_TOOL_HOOK = "use_tool_hook.py"
@@ -95,6 +96,7 @@ _ENV_FILES = {
     _FILE_AIXY_ENV,
     _FILE_AKI_IO_ENV,
     _FILE_ALIBABA_ENV,
+    _FILE_302AI_ENV,
 }
 
 # Files whose content is embedded in settings (path stored in proxy.env).
