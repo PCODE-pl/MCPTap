@@ -260,6 +260,7 @@ frogbot
 github-copilot
 gmicloud
 google
+google-vertex
 ```
 
 ### 2. Configure the provider

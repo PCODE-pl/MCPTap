@@ -116,6 +116,7 @@ _FILE_FROGBOT_ENV = "frogbot.env"
 _FILE_GITHUB_COPILOT_ENV = "github-copilot.env"
 _FILE_GMICLOUD_ENV = "gmicloud.env"
 _FILE_GOOGLE_ENV = "google.env"
+_FILE_GOOGLE_VERTEX_ENV = "google-vertex.env"
 _FILE_INTERCEPT_YAML = "mcp-intercept.yaml"
 _FILE_PER_MODEL_YAML = "per-model.yaml"
 _FILE_USE_TOOL_HOOK = "use_tool_hook.py"
@@ -207,6 +208,7 @@ _ENV_FILES = {
     _FILE_GITHUB_COPILOT_ENV,
     _FILE_GMICLOUD_ENV,
     _FILE_GOOGLE_ENV,
+    _FILE_GOOGLE_VERTEX_ENV,
 }
 
 # Files whose content is embedded in settings (path stored in proxy.env).

@@ -168,6 +168,8 @@ PROVIDER_GMICLOUD = "gmicloud"
 
 PROVIDER_GOOGLE = "google"
 
+PROVIDER_GOOGLE_VERTEX = "google-vertex"
+
 SYNTHETIC_GET_GOAL_CALL_ID = "synthetic_get_goal"
 SYNTHETIC_GET_GOAL_TOOL_NAME = "get_goal"
 
@@ -278,6 +280,7 @@ _PROVIDER_ENV_FILES = {
     PROVIDER_GITHUB_COPILOT: "github-copilot.env",
     PROVIDER_GMICLOUD: "gmicloud.env",
     PROVIDER_GOOGLE: "google.env",
+    PROVIDER_GOOGLE_VERTEX: "google-vertex.env",
 }
 
 _UPSTREAM_BASE_URLS = {
@@ -363,6 +366,7 @@ _UPSTREAM_BASE_URLS = {
     PROVIDER_GITHUB_COPILOT: "https://api.githubcopilot.com",
     PROVIDER_GMICLOUD: "https://api.gmi-serving.com/v1",
     PROVIDER_GOOGLE: "https://generativelanguage.googleapis.com/v1beta/openai",
+    PROVIDER_GOOGLE_VERTEX: "https://us-central1-aiplatform.googleapis.com/v1",
 }
 
 

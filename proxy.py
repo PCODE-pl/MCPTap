@@ -111,6 +111,7 @@ from mcptap.settings import (
     PROVIDER_GITHUB_COPILOT,
     PROVIDER_GMICLOUD,
     PROVIDER_GOOGLE,
+    PROVIDER_GOOGLE_VERTEX,
     PROVIDER_INFERX,
     PROVIDER_KENARI,
     PROVIDER_KILO,
@@ -272,6 +273,7 @@ __all__ = [
     "PROVIDER_GITHUB_COPILOT",
     "PROVIDER_GMICLOUD",
     "PROVIDER_GOOGLE",
+    "PROVIDER_GOOGLE_VERTEX",
 ]
 
 if __name__ == "__main__":
