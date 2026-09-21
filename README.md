@@ -261,6 +261,7 @@ github-copilot
 gmicloud
 google
 google-vertex
+google-vertex-anthropic
 ```
 
 ### 2. Configure the provider

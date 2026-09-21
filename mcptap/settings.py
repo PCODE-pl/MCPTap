@@ -170,6 +170,8 @@ PROVIDER_GOOGLE = "google"
 
 PROVIDER_GOOGLE_VERTEX = "google-vertex"
 
+PROVIDER_GOOGLE_VERTEX_ANTHROPIC = "google-vertex-anthropic"
+
 SYNTHETIC_GET_GOAL_CALL_ID = "synthetic_get_goal"
 SYNTHETIC_GET_GOAL_TOOL_NAME = "get_goal"
 
@@ -281,6 +283,7 @@ _PROVIDER_ENV_FILES = {
     PROVIDER_GMICLOUD: "gmicloud.env",
     PROVIDER_GOOGLE: "google.env",
     PROVIDER_GOOGLE_VERTEX: "google-vertex.env",
+    PROVIDER_GOOGLE_VERTEX_ANTHROPIC: "google-vertex-anthropic.env",
 }
 
 _UPSTREAM_BASE_URLS = {
@@ -367,6 +370,7 @@ _UPSTREAM_BASE_URLS = {
     PROVIDER_GMICLOUD: "https://api.gmi-serving.com/v1",
     PROVIDER_GOOGLE: "https://generativelanguage.googleapis.com/v1beta/openai",
     PROVIDER_GOOGLE_VERTEX: "https://us-central1-aiplatform.googleapis.com/v1",
+    PROVIDER_GOOGLE_VERTEX_ANTHROPIC: "https://us-central1-aiplatform.googleapis.com/v1",
 }
 
 
