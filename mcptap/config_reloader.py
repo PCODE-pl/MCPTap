@@ -51,6 +51,7 @@ _FILE_PENDRA_ENV = "pendra.env"
 _FILE_VERCEL_ENV = "vercel.env"
 _FILE_ZENMUX_ENV = "zenmux.env"
 _FILE_ABLITERATION_AI_ENV = "abliteration-ai.env"
+_FILE_ABOVE_ENV = "above.env"
 _FILE_INTERCEPT_YAML = "mcp-intercept.yaml"
 _FILE_PER_MODEL_YAML = "per-model.yaml"
 _FILE_USE_TOOL_HOOK = "use_tool_hook.py"
@@ -77,6 +78,7 @@ _ENV_FILES = {
     _FILE_VERCEL_ENV,
     _FILE_ZENMUX_ENV,
     _FILE_ABLITERATION_AI_ENV,
+    _FILE_ABOVE_ENV,
 }
 
 # Files whose content is embedded in settings (path stored in proxy.env).

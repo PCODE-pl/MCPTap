@@ -38,6 +38,8 @@ PROVIDER_VERCEL = "vercel"
 PROVIDER_ZENMUX = "zenmux"
 PROVIDER_ABLITERATION_AI = "abliteration-ai"
 
+PROVIDER_ABOVE = "above"
+
 SYNTHETIC_GET_GOAL_CALL_ID = "synthetic_get_goal"
 SYNTHETIC_GET_GOAL_TOOL_NAME = "get_goal"
 
@@ -83,6 +85,7 @@ _PROVIDER_ENV_FILES = {
     PROVIDER_VERCEL: "vercel.env",
     PROVIDER_ZENMUX: "zenmux.env",
     PROVIDER_ABLITERATION_AI: "abliteration-ai.env",
+    PROVIDER_ABOVE: "above.env",
 }
 
 _UPSTREAM_BASE_URLS = {
@@ -104,8 +107,8 @@ _UPSTREAM_BASE_URLS = {
     PROVIDER_PENDRA: "https://api.pendra.ai/api/v1",
     PROVIDER_VERCEL: "https://ai-gateway.vercel.sh/v1",
     PROVIDER_ZENMUX: "https://zenmux.ai/api/v1",
-    # Abliteration API uses the OpenAI-compatible v1 endpoint.
     PROVIDER_ABLITERATION_AI: "https://api.abliteration.ai/v1",
+    PROVIDER_ABOVE: "https://api.above.dev/v1",
 }
 
 
