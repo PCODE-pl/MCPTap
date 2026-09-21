@@ -54,6 +54,8 @@ PROVIDER_AIXY = "aixy"
 
 PROVIDER_AKI_IO = "aki-io"
 
+PROVIDER_ALIBABA = "alibaba"
+
 SYNTHETIC_GET_GOAL_CALL_ID = "synthetic_get_goal"
 SYNTHETIC_GET_GOAL_TOOL_NAME = "get_goal"
 
@@ -107,6 +109,7 @@ _PROVIDER_ENV_FILES = {
     PROVIDER_AINETCAFE: "ainetcafe.env",
     PROVIDER_AIXY: "aixy.env",
     PROVIDER_AKI_IO: "aki-io.env",
+    PROVIDER_ALIBABA: "alibaba.env",
 }
 
 _UPSTREAM_BASE_URLS = {
@@ -137,6 +140,7 @@ _UPSTREAM_BASE_URLS = {
     PROVIDER_AINETCAFE: "https://microquickjs.com/v1",
     PROVIDER_AIXY: "https://api.aixy-gateway.com/v1",
     PROVIDER_AKI_IO: "https://aki.io/v1",
+    PROVIDER_ALIBABA: "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
 }
 
 

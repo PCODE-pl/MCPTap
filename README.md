@@ -203,6 +203,7 @@ aiand
 ainetcafe
 aixy
 aki-io
+alibaba
 ```
 
 ### 2. Configure the provider
