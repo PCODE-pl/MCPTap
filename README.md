@@ -253,6 +253,7 @@ edenai
 empiriolabs
 evroc
 fastrouter
+fireworks-ai
 ```
 
 ### 2. Configure the provider

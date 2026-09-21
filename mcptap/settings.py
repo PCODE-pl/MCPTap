@@ -154,6 +154,8 @@ PROVIDER_EVROC = "evroc"
 
 PROVIDER_FASTROUTER = "fastrouter"
 
+PROVIDER_FIREWORKS_AI = "fireworks-ai"
+
 SYNTHETIC_GET_GOAL_CALL_ID = "synthetic_get_goal"
 SYNTHETIC_GET_GOAL_TOOL_NAME = "get_goal"
 
@@ -257,6 +259,7 @@ _PROVIDER_ENV_FILES = {
     PROVIDER_EMPIRIOLABS: "empiriolabs.env",
     PROVIDER_EVROC: "evroc.env",
     PROVIDER_FASTROUTER: "fastrouter.env",
+    PROVIDER_FIREWORKS_AI: "fireworks-ai.env",
 }
 
 _UPSTREAM_BASE_URLS = {
@@ -335,6 +338,7 @@ _UPSTREAM_BASE_URLS = {
     PROVIDER_EMPIRIOLABS: "https://api.empiriolabs.ai/v1",
     PROVIDER_EVROC: "https://models.think.evroc.com/v1",
     PROVIDER_FASTROUTER: "https://go.fastrouter.ai/api/v1",
+    PROVIDER_FIREWORKS_AI: "https://api.fireworks.ai/inference/v1",
 }
 
 
