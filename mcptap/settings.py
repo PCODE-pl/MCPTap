@@ -194,6 +194,8 @@ PROVIDER_INCEPTION = "inception"
 
 PROVIDER_INCEPTRON = "inceptron"
 
+PROVIDER_INCO = "inco"
+
 SYNTHETIC_GET_GOAL_CALL_ID = "synthetic_get_goal"
 SYNTHETIC_GET_GOAL_TOOL_NAME = "get_goal"
 
@@ -317,6 +319,7 @@ _PROVIDER_ENV_FILES = {
     PROVIDER_IMPOSSIBL: "impossibl.env",
     PROVIDER_INCEPTION: "inception.env",
     PROVIDER_INCEPTRON: "inceptron.env",
+    PROVIDER_INCO: "inco.env",
 }
 
 _UPSTREAM_BASE_URLS = {
@@ -415,6 +418,7 @@ _UPSTREAM_BASE_URLS = {
     PROVIDER_IMPOSSIBL: "https://api.impossibl.com/v1",
     PROVIDER_INCEPTION: "https://api.inceptionlabs.ai/v1",
     PROVIDER_INCEPTRON: "https://api.inceptron.io/v1",
+    PROVIDER_INCO: "https://api.inco.ai/v1",
 }
 
 

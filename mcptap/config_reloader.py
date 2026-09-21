@@ -129,6 +129,7 @@ _FILE_IFLOWCN_ENV = "iflowcn.env"
 _FILE_IMPOSSIBL_ENV = "impossibl.env"
 _FILE_INCEPTION_ENV = "inception.env"
 _FILE_INCEPTRON_ENV = "inceptron.env"
+_FILE_INCO_ENV = "inco.env"
 _FILE_INTERCEPT_YAML = "mcp-intercept.yaml"
 _FILE_PER_MODEL_YAML = "per-model.yaml"
 _FILE_USE_TOOL_HOOK = "use_tool_hook.py"
@@ -233,6 +234,7 @@ _ENV_FILES = {
     _FILE_IMPOSSIBL_ENV,
     _FILE_INCEPTION_ENV,
     _FILE_INCEPTRON_ENV,
+    _FILE_INCO_ENV,
 }
 
 # Files whose content is embedded in settings (path stored in proxy.env).
