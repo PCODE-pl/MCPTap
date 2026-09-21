@@ -239,6 +239,7 @@ coralbricks
 cortecs
 crof
 crossmodel
+crusoe
 ```
 
 ### 2. Configure the provider

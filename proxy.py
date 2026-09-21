@@ -90,6 +90,7 @@ from mcptap.settings import (
     PROVIDER_CORTECS,
     PROVIDER_CROF,
     PROVIDER_CROSSMODEL,
+    PROVIDER_CRUSOE,
     PROVIDER_INFERX,
     PROVIDER_KENARI,
     PROVIDER_KILO,
@@ -230,6 +231,7 @@ __all__ = [
     "PROVIDER_CORTECS",
     "PROVIDER_CROF",
     "PROVIDER_CROSSMODEL",
+    "PROVIDER_CRUSOE",
 ]
 
 if __name__ == "__main__":

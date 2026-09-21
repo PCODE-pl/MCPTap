@@ -95,6 +95,7 @@ _FILE_CORALBRICKS_ENV = "coralbricks.env"
 _FILE_CORTECS_ENV = "cortecs.env"
 _FILE_CROF_ENV = "crof.env"
 _FILE_CROSSMODEL_ENV = "crossmodel.env"
+_FILE_CRUSOE_ENV = "crusoe.env"
 _FILE_INTERCEPT_YAML = "mcp-intercept.yaml"
 _FILE_PER_MODEL_YAML = "per-model.yaml"
 _FILE_USE_TOOL_HOOK = "use_tool_hook.py"
@@ -165,6 +166,7 @@ _ENV_FILES = {
     _FILE_CORTECS_ENV,
     _FILE_CROF_ENV,
     _FILE_CROSSMODEL_ENV,
+    _FILE_CRUSOE_ENV,
 }
 
 # Files whose content is embedded in settings (path stored in proxy.env).
