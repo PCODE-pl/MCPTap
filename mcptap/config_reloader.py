@@ -64,6 +64,7 @@ _FILE_302AI_ENV = "302ai.env"
 _FILE_ABACUS_ENV = "abacus.env"
 _FILE_ALIBABA_CN_ENV = "alibaba-cn.env"
 _FILE_ALIBABA_CODING_PLAN_ENV = "alibaba-coding-plan.env"
+_FILE_ALIBABA_CODING_PLAN_CN_ENV = "alibaba-coding-plan-cn.env"
 _FILE_INTERCEPT_YAML = "mcp-intercept.yaml"
 _FILE_PER_MODEL_YAML = "per-model.yaml"
 _FILE_USE_TOOL_HOOK = "use_tool_hook.py"
@@ -103,6 +104,7 @@ _ENV_FILES = {
     _FILE_ABACUS_ENV,
     _FILE_ALIBABA_CN_ENV,
     _FILE_ALIBABA_CODING_PLAN_ENV,
+    _FILE_ALIBABA_CODING_PLAN_CN_ENV,
 }
 
 # Files whose content is embedded in settings (path stored in proxy.env).
