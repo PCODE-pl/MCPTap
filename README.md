@@ -196,6 +196,7 @@ vercel
 zenmux
 abliteration-ai
 above
+agentrouter
 ```
 
 ### 2. Configure the provider

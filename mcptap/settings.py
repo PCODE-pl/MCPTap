@@ -40,6 +40,8 @@ PROVIDER_ABLITERATION_AI = "abliteration-ai"
 
 PROVIDER_ABOVE = "above"
 
+PROVIDER_AGENTROUTER = "agentrouter"
+
 SYNTHETIC_GET_GOAL_CALL_ID = "synthetic_get_goal"
 SYNTHETIC_GET_GOAL_TOOL_NAME = "get_goal"
 
@@ -86,6 +88,7 @@ _PROVIDER_ENV_FILES = {
     PROVIDER_ZENMUX: "zenmux.env",
     PROVIDER_ABLITERATION_AI: "abliteration-ai.env",
     PROVIDER_ABOVE: "above.env",
+    PROVIDER_AGENTROUTER: "agentrouter.env",
 }
 
 _UPSTREAM_BASE_URLS = {
@@ -109,6 +112,7 @@ _UPSTREAM_BASE_URLS = {
     PROVIDER_ZENMUX: "https://zenmux.ai/api/v1",
     PROVIDER_ABLITERATION_AI: "https://api.abliteration.ai/v1",
     PROVIDER_ABOVE: "https://api.above.dev/v1",
+    PROVIDER_AGENTROUTER: "https://agentrouter.org/v1",
 }
 
 
