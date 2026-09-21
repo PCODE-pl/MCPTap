@@ -230,6 +230,7 @@ cerebras
 chutes
 clarifai
 claudinio
+cline-pass
 ```
 
 ### 2. Configure the provider

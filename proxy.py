@@ -81,6 +81,7 @@ from mcptap.settings import (
     PROVIDER_CHUTES,
     PROVIDER_CLARIFAI,
     PROVIDER_CLAUDINIO,
+    PROVIDER_CLINE_PASS,
     PROVIDER_INFERX,
     PROVIDER_KENARI,
     PROVIDER_KILO,
@@ -212,6 +213,7 @@ __all__ = [
     "PROVIDER_CHUTES",
     "PROVIDER_CLARIFAI",
     "PROVIDER_CLAUDINIO",
+    "PROVIDER_CLINE_PASS",
 ]
 
 if __name__ == "__main__":
