@@ -194,6 +194,7 @@ kilo
 pendra
 vercel
 zenmux
+abliteration-ai
 ```
 
 ### 2. Configure the provider

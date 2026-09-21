@@ -44,6 +44,7 @@ from mcptap.settings import (
     DEBUG_PAYLOAD_KEYS,
     HOP_BY_HOP_HEADERS,
     LOGGER,
+    PROVIDER_ABLITERATION_AI,
     PROVIDER_AIHUBMIX,
     PROVIDER_INFERX,
     PROVIDER_KENARI,
@@ -140,6 +141,7 @@ __all__ = [
     "serve_logs_page",
     "handle_pareto_data",
     "serve_pareto_page",
+    "PROVIDER_ABLITERATION_AI",
 ]
 
 if __name__ == "__main__":

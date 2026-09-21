@@ -36,6 +36,7 @@ PROVIDER_KILO = "kilo"
 PROVIDER_PENDRA = "pendra"
 PROVIDER_VERCEL = "vercel"
 PROVIDER_ZENMUX = "zenmux"
+PROVIDER_ABLITERATION_AI = "abliteration-ai"
 
 SYNTHETIC_GET_GOAL_CALL_ID = "synthetic_get_goal"
 SYNTHETIC_GET_GOAL_TOOL_NAME = "get_goal"
@@ -81,6 +82,7 @@ _PROVIDER_ENV_FILES = {
     PROVIDER_PENDRA: "pendra.env",
     PROVIDER_VERCEL: "vercel.env",
     PROVIDER_ZENMUX: "zenmux.env",
+    PROVIDER_ABLITERATION_AI: "abliteration-ai.env",
 }
 
 _UPSTREAM_BASE_URLS = {
@@ -88,7 +90,6 @@ _UPSTREAM_BASE_URLS = {
     PROVIDER_REQUESTY: "https://router.requesty.ai/v1",
     PROVIDER_META: "https://api.meta.ai/v1",
     PROVIDER_NANO_GPT: "https://nano-gpt.com/api/v1",
-    # Alternative API host: https://api.nano-gpt.com/api/v1
     PROVIDER_LLMTR: "https://llmtr.com/v1",
     PROVIDER_KENARI: "https://kenari.id/v1",
     PROVIDER_UNOROUTER: "https://api.unorouter.com/v1",
@@ -103,6 +104,8 @@ _UPSTREAM_BASE_URLS = {
     PROVIDER_PENDRA: "https://api.pendra.ai/api/v1",
     PROVIDER_VERCEL: "https://ai-gateway.vercel.sh/v1",
     PROVIDER_ZENMUX: "https://zenmux.ai/api/v1",
+    # Abliteration API uses the OpenAI-compatible v1 endpoint.
+    PROVIDER_ABLITERATION_AI: "https://api.abliteration.ai/v1",
 }
 
 
