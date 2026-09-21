@@ -209,6 +209,7 @@ abacus
 alibaba-cn
 alibaba-coding-plan
 alibaba-coding-plan-cn
+alibaba-token-plan
 ```
 
 ### 2. Configure the provider
