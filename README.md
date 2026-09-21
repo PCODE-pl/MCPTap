@@ -217,6 +217,7 @@ amd
 anthropic
 anyapi
 arcee
+atomic-chat
 ```
 
 ### 2. Configure the provider

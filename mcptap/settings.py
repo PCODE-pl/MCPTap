@@ -82,6 +82,8 @@ PROVIDER_ANYAPI = "anyapi"
 
 PROVIDER_ARCEE = "arcee"
 
+PROVIDER_ATOMIC_CHAT = "atomic-chat"
+
 SYNTHETIC_GET_GOAL_CALL_ID = "synthetic_get_goal"
 SYNTHETIC_GET_GOAL_TOOL_NAME = "get_goal"
 
@@ -149,6 +151,7 @@ _PROVIDER_ENV_FILES = {
     PROVIDER_ANTHROPIC: "anthropic.env",
     PROVIDER_ANYAPI: "anyapi.env",
     PROVIDER_ARCEE: "arcee.env",
+    PROVIDER_ATOMIC_CHAT: "atomic-chat.env",
 }
 
 _UPSTREAM_BASE_URLS = {
@@ -193,6 +196,7 @@ _UPSTREAM_BASE_URLS = {
     PROVIDER_ANTHROPIC: "https://api.anthropic.com/v1",
     PROVIDER_ANYAPI: "https://api.anyapi.ai/v1",
     PROVIDER_ARCEE: "https://api.arcee.ai/api/v1",
+    PROVIDER_ATOMIC_CHAT: "http://127.0.0.1:1337/v1",
 }
 
 
