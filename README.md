@@ -223,6 +223,7 @@ azure
 azure-cognitive-services
 bailing
 baseten
+berget
 ```
 
 ### 2. Configure the provider
