@@ -150,6 +150,8 @@ PROVIDER_EDENAI = "edenai"
 
 PROVIDER_EMPIRIOLABS = "empiriolabs"
 
+PROVIDER_EVROC = "evroc"
+
 SYNTHETIC_GET_GOAL_CALL_ID = "synthetic_get_goal"
 SYNTHETIC_GET_GOAL_TOOL_NAME = "get_goal"
 
@@ -251,6 +253,7 @@ _PROVIDER_ENV_FILES = {
     PROVIDER_ECHO: "echo.env",
     PROVIDER_EDENAI: "edenai.env",
     PROVIDER_EMPIRIOLABS: "empiriolabs.env",
+    PROVIDER_EVROC: "evroc.env",
 }
 
 _UPSTREAM_BASE_URLS = {
@@ -327,6 +330,7 @@ _UPSTREAM_BASE_URLS = {
     PROVIDER_ECHO: "https://echo.tracerml.ai/v1",
     PROVIDER_EDENAI: "https://api.edenai.run/v3",
     PROVIDER_EMPIRIOLABS: "https://api.empiriolabs.ai/v1",
+    PROVIDER_EVROC: "https://models.think.evroc.com/v1",
 }
 
 

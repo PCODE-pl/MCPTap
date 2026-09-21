@@ -251,6 +251,7 @@ ebcloud
 echo
 edenai
 empiriolabs
+evroc
 ```
 
 ### 2. Configure the provider
