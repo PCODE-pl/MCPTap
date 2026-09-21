@@ -272,6 +272,7 @@ hyper
 iflowcn
 impossibl
 inception
+inceptron
 ```
 
 ### 2. Configure the provider
