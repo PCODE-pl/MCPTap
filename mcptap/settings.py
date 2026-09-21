@@ -148,6 +148,8 @@ PROVIDER_ECHO = "echo"
 
 PROVIDER_EDENAI = "edenai"
 
+PROVIDER_EMPIRIOLABS = "empiriolabs"
+
 SYNTHETIC_GET_GOAL_CALL_ID = "synthetic_get_goal"
 SYNTHETIC_GET_GOAL_TOOL_NAME = "get_goal"
 
@@ -248,6 +250,7 @@ _PROVIDER_ENV_FILES = {
     PROVIDER_EBCLOUD: "ebcloud.env",
     PROVIDER_ECHO: "echo.env",
     PROVIDER_EDENAI: "edenai.env",
+    PROVIDER_EMPIRIOLABS: "empiriolabs.env",
 }
 
 _UPSTREAM_BASE_URLS = {
@@ -323,6 +326,7 @@ _UPSTREAM_BASE_URLS = {
     PROVIDER_EBCLOUD: "https://maas-api.ebcloud.com/v1",
     PROVIDER_ECHO: "https://echo.tracerml.ai/v1",
     PROVIDER_EDENAI: "https://api.edenai.run/v3",
+    PROVIDER_EMPIRIOLABS: "https://api.empiriolabs.ai/v1",
 }
 
 

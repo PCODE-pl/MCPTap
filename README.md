@@ -250,6 +250,7 @@ drun
 ebcloud
 echo
 edenai
+empiriolabs
 ```
 
 ### 2. Configure the provider

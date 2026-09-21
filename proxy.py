@@ -101,6 +101,7 @@ from mcptap.settings import (
     PROVIDER_EBCLOUD,
     PROVIDER_ECHO,
     PROVIDER_EDENAI,
+    PROVIDER_EMPIRIOLABS,
     PROVIDER_INFERX,
     PROVIDER_KENARI,
     PROVIDER_KILO,
@@ -252,6 +253,7 @@ __all__ = [
     "PROVIDER_EBCLOUD",
     "PROVIDER_ECHO",
     "PROVIDER_EDENAI",
+    "PROVIDER_EMPIRIOLABS",
 ]
 
 if __name__ == "__main__":
