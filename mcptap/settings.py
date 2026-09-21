@@ -178,6 +178,8 @@ PROVIDER_GROQ = "groq"
 
 PROVIDER_HELICONE = "helicone"
 
+PROVIDER_HETZNER = "hetzner"
+
 SYNTHETIC_GET_GOAL_CALL_ID = "synthetic_get_goal"
 SYNTHETIC_GET_GOAL_TOOL_NAME = "get_goal"
 
@@ -293,6 +295,7 @@ _PROVIDER_ENV_FILES = {
     PROVIDER_GREENPT: "greenpt.env",
     PROVIDER_GROQ: "groq.env",
     PROVIDER_HELICONE: "helicone.env",
+    PROVIDER_HETZNER: "hetzner.env",
 }
 
 _UPSTREAM_BASE_URLS = {
@@ -383,6 +386,7 @@ _UPSTREAM_BASE_URLS = {
     PROVIDER_GREENPT: "https://api.greenpt.ai/v1",
     PROVIDER_GROQ: "https://api.groq.com/openai/v1",
     PROVIDER_HELICONE: "https://ai-gateway.helicone.ai/v1",
+    PROVIDER_HETZNER: "https://inference.hetzner.com/api/v1",
 }
 
 
