@@ -233,6 +233,7 @@ claudinio
 cline-pass
 cloudferro-sherlock
 cloudflare-ai-gateway
+cloudflare-workers-ai
 ```
 
 ### 2. Configure the provider
