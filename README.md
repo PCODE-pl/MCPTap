@@ -244,6 +244,7 @@ daoxe
 databricks
 deepinfra
 deepseek
+digitalocean
 ```
 
 ### 2. Configure the provider
