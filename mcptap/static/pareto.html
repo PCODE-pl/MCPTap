@@ -304,10 +304,11 @@
                 <output for="router-slider-max-cost">{{ routerMaxCost.toFixed(1) }} $</output>
                 <n-slider
                   id="router-slider-max-cost"
-                  v-model:value="routerMaxCost"
-                  :min="routerMinCost + 0.05"
-                  :max="70"
-                  :step="0.1"                  :format-tooltip="formatTooltipTwoDecimals"
+                  v-model:value="routerMaxCostSliderPosition"
+                  :min="routerMaxCostSliderMin"
+                  :max="routerMaxCostSliderMax"
+                  :step="routerMaxCostSliderStep"
+                  :format-tooltip="formatRouterMaxCostTooltip"
 
                   data-testid="router-slider-max-cost"
                   @update:value="handleRouterMaxCostChange"
@@ -473,10 +474,10 @@ const app = createApp({
       scheduleRenderChart();
     }
     function handleRouterMaxCostChange(value) {
-      const v = typeof value === 'number' && Number.isFinite(value) ? value : 0;
+      const v = typeof value === 'number' && Number.isFinite(value) ? value : displayXValue(routerMinCost.value + 0.05);
+      const dollars = compressedCostAxis.value ? v * v : v;
       const minMax = routerMinCost.value + 0.05;
-      const clamped = v < minMax ? minMax : v;
-      routerMaxCost.value = clamped > 70 ? 70 : clamped;
+      routerMaxCost.value = Math.max(minMax, Math.min(70, dollars));
       if (routerCostSplit.value < routerMinCost.value) routerCostSplit.value = routerMinCost.value;
       if (routerCostSplit.value > routerMaxCost.value) routerCostSplit.value = routerMaxCost.value;
       scheduleRenderChart();
@@ -507,6 +508,18 @@ const app = createApp({
     const costSplitSliderMax = computed(() => displayXValue(routerMaxCost.value));
     const costSplitSliderStep = computed(() => (compressedCostAxis.value ? 0.05 : 0.1));
     function formatCostSplitTooltip(value) {
+      if (typeof value !== 'number' || !Number.isFinite(value)) return '';
+      const dollars = compressedCostAxis.value ? value * value : value;
+      return `${dollars.toFixed(1)} $`;
+    }
+    const routerMaxCostSliderPosition = computed({
+      get: () => displayXValue(routerMaxCost.value),
+      set: (v) => handleRouterMaxCostChange(v),
+    });
+    const routerMaxCostSliderMin = computed(() => displayXValue(routerMinCost.value + 0.05));
+    const routerMaxCostSliderMax = computed(() => displayXValue(70));
+    const routerMaxCostSliderStep = computed(() => (compressedCostAxis.value ? 0.05 : 0.1));
+    function formatRouterMaxCostTooltip(value) {
       if (typeof value !== 'number' || !Number.isFinite(value)) return '';
       const dollars = compressedCostAxis.value ? value * value : value;
       return `${dollars.toFixed(1)} $`;
@@ -1562,6 +1575,7 @@ const app = createApp({
       QUALITY_SLIDER_MAX, pairedSliderDefinitions, qualityControls, costMix, costMixLabel, handleCostMixChange, handleQualityChange, handleFilterUpdate, formatTooltipTwoDecimals,
       routerMinCost, routerMaxCost, routerMinQuality, routerCostSplit, routerQualityMinBound, routerQualityMaxBound, handleRouterMinCostChange, handleRouterMaxCostChange, handleRouterMinQualityChange, handleRouterCostSplitChange,
       costSplitSliderPosition, costSplitSliderMin, costSplitSliderMax, costSplitSliderStep, formatCostSplitTooltip,
+      routerMaxCostSliderPosition, routerMaxCostSliderMin, routerMaxCostSliderMax, routerMaxCostSliderStep, formatRouterMaxCostTooltip,
       popupVisible, popupPoints, popupIndex, popupStyle, popupRef, popupCardHtml,
       handlePopupEnter, handlePopupLeave, popupNext, popupPrev,
       popupActionable, popupActionTitle, toastMessage, toastTone, handleActModel, handlePlanModel,

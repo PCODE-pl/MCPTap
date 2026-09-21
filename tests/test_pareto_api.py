@@ -614,3 +614,18 @@ async def test_serve_pareto_page_returns_html():
         assert "const costSplitSliderMin = computed(() => displayXValue(routerMinCost.value));" in body
         assert "const costSplitSliderMax = computed(() => displayXValue(routerMaxCost.value));" in body
         assert "costSplitSliderStep, formatCostSplitTooltip," in body
+        assert 'v-model:value="routerMaxCostSliderPosition"' in body
+        assert ':min="routerMaxCostSliderMin"' in body
+        assert ':max="routerMaxCostSliderMax"' in body
+        assert ':step="routerMaxCostSliderStep"' in body
+        assert ':format-tooltip="formatRouterMaxCostTooltip"' in body
+        assert "const routerMaxCostSliderPosition = computed({" in body
+        assert "get: () => displayXValue(routerMaxCost.value)," in body
+        assert "const routerMaxCostSliderMin = computed(() => displayXValue(routerMinCost.value + 0.05));" in body
+        assert "const routerMaxCostSliderMax = computed(() => displayXValue(70));" in body
+        assert "const routerMaxCostSliderStep = computed(() => (compressedCostAxis.value ? 0.05 : 0.1));" in body
+        assert "function formatRouterMaxCostTooltip(value)" in body
+        assert (
+            "routerMaxCostSliderPosition, routerMaxCostSliderMin, routerMaxCostSliderMax, routerMaxCostSliderStep, formatRouterMaxCostTooltip,"
+            in body
+        )
