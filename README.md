@@ -255,6 +255,7 @@ evroc
 fastrouter
 fireworks-ai
 freemodel
+friendli
 ```
 
 ### 2. Configure the provider
