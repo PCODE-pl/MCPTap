@@ -74,6 +74,8 @@ PROVIDER_AMAZON_BEDROCK = "amazon-bedrock"
 
 PROVIDER_AMBIENT = "ambient"
 
+PROVIDER_AMD = "amd"
+
 SYNTHETIC_GET_GOAL_CALL_ID = "synthetic_get_goal"
 SYNTHETIC_GET_GOAL_TOOL_NAME = "get_goal"
 
@@ -137,6 +139,7 @@ _PROVIDER_ENV_FILES = {
     PROVIDER_ALIBABA_TOKEN_PLAN_CN: "alibaba-token-plan-cn.env",
     PROVIDER_AMAZON_BEDROCK: "amazon-bedrock.env",
     PROVIDER_AMBIENT: "ambient.env",
+    PROVIDER_AMD: "amd.env",
 }
 
 _UPSTREAM_BASE_URLS = {
@@ -177,6 +180,7 @@ _UPSTREAM_BASE_URLS = {
     PROVIDER_ALIBABA_TOKEN_PLAN_CN: "https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1",
     PROVIDER_AMAZON_BEDROCK: "https://bedrock-runtime.us-east-1.amazonaws.com",
     PROVIDER_AMBIENT: "https://api.ambient.xyz/v1",
+    PROVIDER_AMD: "https://developer.amd.com.cn/radeon/api/v1",
 }
 
 

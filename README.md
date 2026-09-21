@@ -213,6 +213,7 @@ alibaba-token-plan
 alibaba-token-plan-cn
 amazon-bedrock
 ambient
+amd
 ```
 
 ### 2. Configure the provider
