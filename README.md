@@ -270,6 +270,7 @@ hpc-ai
 huggingface
 hyper
 iflowcn
+impossibl
 ```
 
 ### 2. Configure the provider

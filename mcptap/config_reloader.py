@@ -126,6 +126,7 @@ _FILE_HPC_AI_ENV = "hpc-ai.env"
 _FILE_HUGGINGFACE_ENV = "huggingface.env"
 _FILE_HYPER_ENV = "hyper.env"
 _FILE_IFLOWCN_ENV = "iflowcn.env"
+_FILE_IMPOSSIBL_ENV = "impossibl.env"
 _FILE_INTERCEPT_YAML = "mcp-intercept.yaml"
 _FILE_PER_MODEL_YAML = "per-model.yaml"
 _FILE_USE_TOOL_HOOK = "use_tool_hook.py"
@@ -227,6 +228,7 @@ _ENV_FILES = {
     _FILE_HUGGINGFACE_ENV,
     _FILE_HYPER_ENV,
     _FILE_IFLOWCN_ENV,
+    _FILE_IMPOSSIBL_ENV,
 }
 
 # Files whose content is embedded in settings (path stored in proxy.env).

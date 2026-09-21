@@ -188,6 +188,8 @@ PROVIDER_HYPER = "hyper"
 
 PROVIDER_IFLOWCN = "iflowcn"
 
+PROVIDER_IMPOSSIBL = "impossibl"
+
 SYNTHETIC_GET_GOAL_CALL_ID = "synthetic_get_goal"
 SYNTHETIC_GET_GOAL_TOOL_NAME = "get_goal"
 
@@ -308,6 +310,7 @@ _PROVIDER_ENV_FILES = {
     PROVIDER_HUGGINGFACE: "huggingface.env",
     PROVIDER_HYPER: "hyper.env",
     PROVIDER_IFLOWCN: "iflowcn.env",
+    PROVIDER_IMPOSSIBL: "impossibl.env",
 }
 
 _UPSTREAM_BASE_URLS = {
@@ -403,6 +406,7 @@ _UPSTREAM_BASE_URLS = {
     PROVIDER_HUGGINGFACE: "https://router.huggingface.co/v1",
     PROVIDER_HYPER: "https://hyper.charm.land/v1",
     PROVIDER_IFLOWCN: "https://apis.iflow.cn/v1",
+    PROVIDER_IMPOSSIBL: "https://api.impossibl.com/v1",
 }
 
 
