@@ -53,6 +53,7 @@ _FILE_ZENMUX_ENV = "zenmux.env"
 _FILE_ABLITERATION_AI_ENV = "abliteration-ai.env"
 _FILE_ABOVE_ENV = "above.env"
 _FILE_AGENTROUTER_ENV = "agentrouter.env"
+_FILE_AGNES_ENV = "agnes.env"
 _FILE_INTERCEPT_YAML = "mcp-intercept.yaml"
 _FILE_PER_MODEL_YAML = "per-model.yaml"
 _FILE_USE_TOOL_HOOK = "use_tool_hook.py"
@@ -81,6 +82,7 @@ _ENV_FILES = {
     _FILE_ABLITERATION_AI_ENV,
     _FILE_ABOVE_ENV,
     _FILE_AGENTROUTER_ENV,
+    _FILE_AGNES_ENV,
 }
 
 # Files whose content is embedded in settings (path stored in proxy.env).

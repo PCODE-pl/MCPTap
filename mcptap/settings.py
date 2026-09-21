@@ -42,6 +42,8 @@ PROVIDER_ABOVE = "above"
 
 PROVIDER_AGENTROUTER = "agentrouter"
 
+PROVIDER_AGNES = "agnes"
+
 SYNTHETIC_GET_GOAL_CALL_ID = "synthetic_get_goal"
 SYNTHETIC_GET_GOAL_TOOL_NAME = "get_goal"
 
@@ -89,6 +91,7 @@ _PROVIDER_ENV_FILES = {
     PROVIDER_ABLITERATION_AI: "abliteration-ai.env",
     PROVIDER_ABOVE: "above.env",
     PROVIDER_AGENTROUTER: "agentrouter.env",
+    PROVIDER_AGNES: "agnes.env",
 }
 
 _UPSTREAM_BASE_URLS = {
@@ -113,6 +116,7 @@ _UPSTREAM_BASE_URLS = {
     PROVIDER_ABLITERATION_AI: "https://api.abliteration.ai/v1",
     PROVIDER_ABOVE: "https://api.above.dev/v1",
     PROVIDER_AGENTROUTER: "https://agentrouter.org/v1",
+    PROVIDER_AGNES: "https://apihub.agnes-ai.com/v1",
 }
 
 

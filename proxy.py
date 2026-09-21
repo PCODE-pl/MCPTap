@@ -47,6 +47,7 @@ from mcptap.settings import (
     PROVIDER_ABLITERATION_AI,
     PROVIDER_ABOVE,
     PROVIDER_AGENTROUTER,
+    PROVIDER_AGNES,
     PROVIDER_AIHUBMIX,
     PROVIDER_INFERX,
     PROVIDER_KENARI,
@@ -146,6 +147,7 @@ __all__ = [
     "PROVIDER_ABLITERATION_AI",
     "PROVIDER_ABOVE",
     "PROVIDER_AGENTROUTER",
+    "PROVIDER_AGNES",
 ]
 
 if __name__ == "__main__":

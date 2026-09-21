@@ -197,6 +197,7 @@ zenmux
 abliteration-ai
 above
 agentrouter
+agnes
 ```
 
 ### 2. Configure the provider
