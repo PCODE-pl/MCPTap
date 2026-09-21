@@ -202,6 +202,7 @@ ai-router
 aiand
 ainetcafe
 aixy
+aki-io
 ```
 
 ### 2. Configure the provider
