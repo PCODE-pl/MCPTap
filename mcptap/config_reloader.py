@@ -85,6 +85,7 @@ _FILE_BOTHUB_ENV = "bothub.env"
 _FILE_CEREBRAS_ENV = "cerebras.env"
 _FILE_CHUTES_ENV = "chutes.env"
 _FILE_CLARIFAI_ENV = "clarifai.env"
+_FILE_CLAUDINIO_ENV = "claudinio.env"
 _FILE_INTERCEPT_YAML = "mcp-intercept.yaml"
 _FILE_PER_MODEL_YAML = "per-model.yaml"
 _FILE_USE_TOOL_HOOK = "use_tool_hook.py"
@@ -145,6 +146,7 @@ _ENV_FILES = {
     _FILE_CEREBRAS_ENV,
     _FILE_CHUTES_ENV,
     _FILE_CLARIFAI_ENV,
+    _FILE_CLAUDINIO_ENV,
 }
 
 # Files whose content is embedded in settings (path stored in proxy.env).

@@ -229,6 +229,7 @@ bothub
 cerebras
 chutes
 clarifai
+claudinio
 ```
 
 ### 2. Configure the provider
