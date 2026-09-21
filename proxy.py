@@ -122,6 +122,7 @@ from mcptap.settings import (
     PROVIDER_HYPER,
     PROVIDER_IFLOWCN,
     PROVIDER_IMPOSSIBL,
+    PROVIDER_INCEPTION,
     PROVIDER_INFERX,
     PROVIDER_KENARI,
     PROVIDER_KILO,
@@ -294,6 +295,7 @@ __all__ = [
     "PROVIDER_HYPER",
     "PROVIDER_IFLOWCN",
     "PROVIDER_IMPOSSIBL",
+    "PROVIDER_INCEPTION",
 ]
 
 if __name__ == "__main__":

@@ -190,6 +190,8 @@ PROVIDER_IFLOWCN = "iflowcn"
 
 PROVIDER_IMPOSSIBL = "impossibl"
 
+PROVIDER_INCEPTION = "inception"
+
 SYNTHETIC_GET_GOAL_CALL_ID = "synthetic_get_goal"
 SYNTHETIC_GET_GOAL_TOOL_NAME = "get_goal"
 
@@ -311,6 +313,7 @@ _PROVIDER_ENV_FILES = {
     PROVIDER_HYPER: "hyper.env",
     PROVIDER_IFLOWCN: "iflowcn.env",
     PROVIDER_IMPOSSIBL: "impossibl.env",
+    PROVIDER_INCEPTION: "inception.env",
 }
 
 _UPSTREAM_BASE_URLS = {
@@ -407,6 +410,7 @@ _UPSTREAM_BASE_URLS = {
     PROVIDER_HYPER: "https://hyper.charm.land/v1",
     PROVIDER_IFLOWCN: "https://apis.iflow.cn/v1",
     PROVIDER_IMPOSSIBL: "https://api.impossibl.com/v1",
+    PROVIDER_INCEPTION: "https://api.inceptionlabs.ai/v1",
 }
 
 

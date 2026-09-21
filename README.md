@@ -271,6 +271,7 @@ huggingface
 hyper
 iflowcn
 impossibl
+inception
 ```
 
 ### 2. Configure the provider
