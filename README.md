@@ -201,6 +201,7 @@ agnes
 ai-router
 aiand
 ainetcafe
+aixy
 ```
 
 ### 2. Configure the provider

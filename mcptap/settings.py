@@ -50,6 +50,8 @@ PROVIDER_AIAND = "aiand"
 
 PROVIDER_AINETCAFE = "ainetcafe"
 
+PROVIDER_AIXY = "aixy"
+
 SYNTHETIC_GET_GOAL_CALL_ID = "synthetic_get_goal"
 SYNTHETIC_GET_GOAL_TOOL_NAME = "get_goal"
 
@@ -101,6 +103,7 @@ _PROVIDER_ENV_FILES = {
     PROVIDER_AI_ROUTER: "ai-router.env",
     PROVIDER_AIAND: "aiand.env",
     PROVIDER_AINETCAFE: "ainetcafe.env",
+    PROVIDER_AIXY: "aixy.env",
 }
 
 _UPSTREAM_BASE_URLS = {
@@ -129,6 +132,7 @@ _UPSTREAM_BASE_URLS = {
     PROVIDER_AI_ROUTER: "https://api.ai-router.dev/v1",
     PROVIDER_AIAND: "https://api.aiand.com/v1",
     PROVIDER_AINETCAFE: "https://microquickjs.com/v1",
+    PROVIDER_AIXY: "https://api.aixy-gateway.com/v1",
 }
 
 
