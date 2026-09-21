@@ -227,6 +227,7 @@ berget
 blueclaw
 bothub
 cerebras
+chutes
 ```
 
 ### 2. Configure the provider
