@@ -236,6 +236,7 @@ cloudflare-ai-gateway
 cloudflare-workers-ai
 cohere
 coralbricks
+cortecs
 ```
 
 ### 2. Configure the provider
