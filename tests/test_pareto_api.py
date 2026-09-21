@@ -629,3 +629,8 @@ async def test_serve_pareto_page_returns_html():
             "routerMaxCostSliderPosition, routerMaxCostSliderMin, routerMaxCostSliderMax, routerMaxCostSliderStep, formatRouterMaxCostTooltip,"
             in body
         )
+        assert "const showParetoPlanLine = !hasActiveFilter && paretoPlan.length >= 2 && !isSplitAtMin;" in body
+        assert "const showParetoActLine = !hasActiveFilter && paretoAct.length >= 2 && !isSplitAtMax;" in body
+        assert "name: ''," in body
+        assert "lineStyle: { color: '#888', width: 2, type: 'dashed' }," in body
+        assert "data: [paretoAct[paretoAct.length - 1].value, paretoPlan[0].value]," in body

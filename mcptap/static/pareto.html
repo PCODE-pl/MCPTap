@@ -1421,11 +1421,11 @@ const app = createApp({
         };
       }).filter(Boolean);
       const series = [...baseSeries];
-      const isPlanEmpty = paretoPlan.length === 0;
-      const isActEmpty = paretoAct.length === 0;
       const isSplitAtMin = routerCostSplit.value <= routerMinCost.value + 1e-9;
       const isSplitAtMax = routerCostSplit.value >= routerMaxCost.value - 1e-9;
-      if (!hasActiveFilter && paretoPlan.length >= 2 && !isPlanEmpty && !isSplitAtMin) {
+      const showParetoPlanLine = !hasActiveFilter && paretoPlan.length >= 2 && !isSplitAtMin;
+      const showParetoActLine = !hasActiveFilter && paretoAct.length >= 2 && !isSplitAtMax;
+      if (showParetoPlanLine) {
         series.unshift({
           name: 'pareto plan',
           type: 'line',
@@ -1436,7 +1436,7 @@ const app = createApp({
           z: 1,
         });
       }
-      if (!hasActiveFilter && paretoAct.length >= 2 && !isActEmpty && !isSplitAtMax) {
+      if (showParetoActLine) {
         series.unshift({
           name: 'pareto act',
           type: 'line',
@@ -1444,6 +1444,18 @@ const app = createApp({
           showSymbol: false,
           silent: true,
           lineStyle: { color: '#8B4513', width: 3.2 },
+          z: 1,
+        });
+      }
+      if (showParetoPlanLine && showParetoActLine) {
+        series.unshift({
+          name: '',
+          type: 'line',
+          data: [paretoAct[paretoAct.length - 1].value, paretoPlan[0].value],
+          showSymbol: false,
+          silent: true,
+          legendHoverLink: false,
+          lineStyle: { color: '#888', width: 2, type: 'dashed' },
           z: 1,
         });
       }
