@@ -231,6 +231,7 @@ chutes
 clarifai
 claudinio
 cline-pass
+cloudferro-sherlock
 ```
 
 ### 2. Configure the provider

@@ -110,6 +110,8 @@ PROVIDER_CLAUDINIO = "claudinio"
 
 PROVIDER_CLINE_PASS = "cline-pass"
 
+PROVIDER_CLOUDFERRO_SHERLOCK = "cloudferro-sherlock"
+
 SYNTHETIC_GET_GOAL_CALL_ID = "synthetic_get_goal"
 SYNTHETIC_GET_GOAL_TOOL_NAME = "get_goal"
 
@@ -191,6 +193,7 @@ _PROVIDER_ENV_FILES = {
     PROVIDER_CLARIFAI: "clarifai.env",
     PROVIDER_CLAUDINIO: "claudinio.env",
     PROVIDER_CLINE_PASS: "cline-pass.env",
+    PROVIDER_CLOUDFERRO_SHERLOCK: "cloudferro-sherlock.env",
 }
 
 _UPSTREAM_BASE_URLS = {
@@ -249,6 +252,7 @@ _UPSTREAM_BASE_URLS = {
     PROVIDER_CLARIFAI: "https://api.clarifai.com/v2/ext/openai/v1",
     PROVIDER_CLAUDINIO: "https://api.claudin.io/v1",
     PROVIDER_CLINE_PASS: "https://api.cline.bot/api/v1",
+    PROVIDER_CLOUDFERRO_SHERLOCK: "https://api-sherlock.cloudferro.com/openai/v1",
 }
 
 
