@@ -97,6 +97,7 @@ from mcptap.settings import (
     PROVIDER_DEEPSEEK,
     PROVIDER_DIGITALOCEAN,
     PROVIDER_DINFERENCE,
+    PROVIDER_DRUN,
     PROVIDER_INFERX,
     PROVIDER_KENARI,
     PROVIDER_KILO,
@@ -244,6 +245,7 @@ __all__ = [
     "PROVIDER_DEEPSEEK",
     "PROVIDER_DIGITALOCEAN",
     "PROVIDER_DINFERENCE",
+    "PROVIDER_DRUN",
 ]
 
 if __name__ == "__main__":

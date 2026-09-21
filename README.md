@@ -246,6 +246,7 @@ deepinfra
 deepseek
 digitalocean
 dinference
+drun
 ```
 
 ### 2. Configure the provider
