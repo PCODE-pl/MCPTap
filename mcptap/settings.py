@@ -156,6 +156,8 @@ PROVIDER_FASTROUTER = "fastrouter"
 
 PROVIDER_FIREWORKS_AI = "fireworks-ai"
 
+PROVIDER_FREEMODEL = "freemodel"
+
 SYNTHETIC_GET_GOAL_CALL_ID = "synthetic_get_goal"
 SYNTHETIC_GET_GOAL_TOOL_NAME = "get_goal"
 
@@ -260,6 +262,7 @@ _PROVIDER_ENV_FILES = {
     PROVIDER_EVROC: "evroc.env",
     PROVIDER_FASTROUTER: "fastrouter.env",
     PROVIDER_FIREWORKS_AI: "fireworks-ai.env",
+    PROVIDER_FREEMODEL: "freemodel.env",
 }
 
 _UPSTREAM_BASE_URLS = {
@@ -339,6 +342,7 @@ _UPSTREAM_BASE_URLS = {
     PROVIDER_EVROC: "https://models.think.evroc.com/v1",
     PROVIDER_FASTROUTER: "https://go.fastrouter.ai/api/v1",
     PROVIDER_FIREWORKS_AI: "https://api.fireworks.ai/inference/v1",
+    PROVIDER_FREEMODEL: "https://cc.freemodel.dev/v1",
 }
 
 

@@ -105,6 +105,7 @@ from mcptap.settings import (
     PROVIDER_EVROC,
     PROVIDER_FASTROUTER,
     PROVIDER_FIREWORKS_AI,
+    PROVIDER_FREEMODEL,
     PROVIDER_INFERX,
     PROVIDER_KENARI,
     PROVIDER_KILO,
@@ -260,6 +261,7 @@ __all__ = [
     "PROVIDER_EVROC",
     "PROVIDER_FASTROUTER",
     "PROVIDER_FIREWORKS_AI",
+    "PROVIDER_FREEMODEL",
 ]
 
 if __name__ == "__main__":

@@ -254,6 +254,7 @@ empiriolabs
 evroc
 fastrouter
 fireworks-ai
+freemodel
 ```
 
 ### 2. Configure the provider
