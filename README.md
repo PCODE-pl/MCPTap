@@ -219,6 +219,7 @@ anyapi
 arcee
 atomic-chat
 auriko
+azure
 ```
 
 ### 2. Configure the provider

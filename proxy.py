@@ -70,6 +70,7 @@ from mcptap.settings import (
     PROVIDER_ARCEE,
     PROVIDER_ATOMIC_CHAT,
     PROVIDER_AURIKO,
+    PROVIDER_AZURE,
     PROVIDER_INFERX,
     PROVIDER_KENARI,
     PROVIDER_KILO,
@@ -190,6 +191,7 @@ __all__ = [
     "PROVIDER_ARCEE",
     "PROVIDER_ATOMIC_CHAT",
     "PROVIDER_AURIKO",
+    "PROVIDER_AZURE",
 ]
 
 if __name__ == "__main__":

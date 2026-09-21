@@ -86,6 +86,8 @@ PROVIDER_ATOMIC_CHAT = "atomic-chat"
 
 PROVIDER_AURIKO = "auriko"
 
+PROVIDER_AZURE = "azure"
+
 SYNTHETIC_GET_GOAL_CALL_ID = "synthetic_get_goal"
 SYNTHETIC_GET_GOAL_TOOL_NAME = "get_goal"
 
@@ -155,6 +157,7 @@ _PROVIDER_ENV_FILES = {
     PROVIDER_ARCEE: "arcee.env",
     PROVIDER_ATOMIC_CHAT: "atomic-chat.env",
     PROVIDER_AURIKO: "auriko.env",
+    PROVIDER_AZURE: "azure.env",
 }
 
 _UPSTREAM_BASE_URLS = {
@@ -201,6 +204,7 @@ _UPSTREAM_BASE_URLS = {
     PROVIDER_ARCEE: "https://api.arcee.ai/api/v1",
     PROVIDER_ATOMIC_CHAT: "http://127.0.0.1:1337/v1",
     PROVIDER_AURIKO: "https://api.auriko.ai/v1",
+    PROVIDER_AZURE: "https://YOUR_RESOURCE.openai.azure.com/openai/v1",
 }
 
 
