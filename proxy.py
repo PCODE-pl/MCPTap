@@ -75,6 +75,7 @@ from mcptap.settings import (
     PROVIDER_BAILING,
     PROVIDER_BASETEN,
     PROVIDER_BERGET,
+    PROVIDER_BLUECLAW,
     PROVIDER_INFERX,
     PROVIDER_KENARI,
     PROVIDER_KILO,
@@ -200,6 +201,7 @@ __all__ = [
     "PROVIDER_BAILING",
     "PROVIDER_BASETEN",
     "PROVIDER_BERGET",
+    "PROVIDER_BLUECLAW",
 ]
 
 if __name__ == "__main__":

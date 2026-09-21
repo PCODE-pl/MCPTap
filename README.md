@@ -224,6 +224,7 @@ azure-cognitive-services
 bailing
 baseten
 berget
+blueclaw
 ```
 
 ### 2. Configure the provider

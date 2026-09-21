@@ -96,6 +96,8 @@ PROVIDER_BASETEN = "baseten"
 
 PROVIDER_BERGET = "berget"
 
+PROVIDER_BLUECLAW = "blueclaw"
+
 SYNTHETIC_GET_GOAL_CALL_ID = "synthetic_get_goal"
 SYNTHETIC_GET_GOAL_TOOL_NAME = "get_goal"
 
@@ -170,6 +172,7 @@ _PROVIDER_ENV_FILES = {
     PROVIDER_BAILING: "bailing.env",
     PROVIDER_BASETEN: "baseten.env",
     PROVIDER_BERGET: "berget.env",
+    PROVIDER_BLUECLAW: "blueclaw.env",
 }
 
 _UPSTREAM_BASE_URLS = {
@@ -221,6 +224,7 @@ _UPSTREAM_BASE_URLS = {
     PROVIDER_BAILING: "https://api.tbox.cn/api/llm/v1",
     PROVIDER_BASETEN: "https://inference.baseten.co/v1",
     PROVIDER_BERGET: "https://api.berget.ai/v1",
+    PROVIDER_BLUECLAW: "https://openai.blueclaw.network/v1",
 }
 
 
