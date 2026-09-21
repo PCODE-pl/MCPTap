@@ -218,6 +218,7 @@ anthropic
 anyapi
 arcee
 atomic-chat
+auriko
 ```
 
 ### 2. Configure the provider
