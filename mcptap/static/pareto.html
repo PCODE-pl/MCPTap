@@ -1388,11 +1388,11 @@ const app = createApp({
       });
       const hasActiveFilter = (selectedProviders.value && selectedProviders.value.length > 0) || (selectedModels.value && selectedModels.value.length > 0);
       const paretoFrontier = hasActiveFilter ? [] : computeParetoFrontier(displayPoints);
-      const paretoPlan = paretoFrontier.filter(p => p.weightedCost < routerCostSplit.value - 1e-9);
-      const paretoAct = paretoFrontier.filter(p => p.weightedCost >= routerCostSplit.value - 1e-9);
+      const paretoAct = paretoFrontier.filter(p => p.weightedCost < routerCostSplit.value - 1e-9);
+      const paretoPlan = paretoFrontier.filter(p => p.weightedCost >= routerCostSplit.value - 1e-9);
       const frontierSet = new Set(paretoFrontier);
-      const planSet = new Set(paretoPlan);
       const actSet = new Set(paretoAct);
+      const planSet = new Set(paretoPlan);
       const PROVIDER_COLORS = ['#63b3ed', '#f6ad55', '#68d391', '#fc8181', '#b794f4', '#4fd1c5', '#f687b3'];
       const providerColorMap = new Map(providers.map((p, i) => [p, PROVIDER_COLORS[i % PROVIDER_COLORS.length]]));
       const baseSeries = providers.map((provider, idx) => ({
@@ -1413,7 +1413,7 @@ const app = createApp({
           type: 'scatter',
           symbolSize: 13,
           data: fpts.map(p => {
-            const bc = planSet.has(p) ? '#63b3ed' : '#8B4513';
+            const bc = planSet.has(p) ? '#8B4513' : '#63b3ed';
             return { ...p, itemStyle: { borderColor: bc, borderWidth: 2.52, color: col }, emphasis: { scale: false, itemStyle: { borderColor: bc, borderWidth: 2.52, color: col } } };
           }),
           emphasis: { focus: 'series', scale: false },
@@ -1423,8 +1423,8 @@ const app = createApp({
       const series = [...baseSeries];
       const isSplitAtMin = routerCostSplit.value <= routerMinCost.value + 1e-9;
       const isSplitAtMax = routerCostSplit.value >= routerMaxCost.value - 1e-9;
-      const showParetoPlanLine = !hasActiveFilter && paretoPlan.length >= 2 && !isSplitAtMin;
-      const showParetoActLine = !hasActiveFilter && paretoAct.length >= 2 && !isSplitAtMax;
+      const showParetoPlanLine = !hasActiveFilter && paretoPlan.length >= 1 && !isSplitAtMax;
+      const showParetoActLine = !hasActiveFilter && paretoAct.length >= 1 && !isSplitAtMin;
       if (showParetoPlanLine) {
         series.unshift({
           name: 'pareto plan',
@@ -1432,7 +1432,7 @@ const app = createApp({
           data: paretoPlan.map(point => point.value),
           showSymbol: false,
           silent: true,
-          lineStyle: { color: '#63b3ed', width: 3.2 },
+          lineStyle: { color: '#8B4513', width: 3.2 },
           z: 1,
         });
       }
@@ -1443,7 +1443,7 @@ const app = createApp({
           data: paretoAct.map(point => point.value),
           showSymbol: false,
           silent: true,
-          lineStyle: { color: '#8B4513', width: 3.2 },
+          lineStyle: { color: '#63b3ed', width: 3.2 },
           z: 1,
         });
       }
@@ -1455,7 +1455,7 @@ const app = createApp({
           showSymbol: false,
           silent: true,
           legendHoverLink: false,
-          lineStyle: { color: '#888', width: 2, type: 'dashed' },
+          lineStyle: { color: '#888', width: 3.2, type: 'dashed' },
           z: 1,
         });
       }
