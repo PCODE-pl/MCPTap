@@ -88,6 +88,8 @@ PROVIDER_AURIKO = "auriko"
 
 PROVIDER_AZURE = "azure"
 
+PROVIDER_AZURE_COGNITIVE_SERVICES = "azure-cognitive-services"
+
 SYNTHETIC_GET_GOAL_CALL_ID = "synthetic_get_goal"
 SYNTHETIC_GET_GOAL_TOOL_NAME = "get_goal"
 
@@ -158,6 +160,7 @@ _PROVIDER_ENV_FILES = {
     PROVIDER_ATOMIC_CHAT: "atomic-chat.env",
     PROVIDER_AURIKO: "auriko.env",
     PROVIDER_AZURE: "azure.env",
+    PROVIDER_AZURE_COGNITIVE_SERVICES: "azure-cognitive-services.env",
 }
 
 _UPSTREAM_BASE_URLS = {
@@ -205,6 +208,7 @@ _UPSTREAM_BASE_URLS = {
     PROVIDER_ATOMIC_CHAT: "http://127.0.0.1:1337/v1",
     PROVIDER_AURIKO: "https://api.auriko.ai/v1",
     PROVIDER_AZURE: "https://YOUR_RESOURCE.openai.azure.com/openai/v1",
+    PROVIDER_AZURE_COGNITIVE_SERVICES: "https://YOUR_RESOURCE.services.ai.azure.com/openai/v1",
 }
 
 

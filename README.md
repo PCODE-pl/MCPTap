@@ -220,6 +220,7 @@ arcee
 atomic-chat
 auriko
 azure
+azure-cognitive-services
 ```
 
 ### 2. Configure the provider
