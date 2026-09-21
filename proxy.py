@@ -94,6 +94,7 @@ from mcptap.settings import (
     PROVIDER_DAOXE,
     PROVIDER_DATABRICKS,
     PROVIDER_DEEPINFRA,
+    PROVIDER_DEEPSEEK,
     PROVIDER_INFERX,
     PROVIDER_KENARI,
     PROVIDER_KILO,
@@ -238,6 +239,7 @@ __all__ = [
     "PROVIDER_DAOXE",
     "PROVIDER_DATABRICKS",
     "PROVIDER_DEEPINFRA",
+    "PROVIDER_DEEPSEEK",
 ]
 
 if __name__ == "__main__":

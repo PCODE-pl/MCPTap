@@ -243,6 +243,7 @@ crusoe
 daoxe
 databricks
 deepinfra
+deepseek
 ```
 
 ### 2. Configure the provider

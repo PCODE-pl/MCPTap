@@ -134,6 +134,8 @@ PROVIDER_DATABRICKS = "databricks"
 
 PROVIDER_DEEPINFRA = "deepinfra"
 
+PROVIDER_DEEPSEEK = "deepseek"
+
 SYNTHETIC_GET_GOAL_CALL_ID = "synthetic_get_goal"
 SYNTHETIC_GET_GOAL_TOOL_NAME = "get_goal"
 
@@ -227,6 +229,7 @@ _PROVIDER_ENV_FILES = {
     PROVIDER_DAOXE: "daoxe.env",
     PROVIDER_DATABRICKS: "databricks.env",
     PROVIDER_DEEPINFRA: "deepinfra.env",
+    PROVIDER_DEEPSEEK: "deepseek.env",
 }
 
 _UPSTREAM_BASE_URLS = {
@@ -295,6 +298,7 @@ _UPSTREAM_BASE_URLS = {
     PROVIDER_CRUSOE: "https://api.inference.crusoecloud.com/v1",
     PROVIDER_DAOXE: "https://daoxe.com/v1",
     PROVIDER_DEEPINFRA: "https://api.deepinfra.com/v1/openai",
+    PROVIDER_DEEPSEEK: "https://api.deepseek.com",
 }
 
 
