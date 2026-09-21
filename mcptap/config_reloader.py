@@ -130,6 +130,125 @@ _FILE_IMPOSSIBL_ENV = "impossibl.env"
 _FILE_INCEPTION_ENV = "inception.env"
 _FILE_INCEPTRON_ENV = "inceptron.env"
 _FILE_INCO_ENV = "inco.env"
+_FILE_INFER_ENV = "infer.env"
+_FILE_INFERENCE_ENV = "inference.env"
+_FILE_INFOMANIAK_ENV = "infomaniak.env"
+_FILE_IO_NET_ENV = "io-net.env"
+_FILE_ITERACOMPUTE_ENV = "iteracompute.env"
+_FILE_JALAPENO_ENV = "jalapeno.env"
+_FILE_JIEKOU_ENV = "jiekou.env"
+_FILE_KLOKINTEGRATION_ENV = "klokintegration.env"
+_FILE_KOSMIK_ENV = "kosmik.env"
+_FILE_KUAE_CLOUD_CODING_PLAN_ENV = "kuae-cloud-coding-plan.env"
+_FILE_LILAC_ENV = "lilac.env"
+_FILE_LLAMA_ENV = "llama.env"
+_FILE_LLMGATEWAY_ENV = "llmgateway.env"
+_FILE_LLMGATEWAY_PROVIDERS_ENV = "llmgateway-providers.env"
+_FILE_LLMTECH_ENV = "llmtech.env"
+_FILE_LMSTUDIO_ENV = "lmstudio.env"
+_FILE_LONGCAT_ENV = "longcat.env"
+_FILE_LUCIDQUERY_ENV = "lucidquery.env"
+_FILE_LYNKR_ENV = "lynkr.env"
+_FILE_MEGANOVA_ENV = "meganova.env"
+_FILE_MELIOUS_ENV = "melious.env"
+_FILE_MERGE_GATEWAY_ENV = "merge-gateway.env"
+_FILE_MINIMAX_ENV = "minimax.env"
+_FILE_MINIMAX_CN_ENV = "minimax-cn.env"
+_FILE_MINIMAX_CN_CODING_PLAN_ENV = "minimax-cn-coding-plan.env"
+_FILE_MINIMAX_CODING_PLAN_ENV = "minimax-coding-plan.env"
+_FILE_MISTRAL_ENV = "mistral.env"
+_FILE_MIXLAYER_ENV = "mixlayer.env"
+_FILE_MOARK_ENV = "moark.env"
+_FILE_MODAL_ENV = "modal.env"
+_FILE_MODEL_ORACLE_AI_ENV = "model-oracle-ai.env"
+_FILE_MODELIS_ENV = "modelis.env"
+_FILE_MODELSCOPE_ENV = "modelscope.env"
+_FILE_MOONSHOTAI_ENV = "moonshotai.env"
+_FILE_MOONSHOTAI_CN_ENV = "moonshotai-cn.env"
+_FILE_MORPH_ENV = "morph.env"
+_FILE_NAN_ENV = "nan.env"
+_FILE_NEARAI_ENV = "nearai.env"
+_FILE_NEBIUS_ENV = "nebius.env"
+_FILE_NEON_ENV = "neon.env"
+_FILE_NEOSMITH_ENV = "neosmith.env"
+_FILE_NEURALWATT_ENV = "neuralwatt.env"
+_FILE_NOVA_ENV = "nova.env"
+_FILE_NOVITA_AI_ENV = "novita-ai.env"
+_FILE_OCI_ENV = "oci.env"
+_FILE_OFOX_ENV = "ofox.env"
+_FILE_OLLAMA_CLOUD_ENV = "ollama-cloud.env"
+_FILE_OPENAI_ENV = "openai.env"
+_FILE_OPENCODE_GO_ENV = "opencode-go.env"
+_FILE_OPENREASON_ENV = "openreason.env"
+_FILE_OPPER_ENV = "opper.env"
+_FILE_OVHCLOUD_ENV = "ovhcloud.env"
+_FILE_PERPLEXITY_ENV = "perplexity.env"
+_FILE_PERPLEXITY_AGENT_ENV = "perplexity-agent.env"
+_FILE_PIONEER_ENV = "pioneer.env"
+_FILE_POE_ENV = "poe.env"
+_FILE_POOLSIDE_ENV = "poolside.env"
+_FILE_PRIVATEMODE_AI_ENV = "privatemode-ai.env"
+_FILE_QIHANG_AI_ENV = "qihang-ai.env"
+_FILE_QINIU_AI_ENV = "qiniu-ai.env"
+_FILE_QVAC_ENV = "qvac.env"
+_FILE_REGOLO_AI_ENV = "regolo-ai.env"
+_FILE_ROUTING_RUN_ENV = "routing-run.env"
+_FILE_SAKANA_ENV = "sakana.env"
+_FILE_SALAD_CLOUD_ENV = "salad-cloud.env"
+_FILE_SAP_AI_CORE_ENV = "sap-ai-core.env"
+_FILE_SARVAM_ENV = "sarvam.env"
+_FILE_SCALEWAY_ENV = "scaleway.env"
+_FILE_SCNET_TOKEN_PLAN_ENV = "scnet-token-plan.env"
+_FILE_SCX_AI_ENV = "scx-ai.env"
+_FILE_SENSENOVA_ENV = "sensenova.env"
+_FILE_SILICONFLOW_ENV = "siliconflow.env"
+_FILE_SILICONFLOW_CN_ENV = "siliconflow-cn.env"
+_FILE_SNOWFLAKE_CORTEX_ENV = "snowflake-cortex.env"
+_FILE_STACKIT_ENV = "stackit.env"
+_FILE_STANDARDCOMPUTE_ENV = "standardcompute.env"
+_FILE_STEPFUN_ENV = "stepfun.env"
+_FILE_STEPFUN_AI_ENV = "stepfun-ai.env"
+_FILE_STEPFUN_STEP_PLAN_ENV = "stepfun-step-plan.env"
+_FILE_SUBCONSCIOUS_ENV = "subconscious.env"
+_FILE_SUBMODEL_ENV = "submodel.env"
+_FILE_SYNTHETIC_ENV = "synthetic.env"
+_FILE_TENCENT_CODING_PLAN_ENV = "tencent-coding-plan.env"
+_FILE_TENCENT_TOKEN_PLAN_ENV = "tencent-token-plan.env"
+_FILE_TENCENT_TOKENHUB_ENV = "tencent-tokenhub.env"
+_FILE_TENSORX_ENV = "tensorx.env"
+_FILE_THE_GRID_AI_ENV = "the-grid-ai.env"
+_FILE_THINKINGMACHINES_ENV = "thinkingmachines.env"
+_FILE_TINFOIL_ENV = "tinfoil.env"
+_FILE_TOGETHERAI_ENV = "togetherai.env"
+_FILE_TOKENGO_ENV = "tokengo.env"
+_FILE_TRUSTEDROUTER_ENV = "trustedrouter.env"
+_FILE_UMANS_AI_ENV = "umans-ai.env"
+_FILE_UMANS_AI_CODING_PLAN_ENV = "umans-ai-coding-plan.env"
+_FILE_UPSTAGE_ENV = "upstage.env"
+_FILE_V0_ENV = "v0.env"
+_FILE_VANCINE_ENV = "vancine.env"
+_FILE_VENICE_ENV = "venice.env"
+_FILE_VISPARK_ENV = "vispark.env"
+_FILE_VIVGRID_ENV = "vivgrid.env"
+_FILE_VOLCENGINE_ENV = "volcengine.env"
+_FILE_VOLCENGINE_CODING_PLAN_ENV = "volcengine-coding-plan.env"
+_FILE_VULTR_ENV = "vultr.env"
+_FILE_WAFER_AI_ENV = "wafer.ai.env"
+_FILE_WALLABY_ENV = "wallaby.env"
+_FILE_WANDB_ENV = "wandb.env"
+_FILE_WATSONX_ENV = "watsonx.env"
+_FILE_XAI_ENV = "xai.env"
+_FILE_XIAOMI_ENV = "xiaomi.env"
+_FILE_XIAOMI_TOKEN_PLAN_AMS_ENV = "xiaomi-token-plan-ams.env"
+_FILE_XIAOMI_TOKEN_PLAN_CN_ENV = "xiaomi-token-plan-cn.env"
+_FILE_XIAOMI_TOKEN_PLAN_SGP_ENV = "xiaomi-token-plan-sgp.env"
+_FILE_XPERSONA_ENV = "xpersona.env"
+_FILE_ZAI_ENV = "zai.env"
+_FILE_ZAI_CODING_PLAN_ENV = "zai-coding-plan.env"
+_FILE_ZELDOC_ENV = "zeldoc.env"
+_FILE_ZENIFRA_ENV = "zenifra.env"
+_FILE_ZHIPUAI_ENV = "zhipuai.env"
+_FILE_ZHIPUAI_CODING_PLAN_ENV = "zhipuai-coding-plan.env"
 _FILE_INTERCEPT_YAML = "mcp-intercept.yaml"
 _FILE_PER_MODEL_YAML = "per-model.yaml"
 _FILE_USE_TOOL_HOOK = "use_tool_hook.py"
@@ -235,6 +354,125 @@ _ENV_FILES = {
     _FILE_INCEPTION_ENV,
     _FILE_INCEPTRON_ENV,
     _FILE_INCO_ENV,
+    _FILE_INFER_ENV,
+    _FILE_INFERENCE_ENV,
+    _FILE_INFOMANIAK_ENV,
+    _FILE_IO_NET_ENV,
+    _FILE_ITERACOMPUTE_ENV,
+    _FILE_JALAPENO_ENV,
+    _FILE_JIEKOU_ENV,
+    _FILE_KLOKINTEGRATION_ENV,
+    _FILE_KOSMIK_ENV,
+    _FILE_KUAE_CLOUD_CODING_PLAN_ENV,
+    _FILE_LILAC_ENV,
+    _FILE_LLAMA_ENV,
+    _FILE_LLMGATEWAY_ENV,
+    _FILE_LLMGATEWAY_PROVIDERS_ENV,
+    _FILE_LLMTECH_ENV,
+    _FILE_LMSTUDIO_ENV,
+    _FILE_LONGCAT_ENV,
+    _FILE_LUCIDQUERY_ENV,
+    _FILE_LYNKR_ENV,
+    _FILE_MEGANOVA_ENV,
+    _FILE_MELIOUS_ENV,
+    _FILE_MERGE_GATEWAY_ENV,
+    _FILE_MINIMAX_ENV,
+    _FILE_MINIMAX_CN_ENV,
+    _FILE_MINIMAX_CN_CODING_PLAN_ENV,
+    _FILE_MINIMAX_CODING_PLAN_ENV,
+    _FILE_MISTRAL_ENV,
+    _FILE_MIXLAYER_ENV,
+    _FILE_MOARK_ENV,
+    _FILE_MODAL_ENV,
+    _FILE_MODEL_ORACLE_AI_ENV,
+    _FILE_MODELIS_ENV,
+    _FILE_MODELSCOPE_ENV,
+    _FILE_MOONSHOTAI_ENV,
+    _FILE_MOONSHOTAI_CN_ENV,
+    _FILE_MORPH_ENV,
+    _FILE_NAN_ENV,
+    _FILE_NEARAI_ENV,
+    _FILE_NEBIUS_ENV,
+    _FILE_NEON_ENV,
+    _FILE_NEOSMITH_ENV,
+    _FILE_NEURALWATT_ENV,
+    _FILE_NOVA_ENV,
+    _FILE_NOVITA_AI_ENV,
+    _FILE_OCI_ENV,
+    _FILE_OFOX_ENV,
+    _FILE_OLLAMA_CLOUD_ENV,
+    _FILE_OPENAI_ENV,
+    _FILE_OPENCODE_GO_ENV,
+    _FILE_OPENREASON_ENV,
+    _FILE_OPPER_ENV,
+    _FILE_OVHCLOUD_ENV,
+    _FILE_PERPLEXITY_ENV,
+    _FILE_PERPLEXITY_AGENT_ENV,
+    _FILE_PIONEER_ENV,
+    _FILE_POE_ENV,
+    _FILE_POOLSIDE_ENV,
+    _FILE_PRIVATEMODE_AI_ENV,
+    _FILE_QIHANG_AI_ENV,
+    _FILE_QINIU_AI_ENV,
+    _FILE_QVAC_ENV,
+    _FILE_REGOLO_AI_ENV,
+    _FILE_ROUTING_RUN_ENV,
+    _FILE_SAKANA_ENV,
+    _FILE_SALAD_CLOUD_ENV,
+    _FILE_SAP_AI_CORE_ENV,
+    _FILE_SARVAM_ENV,
+    _FILE_SCALEWAY_ENV,
+    _FILE_SCNET_TOKEN_PLAN_ENV,
+    _FILE_SCX_AI_ENV,
+    _FILE_SENSENOVA_ENV,
+    _FILE_SILICONFLOW_ENV,
+    _FILE_SILICONFLOW_CN_ENV,
+    _FILE_SNOWFLAKE_CORTEX_ENV,
+    _FILE_STACKIT_ENV,
+    _FILE_STANDARDCOMPUTE_ENV,
+    _FILE_STEPFUN_ENV,
+    _FILE_STEPFUN_AI_ENV,
+    _FILE_STEPFUN_STEP_PLAN_ENV,
+    _FILE_SUBCONSCIOUS_ENV,
+    _FILE_SUBMODEL_ENV,
+    _FILE_SYNTHETIC_ENV,
+    _FILE_TENCENT_CODING_PLAN_ENV,
+    _FILE_TENCENT_TOKEN_PLAN_ENV,
+    _FILE_TENCENT_TOKENHUB_ENV,
+    _FILE_TENSORX_ENV,
+    _FILE_THE_GRID_AI_ENV,
+    _FILE_THINKINGMACHINES_ENV,
+    _FILE_TINFOIL_ENV,
+    _FILE_TOGETHERAI_ENV,
+    _FILE_TOKENGO_ENV,
+    _FILE_TRUSTEDROUTER_ENV,
+    _FILE_UMANS_AI_ENV,
+    _FILE_UMANS_AI_CODING_PLAN_ENV,
+    _FILE_UPSTAGE_ENV,
+    _FILE_V0_ENV,
+    _FILE_VANCINE_ENV,
+    _FILE_VENICE_ENV,
+    _FILE_VISPARK_ENV,
+    _FILE_VIVGRID_ENV,
+    _FILE_VOLCENGINE_ENV,
+    _FILE_VOLCENGINE_CODING_PLAN_ENV,
+    _FILE_VULTR_ENV,
+    _FILE_WAFER_AI_ENV,
+    _FILE_WALLABY_ENV,
+    _FILE_WANDB_ENV,
+    _FILE_WATSONX_ENV,
+    _FILE_XAI_ENV,
+    _FILE_XIAOMI_ENV,
+    _FILE_XIAOMI_TOKEN_PLAN_AMS_ENV,
+    _FILE_XIAOMI_TOKEN_PLAN_CN_ENV,
+    _FILE_XIAOMI_TOKEN_PLAN_SGP_ENV,
+    _FILE_XPERSONA_ENV,
+    _FILE_ZAI_ENV,
+    _FILE_ZAI_CODING_PLAN_ENV,
+    _FILE_ZELDOC_ENV,
+    _FILE_ZENIFRA_ENV,
+    _FILE_ZHIPUAI_ENV,
+    _FILE_ZHIPUAI_CODING_PLAN_ENV,
 }
 
 # Files whose content is embedded in settings (path stored in proxy.env).
