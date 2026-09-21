@@ -72,6 +72,7 @@ from mcptap.settings import (
     PROVIDER_AURIKO,
     PROVIDER_AZURE,
     PROVIDER_AZURE_COGNITIVE_SERVICES,
+    PROVIDER_BAILING,
     PROVIDER_INFERX,
     PROVIDER_KENARI,
     PROVIDER_KILO,
@@ -194,6 +195,7 @@ __all__ = [
     "PROVIDER_AURIKO",
     "PROVIDER_AZURE",
     "PROVIDER_AZURE_COGNITIVE_SERVICES",
+    "PROVIDER_BAILING",
 ]
 
 if __name__ == "__main__":

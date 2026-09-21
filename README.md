@@ -221,6 +221,7 @@ atomic-chat
 auriko
 azure
 azure-cognitive-services
+bailing
 ```
 
 ### 2. Configure the provider
