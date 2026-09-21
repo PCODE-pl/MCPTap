@@ -601,3 +601,16 @@ async def test_serve_pareto_page_returns_html():
         assert "toastMessage" in body
         assert ".pareto-toast { position: fixed;" in body
         assert "setTimeout(() => { toastMessage.value = ''; }, 5000)" in body
+        assert 'data-testid="router-slider-cost-split"' in body
+        assert 'data-testid="router-slider-cost-split-output"' in body
+        assert 'v-model:value="costSplitSliderPosition"' in body
+        assert ':min="costSplitSliderMin"' in body
+        assert ':max="costSplitSliderMax"' in body
+        assert ':step="costSplitSliderStep"' in body
+        assert ':format-tooltip="formatCostSplitTooltip"' in body
+        assert "const costSplitSliderPosition = computed({" in body
+        assert "get: () => displayXValue(routerCostSplit.value)," in body
+        assert "const dollars = compressedCostAxis.value ? v * v : v;" in body
+        assert "const costSplitSliderMin = computed(() => displayXValue(routerMinCost.value));" in body
+        assert "const costSplitSliderMax = computed(() => displayXValue(routerMaxCost.value));" in body
+        assert "costSplitSliderStep, formatCostSplitTooltip," in body

@@ -331,13 +331,13 @@
               </div>
               <div class="quality-slider">
                 <label for="router-slider-cost-split">Plan/Act Split</label>
-                <output for="router-slider-cost-split">{{ routerCostSplit.toFixed(1) }} $</output>
+                <output for="router-slider-cost-split" data-testid="router-slider-cost-split-output">{{ routerCostSplit.toFixed(1) }} $</output>
                 <n-slider
                   id="router-slider-cost-split"
-                  v-model:value="routerCostSplit"
-                  :min="routerMinCost"
-                  :max="routerMaxCost"
-                  :step="0.1"                  :format-tooltip="formatTooltipTwoDecimals"
+                  v-model:value="costSplitSliderPosition"
+                  :min="costSplitSliderMin"
+                  :max="costSplitSliderMax"
+                  :step="costSplitSliderStep"                  :format-tooltip="formatCostSplitTooltip"
 
                   data-testid="router-slider-cost-split"
                   @update:value="handleRouterCostSplitChange"
@@ -489,9 +489,27 @@ const app = createApp({
       scheduleRenderChart();
     }
     function handleRouterCostSplitChange(value) {
-      const v = typeof value === 'number' && Number.isFinite(value) ? value : routerMinCost.value;
-      routerCostSplit.value = Math.max(routerMinCost.value, Math.min(routerMaxCost.value, v));
+      // Slider position is in display space (sqrt when scale is on, dollars
+      // otherwise); routerCostSplit stays in dollars so the frontier split
+      // and the output label never change meaning on toggle.
+      const v = typeof value === 'number' && Number.isFinite(value) ? value : displayXValue(routerMinCost.value);
+      const dollars = compressedCostAxis.value ? v * v : v;
+      routerCostSplit.value = Math.max(routerMinCost.value, Math.min(routerMaxCost.value, dollars));
       scheduleRenderChart();
+    }
+    // Slider-space position of the split: matches the knob to the point
+    // cloud on the X axis (sqrt when scale is on).
+    const costSplitSliderPosition = computed({
+      get: () => displayXValue(routerCostSplit.value),
+      set: (v) => handleRouterCostSplitChange(v),
+    });
+    const costSplitSliderMin = computed(() => displayXValue(routerMinCost.value));
+    const costSplitSliderMax = computed(() => displayXValue(routerMaxCost.value));
+    const costSplitSliderStep = computed(() => (compressedCostAxis.value ? 0.05 : 0.1));
+    function formatCostSplitTooltip(value) {
+      if (typeof value !== 'number' || !Number.isFinite(value)) return '';
+      const dollars = compressedCostAxis.value ? value * value : value;
+      return `${dollars.toFixed(1)} $`;
     }
     function updateRouterQualityBounds() {
       const pts = routerAllPoints.value;
@@ -510,7 +528,10 @@ const app = createApp({
     function updateRouterCostSplitDefault() {
       const lo = routerMinCost.value;
       const hi = routerMaxCost.value;
-      const mid = lo + (hi - lo) / 2;
+      // Midpoint in the current display space so the default split lands
+      // where the knob visually sits (sqrt midpoint when scale is on).
+      const midPos = (displayXValue(lo) + displayXValue(hi)) / 2;
+      const mid = compressedCostAxis.value ? midPos * midPos : midPos;
       routerCostSplit.value = Math.max(lo, Math.min(hi, mid));
     }
     function formatTooltipTwoDecimals(value) {
@@ -1540,6 +1561,7 @@ const app = createApp({
       areaZoomActive, zoomSelectionStyle, loadData, renderChart,
       QUALITY_SLIDER_MAX, pairedSliderDefinitions, qualityControls, costMix, costMixLabel, handleCostMixChange, handleQualityChange, handleFilterUpdate, formatTooltipTwoDecimals,
       routerMinCost, routerMaxCost, routerMinQuality, routerCostSplit, routerQualityMinBound, routerQualityMaxBound, handleRouterMinCostChange, handleRouterMaxCostChange, handleRouterMinQualityChange, handleRouterCostSplitChange,
+      costSplitSliderPosition, costSplitSliderMin, costSplitSliderMax, costSplitSliderStep, formatCostSplitTooltip,
       popupVisible, popupPoints, popupIndex, popupStyle, popupRef, popupCardHtml,
       handlePopupEnter, handlePopupLeave, popupNext, popupPrev,
       popupActionable, popupActionTitle, toastMessage, toastTone, handleActModel, handlePlanModel,
