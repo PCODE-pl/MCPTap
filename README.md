@@ -248,6 +248,7 @@ digitalocean
 dinference
 drun
 ebcloud
+echo
 ```
 
 ### 2. Configure the provider
