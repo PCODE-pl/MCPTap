@@ -263,6 +263,7 @@ google
 google-vertex
 google-vertex-anthropic
 greenpt
+groq
 ```
 
 ### 2. Configure the provider
