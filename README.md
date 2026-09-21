@@ -247,6 +247,7 @@ deepseek
 digitalocean
 dinference
 drun
+ebcloud
 ```
 
 ### 2. Configure the provider
