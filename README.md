@@ -216,6 +216,7 @@ ambient
 amd
 anthropic
 anyapi
+arcee
 ```
 
 ### 2. Configure the provider

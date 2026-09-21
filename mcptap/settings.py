@@ -80,6 +80,8 @@ PROVIDER_ANTHROPIC = "anthropic"
 
 PROVIDER_ANYAPI = "anyapi"
 
+PROVIDER_ARCEE = "arcee"
+
 SYNTHETIC_GET_GOAL_CALL_ID = "synthetic_get_goal"
 SYNTHETIC_GET_GOAL_TOOL_NAME = "get_goal"
 
@@ -146,6 +148,7 @@ _PROVIDER_ENV_FILES = {
     PROVIDER_AMD: "amd.env",
     PROVIDER_ANTHROPIC: "anthropic.env",
     PROVIDER_ANYAPI: "anyapi.env",
+    PROVIDER_ARCEE: "arcee.env",
 }
 
 _UPSTREAM_BASE_URLS = {
@@ -189,6 +192,7 @@ _UPSTREAM_BASE_URLS = {
     PROVIDER_AMD: "https://developer.amd.com.cn/radeon/api/v1",
     PROVIDER_ANTHROPIC: "https://api.anthropic.com/v1",
     PROVIDER_ANYAPI: "https://api.anyapi.ai/v1",
+    PROVIDER_ARCEE: "https://api.arcee.ai/api/v1",
 }
 
 
