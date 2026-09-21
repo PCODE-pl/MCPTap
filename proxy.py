@@ -93,6 +93,7 @@ from mcptap.settings import (
     PROVIDER_CRUSOE,
     PROVIDER_DAOXE,
     PROVIDER_DATABRICKS,
+    PROVIDER_DEEPINFRA,
     PROVIDER_INFERX,
     PROVIDER_KENARI,
     PROVIDER_KILO,
@@ -236,6 +237,7 @@ __all__ = [
     "PROVIDER_CRUSOE",
     "PROVIDER_DAOXE",
     "PROVIDER_DATABRICKS",
+    "PROVIDER_DEEPINFRA",
 ]
 
 if __name__ == "__main__":
