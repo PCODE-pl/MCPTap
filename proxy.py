@@ -110,6 +110,7 @@ from mcptap.settings import (
     PROVIDER_FROGBOT,
     PROVIDER_GITHUB_COPILOT,
     PROVIDER_GMICLOUD,
+    PROVIDER_GOOGLE,
     PROVIDER_INFERX,
     PROVIDER_KENARI,
     PROVIDER_KILO,
@@ -270,6 +271,7 @@ __all__ = [
     "PROVIDER_FROGBOT",
     "PROVIDER_GITHUB_COPILOT",
     "PROVIDER_GMICLOUD",
+    "PROVIDER_GOOGLE",
 ]
 
 if __name__ == "__main__":

@@ -259,6 +259,7 @@ friendli
 frogbot
 github-copilot
 gmicloud
+google
 ```
 
 ### 2. Configure the provider
