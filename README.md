@@ -266,6 +266,7 @@ greenpt
 groq
 helicone
 hetzner
+hpc-ai
 ```
 
 ### 2. Configure the provider
