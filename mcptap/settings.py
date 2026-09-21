@@ -130,6 +130,8 @@ PROVIDER_CRUSOE = "crusoe"
 
 PROVIDER_DAOXE = "daoxe"
 
+PROVIDER_DATABRICKS = "databricks"
+
 SYNTHETIC_GET_GOAL_CALL_ID = "synthetic_get_goal"
 SYNTHETIC_GET_GOAL_TOOL_NAME = "get_goal"
 
@@ -221,6 +223,7 @@ _PROVIDER_ENV_FILES = {
     PROVIDER_CROSSMODEL: "crossmodel.env",
     PROVIDER_CRUSOE: "crusoe.env",
     PROVIDER_DAOXE: "daoxe.env",
+    PROVIDER_DATABRICKS: "databricks.env",
 }
 
 _UPSTREAM_BASE_URLS = {
@@ -288,6 +291,7 @@ _UPSTREAM_BASE_URLS = {
     PROVIDER_CROSSMODEL: "https://api.crossmodel.ai/v1",
     PROVIDER_CRUSOE: "https://api.inference.crusoecloud.com/v1",
     PROVIDER_DAOXE: "https://daoxe.com/v1",
+    PROVIDER_DATABRICKS: "https://${DATABRICKS_HOST}/ai-gateway/mlflow/v1",
 }
 
 

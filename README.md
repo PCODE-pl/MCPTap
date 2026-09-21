@@ -241,6 +241,7 @@ crof
 crossmodel
 crusoe
 daoxe
+databricks
 ```
 
 ### 2. Configure the provider
