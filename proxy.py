@@ -65,6 +65,7 @@ from mcptap.settings import (
     PROVIDER_AMAZON_BEDROCK,
     PROVIDER_AMBIENT,
     PROVIDER_AMD,
+    PROVIDER_ANTHROPIC,
     PROVIDER_INFERX,
     PROVIDER_KENARI,
     PROVIDER_KILO,
@@ -180,6 +181,7 @@ __all__ = [
     "PROVIDER_AMAZON_BEDROCK",
     "PROVIDER_AMBIENT",
     "PROVIDER_AMD",
+    "PROVIDER_ANTHROPIC",
 ]
 
 if __name__ == "__main__":

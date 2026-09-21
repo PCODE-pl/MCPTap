@@ -214,6 +214,7 @@ alibaba-token-plan-cn
 amazon-bedrock
 ambient
 amd
+anthropic
 ```
 
 ### 2. Configure the provider

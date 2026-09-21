@@ -76,6 +76,8 @@ PROVIDER_AMBIENT = "ambient"
 
 PROVIDER_AMD = "amd"
 
+PROVIDER_ANTHROPIC = "anthropic"
+
 SYNTHETIC_GET_GOAL_CALL_ID = "synthetic_get_goal"
 SYNTHETIC_GET_GOAL_TOOL_NAME = "get_goal"
 
@@ -140,6 +142,7 @@ _PROVIDER_ENV_FILES = {
     PROVIDER_AMAZON_BEDROCK: "amazon-bedrock.env",
     PROVIDER_AMBIENT: "ambient.env",
     PROVIDER_AMD: "amd.env",
+    PROVIDER_ANTHROPIC: "anthropic.env",
 }
 
 _UPSTREAM_BASE_URLS = {
@@ -181,6 +184,7 @@ _UPSTREAM_BASE_URLS = {
     PROVIDER_AMAZON_BEDROCK: "https://bedrock-runtime.us-east-1.amazonaws.com",
     PROVIDER_AMBIENT: "https://api.ambient.xyz/v1",
     PROVIDER_AMD: "https://developer.amd.com.cn/radeon/api/v1",
+    PROVIDER_ANTHROPIC: "https://api.anthropic.com/v1",
 }
 
 
