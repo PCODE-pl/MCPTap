@@ -235,6 +235,7 @@ cloudferro-sherlock
 cloudflare-ai-gateway
 cloudflare-workers-ai
 cohere
+coralbricks
 ```
 
 ### 2. Configure the provider
