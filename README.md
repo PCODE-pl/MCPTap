@@ -269,6 +269,7 @@ hetzner
 hpc-ai
 huggingface
 hyper
+iflowcn
 ```
 
 ### 2. Configure the provider
