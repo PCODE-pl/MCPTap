@@ -55,6 +55,7 @@ _FILE_ABOVE_ENV = "above.env"
 _FILE_AGENTROUTER_ENV = "agentrouter.env"
 _FILE_AGNES_ENV = "agnes.env"
 _FILE_AI_ROUTER_ENV = "ai-router.env"
+_FILE_AIAND_ENV = "aiand.env"
 _FILE_INTERCEPT_YAML = "mcp-intercept.yaml"
 _FILE_PER_MODEL_YAML = "per-model.yaml"
 _FILE_USE_TOOL_HOOK = "use_tool_hook.py"
@@ -85,6 +86,7 @@ _ENV_FILES = {
     _FILE_AGENTROUTER_ENV,
     _FILE_AGNES_ENV,
     _FILE_AI_ROUTER_ENV,
+    _FILE_AIAND_ENV,
 }
 
 # Files whose content is embedded in settings (path stored in proxy.env).
