@@ -234,6 +234,7 @@ cline-pass
 cloudferro-sherlock
 cloudflare-ai-gateway
 cloudflare-workers-ai
+cohere
 ```
 
 ### 2. Configure the provider

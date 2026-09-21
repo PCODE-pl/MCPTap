@@ -116,6 +116,8 @@ PROVIDER_CLOUDFLARE_AI_GATEWAY = "cloudflare-ai-gateway"
 
 PROVIDER_CLOUDFLARE_WORKERS_AI = "cloudflare-workers-ai"
 
+PROVIDER_COHERE = "cohere"
+
 SYNTHETIC_GET_GOAL_CALL_ID = "synthetic_get_goal"
 SYNTHETIC_GET_GOAL_TOOL_NAME = "get_goal"
 
@@ -200,6 +202,7 @@ _PROVIDER_ENV_FILES = {
     PROVIDER_CLOUDFERRO_SHERLOCK: "cloudferro-sherlock.env",
     PROVIDER_CLOUDFLARE_AI_GATEWAY: "cloudflare-ai-gateway.env",
     PROVIDER_CLOUDFLARE_WORKERS_AI: "cloudflare-workers-ai.env",
+    PROVIDER_COHERE: "cohere.env",
 }
 
 _UPSTREAM_BASE_URLS = {
@@ -260,7 +263,7 @@ _UPSTREAM_BASE_URLS = {
     PROVIDER_CLINE_PASS: "https://api.cline.bot/api/v1",
     PROVIDER_CLOUDFERRO_SHERLOCK: "https://api-sherlock.cloudferro.com/openai/v1",
     PROVIDER_CLOUDFLARE_AI_GATEWAY: "https://gateway.ai.cloudflare.com/v1",
-    PROVIDER_CLOUDFLARE_WORKERS_AI: "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/ai/v1",
+    PROVIDER_COHERE: "https://api.cohere.ai/compatibility/v1",
 }
 
 
