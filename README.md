@@ -252,6 +252,7 @@ echo
 edenai
 empiriolabs
 evroc
+fastrouter
 ```
 
 ### 2. Configure the provider
