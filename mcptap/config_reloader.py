@@ -68,6 +68,7 @@ _FILE_ALIBABA_CODING_PLAN_CN_ENV = "alibaba-coding-plan-cn.env"
 _FILE_ALIBABA_TOKEN_PLAN_ENV = "alibaba-token-plan.env"
 _FILE_ALIBABA_TOKEN_PLAN_CN_ENV = "alibaba-token-plan-cn.env"
 _FILE_AMAZON_BEDROCK_ENV = "amazon-bedrock.env"
+_FILE_AMBIENT_ENV = "ambient.env"
 _FILE_INTERCEPT_YAML = "mcp-intercept.yaml"
 _FILE_PER_MODEL_YAML = "per-model.yaml"
 _FILE_USE_TOOL_HOOK = "use_tool_hook.py"
@@ -111,6 +112,7 @@ _ENV_FILES = {
     _FILE_ALIBABA_TOKEN_PLAN_ENV,
     _FILE_ALIBABA_TOKEN_PLAN_CN_ENV,
     _FILE_AMAZON_BEDROCK_ENV,
+    _FILE_AMBIENT_ENV,
 }
 
 # Files whose content is embedded in settings (path stored in proxy.env).

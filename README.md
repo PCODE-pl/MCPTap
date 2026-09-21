@@ -212,6 +212,7 @@ alibaba-coding-plan-cn
 alibaba-token-plan
 alibaba-token-plan-cn
 amazon-bedrock
+ambient
 ```
 
 ### 2. Configure the provider
