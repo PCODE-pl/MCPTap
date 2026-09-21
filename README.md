@@ -237,6 +237,7 @@ cloudflare-workers-ai
 cohere
 coralbricks
 cortecs
+crof
 ```
 
 ### 2. Configure the provider

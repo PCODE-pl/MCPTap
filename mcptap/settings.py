@@ -122,6 +122,8 @@ PROVIDER_CORALBRICKS = "coralbricks"
 
 PROVIDER_CORTECS = "cortecs"
 
+PROVIDER_CROF = "crof"
+
 SYNTHETIC_GET_GOAL_CALL_ID = "synthetic_get_goal"
 SYNTHETIC_GET_GOAL_TOOL_NAME = "get_goal"
 
@@ -209,6 +211,7 @@ _PROVIDER_ENV_FILES = {
     PROVIDER_COHERE: "cohere.env",
     PROVIDER_CORALBRICKS: "coralbricks.env",
     PROVIDER_CORTECS: "cortecs.env",
+    PROVIDER_CROF: "crof.env",
 }
 
 _UPSTREAM_BASE_URLS = {
@@ -272,6 +275,7 @@ _UPSTREAM_BASE_URLS = {
     PROVIDER_COHERE: "https://api.cohere.ai/compatibility/v1",
     PROVIDER_CORALBRICKS: "https://inference.coralbricks.ai/v1",
     PROVIDER_CORTECS: "https://api.cortecs.ai/v1",
+    PROVIDER_CROF: "https://crof.ai/v1",
 }
 
 
