@@ -264,6 +264,7 @@ google-vertex
 google-vertex-anthropic
 greenpt
 groq
+helicone
 ```
 
 ### 2. Configure the provider
