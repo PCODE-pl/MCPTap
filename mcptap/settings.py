@@ -162,6 +162,8 @@ PROVIDER_FRIENDLI = "friendli"
 
 PROVIDER_FROGBOT = "frogbot"
 
+PROVIDER_GITHUB_COPILOT = "github-copilot"
+
 SYNTHETIC_GET_GOAL_CALL_ID = "synthetic_get_goal"
 SYNTHETIC_GET_GOAL_TOOL_NAME = "get_goal"
 
@@ -269,6 +271,7 @@ _PROVIDER_ENV_FILES = {
     PROVIDER_FREEMODEL: "freemodel.env",
     PROVIDER_FRIENDLI: "friendli.env",
     PROVIDER_FROGBOT: "frogbot.env",
+    PROVIDER_GITHUB_COPILOT: "github-copilot.env",
 }
 
 _UPSTREAM_BASE_URLS = {
@@ -351,6 +354,7 @@ _UPSTREAM_BASE_URLS = {
     PROVIDER_FREEMODEL: "https://cc.freemodel.dev/v1",
     PROVIDER_FRIENDLI: "https://api.friendli.ai/serverless/v1",
     PROVIDER_FROGBOT: "https://app.frogbot.ai/api/v1",
+    PROVIDER_GITHUB_COPILOT: "https://api.githubcopilot.com",
 }
 
 
