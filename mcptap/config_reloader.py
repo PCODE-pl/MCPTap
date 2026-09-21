@@ -112,6 +112,7 @@ _FILE_FASTROUTER_ENV = "fastrouter.env"
 _FILE_FIREWORKS_AI_ENV = "fireworks-ai.env"
 _FILE_FREEMODEL_ENV = "freemodel.env"
 _FILE_FRIENDLI_ENV = "friendli.env"
+_FILE_FROGBOT_ENV = "frogbot.env"
 _FILE_INTERCEPT_YAML = "mcp-intercept.yaml"
 _FILE_PER_MODEL_YAML = "per-model.yaml"
 _FILE_USE_TOOL_HOOK = "use_tool_hook.py"
@@ -199,6 +200,7 @@ _ENV_FILES = {
     _FILE_FIREWORKS_AI_ENV,
     _FILE_FREEMODEL_ENV,
     _FILE_FRIENDLI_ENV,
+    _FILE_FROGBOT_ENV,
 }
 
 # Files whose content is embedded in settings (path stored in proxy.env).

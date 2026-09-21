@@ -256,6 +256,7 @@ fastrouter
 fireworks-ai
 freemodel
 friendli
+frogbot
 ```
 
 ### 2. Configure the provider
