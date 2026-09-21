@@ -240,6 +240,7 @@ cortecs
 crof
 crossmodel
 crusoe
+daoxe
 ```
 
 ### 2. Configure the provider

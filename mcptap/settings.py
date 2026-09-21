@@ -128,6 +128,8 @@ PROVIDER_CROSSMODEL = "crossmodel"
 
 PROVIDER_CRUSOE = "crusoe"
 
+PROVIDER_DAOXE = "daoxe"
+
 SYNTHETIC_GET_GOAL_CALL_ID = "synthetic_get_goal"
 SYNTHETIC_GET_GOAL_TOOL_NAME = "get_goal"
 
@@ -218,6 +220,7 @@ _PROVIDER_ENV_FILES = {
     PROVIDER_CROF: "crof.env",
     PROVIDER_CROSSMODEL: "crossmodel.env",
     PROVIDER_CRUSOE: "crusoe.env",
+    PROVIDER_DAOXE: "daoxe.env",
 }
 
 _UPSTREAM_BASE_URLS = {
@@ -284,6 +287,7 @@ _UPSTREAM_BASE_URLS = {
     PROVIDER_CROF: "https://crof.ai/v1",
     PROVIDER_CROSSMODEL: "https://api.crossmodel.ai/v1",
     PROVIDER_CRUSOE: "https://api.inference.crusoecloud.com/v1",
+    PROVIDER_DAOXE: "https://daoxe.com/v1",
 }
 
 
