@@ -200,6 +200,7 @@ agentrouter
 agnes
 ai-router
 aiand
+ainetcafe
 ```
 
 ### 2. Configure the provider

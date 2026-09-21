@@ -48,6 +48,8 @@ PROVIDER_AI_ROUTER = "ai-router"
 
 PROVIDER_AIAND = "aiand"
 
+PROVIDER_AINETCAFE = "ainetcafe"
+
 SYNTHETIC_GET_GOAL_CALL_ID = "synthetic_get_goal"
 SYNTHETIC_GET_GOAL_TOOL_NAME = "get_goal"
 
@@ -98,6 +100,7 @@ _PROVIDER_ENV_FILES = {
     PROVIDER_AGNES: "agnes.env",
     PROVIDER_AI_ROUTER: "ai-router.env",
     PROVIDER_AIAND: "aiand.env",
+    PROVIDER_AINETCAFE: "ainetcafe.env",
 }
 
 _UPSTREAM_BASE_URLS = {
@@ -125,6 +128,7 @@ _UPSTREAM_BASE_URLS = {
     PROVIDER_AGNES: "https://apihub.agnes-ai.com/v1",
     PROVIDER_AI_ROUTER: "https://api.ai-router.dev/v1",
     PROVIDER_AIAND: "https://api.aiand.com/v1",
+    PROVIDER_AINETCAFE: "https://microquickjs.com/v1",
 }
 
 

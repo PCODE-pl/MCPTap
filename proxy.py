@@ -51,6 +51,7 @@ from mcptap.settings import (
     PROVIDER_AI_ROUTER,
     PROVIDER_AIAND,
     PROVIDER_AIHUBMIX,
+    PROVIDER_AINETCAFE,
     PROVIDER_INFERX,
     PROVIDER_KENARI,
     PROVIDER_KILO,
@@ -152,6 +153,7 @@ __all__ = [
     "PROVIDER_AGNES",
     "PROVIDER_AI_ROUTER",
     "PROVIDER_AIAND",
+    "PROVIDER_AINETCAFE",
 ]
 
 if __name__ == "__main__":
