@@ -146,6 +146,8 @@ PROVIDER_EBCLOUD = "ebcloud"
 
 PROVIDER_ECHO = "echo"
 
+PROVIDER_EDENAI = "edenai"
+
 SYNTHETIC_GET_GOAL_CALL_ID = "synthetic_get_goal"
 SYNTHETIC_GET_GOAL_TOOL_NAME = "get_goal"
 
@@ -245,6 +247,7 @@ _PROVIDER_ENV_FILES = {
     PROVIDER_DRUN: "drun.env",
     PROVIDER_EBCLOUD: "ebcloud.env",
     PROVIDER_ECHO: "echo.env",
+    PROVIDER_EDENAI: "edenai.env",
 }
 
 _UPSTREAM_BASE_URLS = {
@@ -319,6 +322,7 @@ _UPSTREAM_BASE_URLS = {
     PROVIDER_DRUN: "https://chat.d.run/v1",
     PROVIDER_EBCLOUD: "https://maas-api.ebcloud.com/v1",
     PROVIDER_ECHO: "https://echo.tracerml.ai/v1",
+    PROVIDER_EDENAI: "https://api.edenai.run/v3",
 }
 
 

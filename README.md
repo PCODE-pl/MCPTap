@@ -249,6 +249,7 @@ dinference
 drun
 ebcloud
 echo
+edenai
 ```
 
 ### 2. Configure the provider
