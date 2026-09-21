@@ -60,6 +60,8 @@ PROVIDER_302AI = "302ai"
 
 PROVIDER_ABACUS = "abacus"
 
+PROVIDER_ALIBABA_CN = "alibaba-cn"
+
 SYNTHETIC_GET_GOAL_CALL_ID = "synthetic_get_goal"
 SYNTHETIC_GET_GOAL_TOOL_NAME = "get_goal"
 
@@ -116,6 +118,7 @@ _PROVIDER_ENV_FILES = {
     PROVIDER_ALIBABA: "alibaba.env",
     PROVIDER_302AI: "302ai.env",
     PROVIDER_ABACUS: "abacus.env",
+    PROVIDER_ALIBABA_CN: "alibaba-cn.env",
 }
 
 _UPSTREAM_BASE_URLS = {
@@ -149,6 +152,7 @@ _UPSTREAM_BASE_URLS = {
     PROVIDER_ALIBABA: "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
     PROVIDER_302AI: "https://api.302.ai/v1",
     PROVIDER_ABACUS: "https://routellm.abacus.ai/v1",
+    PROVIDER_ALIBABA_CN: "https://dashscope.aliyuncs.com/compatible-mode/v1",
 }
 
 

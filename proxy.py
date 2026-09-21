@@ -57,6 +57,7 @@ from mcptap.settings import (
     PROVIDER_AIXY,
     PROVIDER_AKI_IO,
     PROVIDER_ALIBABA,
+    PROVIDER_ALIBABA_CN,
     PROVIDER_INFERX,
     PROVIDER_KENARI,
     PROVIDER_KILO,
@@ -164,6 +165,7 @@ __all__ = [
     "PROVIDER_ALIBABA",
     "PROVIDER_302AI",
     "PROVIDER_ABACUS",
+    "PROVIDER_ALIBABA_CN",
 ]
 
 if __name__ == "__main__":
