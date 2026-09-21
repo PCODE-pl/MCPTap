@@ -100,6 +100,8 @@ PROVIDER_BLUECLAW = "blueclaw"
 
 PROVIDER_BOTHUB = "bothub"
 
+PROVIDER_CEREBRAS = "cerebras"
+
 SYNTHETIC_GET_GOAL_CALL_ID = "synthetic_get_goal"
 SYNTHETIC_GET_GOAL_TOOL_NAME = "get_goal"
 
@@ -176,6 +178,7 @@ _PROVIDER_ENV_FILES = {
     PROVIDER_BERGET: "berget.env",
     PROVIDER_BLUECLAW: "blueclaw.env",
     PROVIDER_BOTHUB: "bothub.env",
+    PROVIDER_CEREBRAS: "cerebras.env",
 }
 
 _UPSTREAM_BASE_URLS = {
@@ -229,6 +232,7 @@ _UPSTREAM_BASE_URLS = {
     PROVIDER_BERGET: "https://api.berget.ai/v1",
     PROVIDER_BLUECLAW: "https://openai.blueclaw.network/v1",
     PROVIDER_BOTHUB: "https://openai.bothub.ru/v1",
+    PROVIDER_CEREBRAS: "https://api.cerebras.ai/v1",
 }
 
 
