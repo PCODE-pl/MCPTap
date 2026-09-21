@@ -222,6 +222,7 @@ auriko
 azure
 azure-cognitive-services
 bailing
+baseten
 ```
 
 ### 2. Configure the provider

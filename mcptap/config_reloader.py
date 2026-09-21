@@ -78,6 +78,7 @@ _FILE_AURIKO_ENV = "auriko.env"
 _FILE_AZURE_ENV = "azure.env"
 _FILE_AZURE_COGNITIVE_SERVICES_ENV = "azure-cognitive-services.env"
 _FILE_BAILING_ENV = "bailing.env"
+_FILE_BASETEN_ENV = "baseten.env"
 _FILE_INTERCEPT_YAML = "mcp-intercept.yaml"
 _FILE_PER_MODEL_YAML = "per-model.yaml"
 _FILE_USE_TOOL_HOOK = "use_tool_hook.py"
@@ -131,6 +132,7 @@ _ENV_FILES = {
     _FILE_AZURE_ENV,
     _FILE_AZURE_COGNITIVE_SERVICES_ENV,
     _FILE_BAILING_ENV,
+    _FILE_BASETEN_ENV,
 }
 
 # Files whose content is embedded in settings (path stored in proxy.env).
