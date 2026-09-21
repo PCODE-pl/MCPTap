@@ -101,6 +101,7 @@ _FILE_DATABRICKS_ENV = "databricks.env"
 _FILE_DEEPINFRA_ENV = "deepinfra.env"
 _FILE_DEEPSEEK_ENV = "deepseek.env"
 _FILE_DIGITALOCEAN_ENV = "digitalocean.env"
+_FILE_DINFERENCE_ENV = "dinference.env"
 _FILE_INTERCEPT_YAML = "mcp-intercept.yaml"
 _FILE_PER_MODEL_YAML = "per-model.yaml"
 _FILE_USE_TOOL_HOOK = "use_tool_hook.py"
@@ -177,6 +178,7 @@ _ENV_FILES = {
     _FILE_DEEPINFRA_ENV,
     _FILE_DEEPSEEK_ENV,
     _FILE_DIGITALOCEAN_ENV,
+    _FILE_DINFERENCE_ENV,
 }
 
 # Files whose content is embedded in settings (path stored in proxy.env).

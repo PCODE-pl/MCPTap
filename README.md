@@ -245,6 +245,7 @@ databricks
 deepinfra
 deepseek
 digitalocean
+dinference
 ```
 
 ### 2. Configure the provider

@@ -138,6 +138,8 @@ PROVIDER_DEEPSEEK = "deepseek"
 
 PROVIDER_DIGITALOCEAN = "digitalocean"
 
+PROVIDER_DINFERENCE = "dinference"
+
 SYNTHETIC_GET_GOAL_CALL_ID = "synthetic_get_goal"
 SYNTHETIC_GET_GOAL_TOOL_NAME = "get_goal"
 
@@ -233,6 +235,7 @@ _PROVIDER_ENV_FILES = {
     PROVIDER_DEEPINFRA: "deepinfra.env",
     PROVIDER_DEEPSEEK: "deepseek.env",
     PROVIDER_DIGITALOCEAN: "digitalocean.env",
+    PROVIDER_DINFERENCE: "dinference.env",
 }
 
 _UPSTREAM_BASE_URLS = {
@@ -303,6 +306,7 @@ _UPSTREAM_BASE_URLS = {
     PROVIDER_DEEPINFRA: "https://api.deepinfra.com/v1/openai",
     PROVIDER_DEEPSEEK: "https://api.deepseek.com",
     PROVIDER_DIGITALOCEAN: "https://inference.do-ai.run/v1",
+    PROVIDER_DINFERENCE: "https://api.dinference.com/v1",
 }
 
 
