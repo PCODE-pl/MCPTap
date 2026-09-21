@@ -258,6 +258,7 @@ freemodel
 friendli
 frogbot
 github-copilot
+gmicloud
 ```
 
 ### 2. Configure the provider
