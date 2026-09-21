@@ -210,6 +210,7 @@ alibaba-cn
 alibaba-coding-plan
 alibaba-coding-plan-cn
 alibaba-token-plan
+alibaba-token-plan-cn
 ```
 
 ### 2. Configure the provider

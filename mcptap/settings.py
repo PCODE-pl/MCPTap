@@ -68,6 +68,8 @@ PROVIDER_ALIBABA_CODING_PLAN_CN = "alibaba-coding-plan-cn"
 
 PROVIDER_ALIBABA_TOKEN_PLAN = "alibaba-token-plan"
 
+PROVIDER_ALIBABA_TOKEN_PLAN_CN = "alibaba-token-plan-cn"
+
 SYNTHETIC_GET_GOAL_CALL_ID = "synthetic_get_goal"
 SYNTHETIC_GET_GOAL_TOOL_NAME = "get_goal"
 
@@ -128,6 +130,7 @@ _PROVIDER_ENV_FILES = {
     PROVIDER_ALIBABA_CODING_PLAN: "alibaba-coding-plan.env",
     PROVIDER_ALIBABA_CODING_PLAN_CN: "alibaba-coding-plan-cn.env",
     PROVIDER_ALIBABA_TOKEN_PLAN: "alibaba-token-plan.env",
+    PROVIDER_ALIBABA_TOKEN_PLAN_CN: "alibaba-token-plan-cn.env",
 }
 
 _UPSTREAM_BASE_URLS = {
@@ -165,6 +168,7 @@ _UPSTREAM_BASE_URLS = {
     PROVIDER_ALIBABA_CODING_PLAN: "https://coding-intl.dashscope.aliyuncs.com/v1",
     PROVIDER_ALIBABA_CODING_PLAN_CN: "https://coding.dashscope.aliyuncs.com/v1",
     PROVIDER_ALIBABA_TOKEN_PLAN: "https://token-plan.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1",
+    PROVIDER_ALIBABA_TOKEN_PLAN_CN: "https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1",
 }
 
 
