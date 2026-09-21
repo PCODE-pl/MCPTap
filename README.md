@@ -215,6 +215,7 @@ amazon-bedrock
 ambient
 amd
 anthropic
+anyapi
 ```
 
 ### 2. Configure the provider

@@ -71,6 +71,7 @@ _FILE_AMAZON_BEDROCK_ENV = "amazon-bedrock.env"
 _FILE_AMBIENT_ENV = "ambient.env"
 _FILE_AMD_ENV = "amd.env"
 _FILE_ANTHROPIC_ENV = "anthropic.env"
+_FILE_ANYAPI_ENV = "anyapi.env"
 _FILE_INTERCEPT_YAML = "mcp-intercept.yaml"
 _FILE_PER_MODEL_YAML = "per-model.yaml"
 _FILE_USE_TOOL_HOOK = "use_tool_hook.py"
@@ -117,6 +118,7 @@ _ENV_FILES = {
     _FILE_AMBIENT_ENV,
     _FILE_AMD_ENV,
     _FILE_ANTHROPIC_ENV,
+    _FILE_ANYAPI_ENV,
 }
 
 # Files whose content is embedded in settings (path stored in proxy.env).

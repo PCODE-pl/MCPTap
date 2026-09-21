@@ -66,6 +66,7 @@ from mcptap.settings import (
     PROVIDER_AMBIENT,
     PROVIDER_AMD,
     PROVIDER_ANTHROPIC,
+    PROVIDER_ANYAPI,
     PROVIDER_INFERX,
     PROVIDER_KENARI,
     PROVIDER_KILO,
@@ -182,6 +183,7 @@ __all__ = [
     "PROVIDER_AMBIENT",
     "PROVIDER_AMD",
     "PROVIDER_ANTHROPIC",
+    "PROVIDER_ANYAPI",
 ]
 
 if __name__ == "__main__":

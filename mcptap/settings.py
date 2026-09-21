@@ -78,6 +78,8 @@ PROVIDER_AMD = "amd"
 
 PROVIDER_ANTHROPIC = "anthropic"
 
+PROVIDER_ANYAPI = "anyapi"
+
 SYNTHETIC_GET_GOAL_CALL_ID = "synthetic_get_goal"
 SYNTHETIC_GET_GOAL_TOOL_NAME = "get_goal"
 
@@ -143,6 +145,7 @@ _PROVIDER_ENV_FILES = {
     PROVIDER_AMBIENT: "ambient.env",
     PROVIDER_AMD: "amd.env",
     PROVIDER_ANTHROPIC: "anthropic.env",
+    PROVIDER_ANYAPI: "anyapi.env",
 }
 
 _UPSTREAM_BASE_URLS = {
@@ -185,6 +188,7 @@ _UPSTREAM_BASE_URLS = {
     PROVIDER_AMBIENT: "https://api.ambient.xyz/v1",
     PROVIDER_AMD: "https://developer.amd.com.cn/radeon/api/v1",
     PROVIDER_ANTHROPIC: "https://api.anthropic.com/v1",
+    PROVIDER_ANYAPI: "https://api.anyapi.ai/v1",
 }
 
 
