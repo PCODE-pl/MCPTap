@@ -88,6 +88,7 @@ _FILE_CLARIFAI_ENV = "clarifai.env"
 _FILE_CLAUDINIO_ENV = "claudinio.env"
 _FILE_CLINE_PASS_ENV = "cline-pass.env"
 _FILE_CLOUDFERRO_SHERLOCK_ENV = "cloudferro-sherlock.env"
+_FILE_CLOUDFLARE_AI_GATEWAY_ENV = "cloudflare-ai-gateway.env"
 _FILE_INTERCEPT_YAML = "mcp-intercept.yaml"
 _FILE_PER_MODEL_YAML = "per-model.yaml"
 _FILE_USE_TOOL_HOOK = "use_tool_hook.py"
@@ -151,6 +152,7 @@ _ENV_FILES = {
     _FILE_CLAUDINIO_ENV,
     _FILE_CLINE_PASS_ENV,
     _FILE_CLOUDFERRO_SHERLOCK_ENV,
+    _FILE_CLOUDFLARE_AI_GATEWAY_ENV,
 }
 
 # Files whose content is embedded in settings (path stored in proxy.env).
