@@ -123,6 +123,7 @@ _FILE_GROQ_ENV = "groq.env"
 _FILE_HELICONE_ENV = "helicone.env"
 _FILE_HETZNER_ENV = "hetzner.env"
 _FILE_HPC_AI_ENV = "hpc-ai.env"
+_FILE_HUGGINGFACE_ENV = "huggingface.env"
 _FILE_INTERCEPT_YAML = "mcp-intercept.yaml"
 _FILE_PER_MODEL_YAML = "per-model.yaml"
 _FILE_USE_TOOL_HOOK = "use_tool_hook.py"
@@ -221,6 +222,7 @@ _ENV_FILES = {
     _FILE_HELICONE_ENV,
     _FILE_HETZNER_ENV,
     _FILE_HPC_AI_ENV,
+    _FILE_HUGGINGFACE_ENV,
 }
 
 # Files whose content is embedded in settings (path stored in proxy.env).

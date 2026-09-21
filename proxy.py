@@ -118,6 +118,7 @@ from mcptap.settings import (
     PROVIDER_HELICONE,
     PROVIDER_HETZNER,
     PROVIDER_HPC_AI,
+    PROVIDER_HUGGINGFACE,
     PROVIDER_INFERX,
     PROVIDER_KENARI,
     PROVIDER_KILO,
@@ -286,6 +287,7 @@ __all__ = [
     "PROVIDER_HELICONE",
     "PROVIDER_HETZNER",
     "PROVIDER_HPC_AI",
+    "PROVIDER_HUGGINGFACE",
 ]
 
 if __name__ == "__main__":

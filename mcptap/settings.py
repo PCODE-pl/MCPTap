@@ -182,6 +182,8 @@ PROVIDER_HETZNER = "hetzner"
 
 PROVIDER_HPC_AI = "hpc-ai"
 
+PROVIDER_HUGGINGFACE = "huggingface"
+
 SYNTHETIC_GET_GOAL_CALL_ID = "synthetic_get_goal"
 SYNTHETIC_GET_GOAL_TOOL_NAME = "get_goal"
 
@@ -299,6 +301,7 @@ _PROVIDER_ENV_FILES = {
     PROVIDER_HELICONE: "helicone.env",
     PROVIDER_HETZNER: "hetzner.env",
     PROVIDER_HPC_AI: "hpc-ai.env",
+    PROVIDER_HUGGINGFACE: "huggingface.env",
 }
 
 _UPSTREAM_BASE_URLS = {
@@ -391,6 +394,7 @@ _UPSTREAM_BASE_URLS = {
     PROVIDER_HELICONE: "https://ai-gateway.helicone.ai/v1",
     PROVIDER_HETZNER: "https://inference.hetzner.com/api/v1",
     PROVIDER_HPC_AI: "https://api.hpc-ai.com/inference/v1",
+    PROVIDER_HUGGINGFACE: "https://router.huggingface.co/v1",
 }
 
 
