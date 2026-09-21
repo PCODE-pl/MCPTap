@@ -81,6 +81,7 @@ _FILE_BAILING_ENV = "bailing.env"
 _FILE_BASETEN_ENV = "baseten.env"
 _FILE_BERGET_ENV = "berget.env"
 _FILE_BLUECLAW_ENV = "blueclaw.env"
+_FILE_BOTHUB_ENV = "bothub.env"
 _FILE_INTERCEPT_YAML = "mcp-intercept.yaml"
 _FILE_PER_MODEL_YAML = "per-model.yaml"
 _FILE_USE_TOOL_HOOK = "use_tool_hook.py"
@@ -137,6 +138,7 @@ _ENV_FILES = {
     _FILE_BASETEN_ENV,
     _FILE_BERGET_ENV,
     _FILE_BLUECLAW_ENV,
+    _FILE_BOTHUB_ENV,
 }
 
 # Files whose content is embedded in settings (path stored in proxy.env).

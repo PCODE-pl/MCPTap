@@ -225,6 +225,7 @@ bailing
 baseten
 berget
 blueclaw
+bothub
 ```
 
 ### 2. Configure the provider
