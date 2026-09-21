@@ -205,6 +205,7 @@ aixy
 aki-io
 alibaba
 302ai
+abacus
 ```
 
 ### 2. Configure the provider

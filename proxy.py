@@ -45,6 +45,7 @@ from mcptap.settings import (
     HOP_BY_HOP_HEADERS,
     LOGGER,
     PROVIDER_302AI,
+    PROVIDER_ABACUS,
     PROVIDER_ABLITERATION_AI,
     PROVIDER_ABOVE,
     PROVIDER_AGENTROUTER,
@@ -162,6 +163,7 @@ __all__ = [
     "PROVIDER_AKI_IO",
     "PROVIDER_ALIBABA",
     "PROVIDER_302AI",
+    "PROVIDER_ABACUS",
 ]
 
 if __name__ == "__main__":
