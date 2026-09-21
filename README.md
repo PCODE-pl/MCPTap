@@ -207,6 +207,7 @@ alibaba
 302ai
 abacus
 alibaba-cn
+alibaba-coding-plan
 ```
 
 ### 2. Configure the provider
