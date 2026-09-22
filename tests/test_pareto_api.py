@@ -374,7 +374,7 @@ async def test_serve_pareto_page_returns_html():
         assert "routerParetoStripe = ref(50)" in body
         assert ':min="10"' in body
         assert ':max="150"' in body
-        assert ':step="1"' in body
+        assert ':step="5"' in body
         assert "handleRouterParetoStripeChange" in body
         assert "computeParetoCharacteristicPoints(linePoints, stripePercent)" in body
         assert "const stripeLimit = startCost + startCost * stripePercent / 100;" in body
