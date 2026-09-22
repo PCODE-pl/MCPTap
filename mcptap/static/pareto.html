@@ -1447,6 +1447,9 @@ const app = createApp({
         z: 4,
         itemStyle: { color: providerColorMap.get(provider) },
       }));
+      const frontierSymbolSize = 13;
+      const frontierBorderWidth = 2.52;
+      const characteristicRingSymbolSize = frontierSymbolSize * 2;
       const frontierSeries = providers.map((provider) => {
         const fpts = paretoFrontier.filter(p => p.provider === provider);
         if (!fpts.length) return null;
@@ -1454,15 +1457,31 @@ const app = createApp({
         return {
           name: provider,
           type: 'scatter',
-          symbolSize: 13,
+          symbolSize: frontierSymbolSize,
           data: fpts.map(p => {
             const bc = planSet.has(p) ? '#8B4513' : '#63b3ed';
             const isCharacteristic = characteristicPointSet.has(p) || characteristicValueKeys.has(pointValueKey(p));
-            const characteristicBorderWidth = isCharacteristic ? 5.04 : 2.52;
-            return { ...p, itemStyle: { borderColor: bc, borderWidth: characteristicBorderWidth, color: col }, emphasis: { scale: false, itemStyle: { borderColor: bc, borderWidth: characteristicBorderWidth, color: col } } };
+            return { ...p, itemStyle: { borderColor: bc, borderWidth: frontierBorderWidth, color: col }, emphasis: { scale: false, itemStyle: { borderColor: bc, borderWidth: frontierBorderWidth, color: col } }, isCharacteristic };
           }),
           emphasis: { focus: 'series', scale: false },
           z: 5,
+        };
+      }).filter(Boolean);
+      const characteristicRingSeries = providers.map((provider) => {
+        const fpts = paretoFrontier.filter(p => (p.provider === provider) && (characteristicPointSet.has(p) || characteristicValueKeys.has(pointValueKey(p))));
+        if (!fpts.length) return null;
+        const col = providerColorMap.get(provider);
+        return {
+          name: `${provider} characteristic`,
+          type: 'scatter',
+          symbolSize: characteristicRingSymbolSize,
+          data: fpts.map(p => ({
+            ...p,
+            itemStyle: { borderColor: planSet.has(p) ? '#8B4513' : '#63b3ed', borderWidth: frontierBorderWidth, color: 'transparent' },
+            emphasis: { scale: false, itemStyle: { borderColor: planSet.has(p) ? '#8B4513' : '#63b3ed', borderWidth: frontierBorderWidth, color: 'transparent' } },
+          })),
+          silent: true,
+          z: 6,
         };
       }).filter(Boolean);
       const series = [...baseSeries];
@@ -1504,7 +1523,7 @@ const app = createApp({
           z: 1,
         });
       }
-      series.push(...frontierSeries);
+      series.push(...frontierSeries, ...characteristicRingSeries);
       const legendSelection = providers.reduce(
         (selection, provider) => ({ ...selection, [provider]: legendVisibility[provider] !== false }),
         {},

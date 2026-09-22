@@ -358,10 +358,8 @@ async def test_serve_pareto_page_returns_html():
         assert "function computeParetoCharacteristicPoints(linePoints)" in body
         assert "const paretoActCharacteristicPoints = computeParetoCharacteristicPoints(paretoAct);" in body
         assert "const paretoPlanCharacteristicPoints = computeParetoCharacteristicPoints(paretoPlan);" in body
-        assert "const characteristicBorderWidth = isCharacteristic ? 5.04 : 2.52;" in body
-        assert "const characteristicValueKeys = new Set" in body
-        assert "const frontierValueKeys = new Set" in body
-        assert "characteristicValueKeys.has(pointValueKey(p))" in body
-        assert "frontierValueKeys.has(pointValueKey(p))" in body
-        assert "const stripeLimit = startCost + startCost * 0.5;" in body
-        assert "const characteristicBorderWidth = isCharacteristic ? 5.04 : 2.52;" in body
+        assert "const characteristicBorderWidth = isCharacteristic ? 5.04 : 2.52;" not in body
+        assert "const characteristicRingSymbolSize = frontierSymbolSize * 2;" in body
+        assert "borderWidth: frontierBorderWidth" in body
+        assert "color: 'transparent'" in body
+        assert "const characteristicRingSeries =" in body
