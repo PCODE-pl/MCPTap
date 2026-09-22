@@ -1363,6 +1363,21 @@ const app = createApp({
       return frontier;
     }
 
+    function computeParetoCharacteristicPoints(linePoints) {
+      if (!linePoints.length) return [];
+      const startCost = linePoints[0].weightedCost;
+      const stripeLimit = startCost + startCost * 0.5;
+      let characteristicPoint = linePoints[0];
+      for (const point of linePoints) {
+        if (point.weightedCost <= stripeLimit) characteristicPoint = point;
+      }
+      return [characteristicPoint];
+    }
+
+    function pointValueKey(point) {
+      return JSON.stringify(point.value);
+    }
+
     function renderChart(preserveViewport = false) {
       if (!chart.value) return;
       const previousViewRange = preserveViewport ? { ...viewRange.value } : null;
@@ -1410,7 +1425,15 @@ const app = createApp({
       const paretoFrontier = hasActiveFilter ? [] : computeParetoFrontier(displayPoints);
       const paretoAct = paretoFrontier.filter(p => p.weightedCost < routerCostSplit.value - 1e-9);
       const paretoPlan = paretoFrontier.filter(p => p.weightedCost >= routerCostSplit.value - 1e-9);
+      const paretoActCharacteristicPoints = computeParetoCharacteristicPoints(paretoAct);
+      const paretoPlanCharacteristicPoints = computeParetoCharacteristicPoints(paretoPlan);
+      const characteristicPointSet = new Set([
+        ...paretoActCharacteristicPoints,
+        ...paretoPlanCharacteristicPoints,
+      ]);
+      const characteristicValueKeys = new Set([...characteristicPointSet].map(pointValueKey));
       const frontierSet = new Set(paretoFrontier);
+      const frontierValueKeys = new Set(paretoFrontier.map(pointValueKey));
       const actSet = new Set(paretoAct);
       const planSet = new Set(paretoPlan);
       const PROVIDER_COLORS = ['#63b3ed', '#f6ad55', '#68d391', '#fc8181', '#b794f4', '#4fd1c5', '#f687b3'];
@@ -1419,7 +1442,7 @@ const app = createApp({
         name: provider,
         type: 'scatter',
         symbolSize: 10,
-        data: displayPoints.filter(p => p.provider === provider && !frontierSet.has(p)),
+        data: displayPoints.filter(p => p.provider === provider && !frontierSet.has(p) && !frontierValueKeys.has(pointValueKey(p))),
         emphasis: { focus: 'series', scale: false },
         z: 4,
         itemStyle: { color: providerColorMap.get(provider) },
@@ -1434,7 +1457,9 @@ const app = createApp({
           symbolSize: 13,
           data: fpts.map(p => {
             const bc = planSet.has(p) ? '#8B4513' : '#63b3ed';
-            return { ...p, itemStyle: { borderColor: bc, borderWidth: 2.52, color: col }, emphasis: { scale: false, itemStyle: { borderColor: bc, borderWidth: 2.52, color: col } } };
+            const isCharacteristic = characteristicPointSet.has(p) || characteristicValueKeys.has(pointValueKey(p));
+            const characteristicBorderWidth = isCharacteristic ? 5.04 : 2.52;
+            return { ...p, itemStyle: { borderColor: bc, borderWidth: characteristicBorderWidth, color: col }, emphasis: { scale: false, itemStyle: { borderColor: bc, borderWidth: characteristicBorderWidth, color: col } } };
           }),
           emphasis: { focus: 'series', scale: false },
           z: 5,

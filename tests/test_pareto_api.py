@@ -355,3 +355,13 @@ async def test_serve_pareto_page_returns_html():
         assert "function formatTooltipThreeDecimals(value)" in body
         assert "const s = value.toFixed(3);" in body
         assert "formatTooltipThreeDecimals,\n      routerMinCost" in body
+        assert "function computeParetoCharacteristicPoints(linePoints)" in body
+        assert "const paretoActCharacteristicPoints = computeParetoCharacteristicPoints(paretoAct);" in body
+        assert "const paretoPlanCharacteristicPoints = computeParetoCharacteristicPoints(paretoPlan);" in body
+        assert "const characteristicBorderWidth = isCharacteristic ? 5.04 : 2.52;" in body
+        assert "const characteristicValueKeys = new Set" in body
+        assert "const frontierValueKeys = new Set" in body
+        assert "characteristicValueKeys.has(pointValueKey(p))" in body
+        assert "frontierValueKeys.has(pointValueKey(p))" in body
+        assert "const stripeLimit = startCost + startCost * 0.5;" in body
+        assert "const characteristicBorderWidth = isCharacteristic ? 5.04 : 2.52;" in body
