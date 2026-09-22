@@ -287,7 +287,7 @@
             <div class="quality-slider-row" data-testid="router-slider-row">
               <div class="quality-slider">
                 <label for="router-slider-min-cost">Min Cost</label>
-                <output for="router-slider-min-cost">{{ formatTooltipTwoDecimals(routerMinCost) }} $</output>
+                <output for="router-slider-min-cost">{{ formatTooltipThreeDecimals(routerMinCost) }} $</output>
                 <n-slider
                   id="router-slider-min-cost"
                   v-model:value="routerMinCostSliderPosition"
@@ -302,7 +302,7 @@
               </div>
               <div class="quality-slider">
                 <label for="router-slider-max-cost">Max Cost</label>
-                <output for="router-slider-max-cost">{{ formatTooltipTwoDecimals(routerMaxCost) }} $</output>
+                <output for="router-slider-max-cost">{{ formatTooltipThreeDecimals(routerMaxCost) }} $</output>
                 <n-slider
                   id="router-slider-max-cost"
                   v-model:value="routerMaxCostSliderPosition"
@@ -333,7 +333,7 @@
               </div>
               <div class="quality-slider">
                 <label for="router-slider-cost-split">Plan/Act Split</label>
-                <output for="router-slider-cost-split" data-testid="router-slider-cost-split-output">{{ formatTooltipTwoDecimals(routerCostSplit) }} $</output>
+                <output for="router-slider-cost-split" data-testid="router-slider-cost-split-output">{{ formatTooltipThreeDecimals(routerCostSplit) }} $</output>
                 <n-slider
                   id="router-slider-cost-split"
                   v-model:value="costSplitSliderPosition"
@@ -510,7 +510,7 @@ const app = createApp({
     function formatRouterMinCostTooltip(value) {
       if (typeof value !== 'number' || !Number.isFinite(value)) return '';
       const dollars = compressedCostAxis.value ? value * value : value;
-      return `${formatTooltipTwoDecimals(dollars)} $`;
+      return `${formatTooltipThreeDecimals(dollars)} $`;
     }
     // Slider-space position of the split: matches the knob to the point
     // cloud on the X axis (sqrt when scale is on).
@@ -524,7 +524,7 @@ const app = createApp({
     function formatCostSplitTooltip(value) {
       if (typeof value !== 'number' || !Number.isFinite(value)) return '';
       const dollars = compressedCostAxis.value ? value * value : value;
-      return `${formatTooltipTwoDecimals(dollars)} $`;
+      return `${formatTooltipThreeDecimals(dollars)} $`;
     }
     const routerMaxCostSliderPosition = computed({
       get: () => displayXValue(routerMaxCost.value),
@@ -536,7 +536,7 @@ const app = createApp({
     function formatRouterMaxCostTooltip(value) {
       if (typeof value !== 'number' || !Number.isFinite(value)) return '';
       const dollars = compressedCostAxis.value ? value * value : value;
-      return `${formatTooltipTwoDecimals(dollars)} $`;
+      return `${formatTooltipThreeDecimals(dollars)} $`;
     }
     function updateRouterQualityBounds() {
       const pts = routerAllPoints.value;
@@ -561,6 +561,12 @@ const app = createApp({
       const mid = compressedCostAxis.value ? midPos * midPos : midPos;
       routerCostSplit.value = Math.max(lo, Math.min(hi, mid));
     }
+    function formatTooltipThreeDecimals(value) {
+      if (typeof value !== 'number' || !Number.isFinite(value)) return '';
+      const s = value.toFixed(3);
+      return s.replace(/\.000$/, '').replace(/(\.\d*?[1-9])0+$/, '$1');
+    }
+
     function formatTooltipTwoDecimals(value) {
       if (typeof value !== 'number' || !Number.isFinite(value)) return '';
       const s = value.toFixed(2);

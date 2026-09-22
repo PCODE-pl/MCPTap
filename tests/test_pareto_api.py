@@ -348,7 +348,9 @@ async def test_serve_pareto_page_returns_html():
         assert "const routerMinCostSliderPosition = computed({" in body
         assert "const dollars = compressedCostAxis.value ? v * v : v;" in body
         assert "routerMinCostSliderMax = computed(() => displayXValue(5));" in body
-        assert "formatTooltipTwoDecimals(routerMinCost)" in body
-        assert "formatTooltipTwoDecimals(routerMaxCost)" in body
-        assert "formatTooltipTwoDecimals(routerCostSplit)" in body
-        assert "return `${formatTooltipTwoDecimals(dollars)} $`;" in body
+        assert "formatTooltipThreeDecimals(routerMinCost)" in body
+        assert "formatTooltipThreeDecimals(routerMaxCost)" in body
+        assert "formatTooltipThreeDecimals(routerCostSplit)" in body
+        assert "return `${formatTooltipThreeDecimals(dollars)} $`;" in body
+        assert "function formatTooltipThreeDecimals(value)" in body
+        assert "const s = value.toFixed(3);" in body
