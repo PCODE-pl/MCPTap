@@ -1472,7 +1472,7 @@ const app = createApp({
         if (!fpts.length) return null;
         const col = providerColorMap.get(provider);
         return {
-          name: `${provider} characteristic`,
+          name: '',
           type: 'scatter',
           symbolSize: characteristicRingSymbolSize,
           data: fpts.map(p => ({
@@ -1481,6 +1481,7 @@ const app = createApp({
             emphasis: { scale: false, itemStyle: { borderColor: planSet.has(p) ? '#8B4513' : '#63b3ed', borderWidth: frontierBorderWidth, color: 'transparent' } },
           })),
           silent: true,
+          legendHoverLink: false,
           z: 6,
         };
       }).filter(Boolean);

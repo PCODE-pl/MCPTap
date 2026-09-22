@@ -362,4 +362,6 @@ async def test_serve_pareto_page_returns_html():
         assert "const characteristicRingSymbolSize = frontierSymbolSize * 2;" in body
         assert "borderWidth: frontierBorderWidth" in body
         assert "color: 'transparent'" in body
-        assert "const characteristicRingSeries =" in body
+        assert "name: `${provider} characteristic`" not in body
+        assert "name: '',\n          type: 'scatter',\n          symbolSize: characteristicRingSymbolSize" in body
+        assert "legendHoverLink: false" in body
