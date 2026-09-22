@@ -290,10 +290,11 @@
                 <output for="router-slider-min-cost">{{ routerMinCost.toFixed(1) }} $</output>
                 <n-slider
                   id="router-slider-min-cost"
-                  v-model:value="routerMinCost"
-                  :min="0"
-                  :max="5"
-                  :step="0.1"                  :format-tooltip="formatTooltipTwoDecimals"
+                  v-model:value="routerMinCostSliderPosition"
+                  :min="routerMinCostSliderMin"
+                  :max="routerMinCostSliderMax"
+                  :step="routerMinCostSliderStep"
+                  :format-tooltip="formatRouterMinCostTooltip"
 
                   data-testid="router-slider-min-cost"
                   @update:value="handleRouterMinCostChange"
@@ -465,9 +466,10 @@ const app = createApp({
     const routerQualityMaxBound = ref(100);
     const routerAllPoints = ref([]);
     function handleRouterMinCostChange(value) {
-      const v = typeof value === 'number' && Number.isFinite(value) ? value : 0;
-      routerMinCost.value = v;
-      const minMax = v + 0.05;
+      const v = typeof value === 'number' && Number.isFinite(value) ? value : displayXValue(routerMinCost.value);
+      const dollars = compressedCostAxis.value ? v * v : v;
+      routerMinCost.value = Math.max(0, Math.min(5, dollars));
+      const minMax = routerMinCost.value + 0.05;
       if (routerMaxCost.value < minMax) routerMaxCost.value = Math.min(70, minMax);
       if (routerCostSplit.value < routerMinCost.value) routerCostSplit.value = routerMinCost.value;
       if (routerCostSplit.value > routerMaxCost.value) routerCostSplit.value = routerMaxCost.value;
@@ -497,6 +499,18 @@ const app = createApp({
       const dollars = compressedCostAxis.value ? v * v : v;
       routerCostSplit.value = Math.max(routerMinCost.value, Math.min(routerMaxCost.value, dollars));
       scheduleRenderChart();
+    }
+    const routerMinCostSliderPosition = computed({
+      get: () => displayXValue(routerMinCost.value),
+      set: (v) => handleRouterMinCostChange(v),
+    });
+    const routerMinCostSliderMin = computed(() => 0);
+    const routerMinCostSliderMax = computed(() => displayXValue(5));
+    const routerMinCostSliderStep = computed(() => (compressedCostAxis.value ? 0.05 : 0.1));
+    function formatRouterMinCostTooltip(value) {
+      if (typeof value !== 'number' || !Number.isFinite(value)) return '';
+      const dollars = compressedCostAxis.value ? value * value : value;
+      return `${dollars.toFixed(1)} $`;
     }
     // Slider-space position of the split: matches the knob to the point
     // cloud on the X axis (sqrt when scale is on).
@@ -1586,6 +1600,7 @@ const app = createApp({
       areaZoomActive, zoomSelectionStyle, loadData, renderChart,
       QUALITY_SLIDER_MAX, pairedSliderDefinitions, qualityControls, costMix, costMixLabel, handleCostMixChange, handleQualityChange, handleFilterUpdate, formatTooltipTwoDecimals,
       routerMinCost, routerMaxCost, routerMinQuality, routerCostSplit, routerQualityMinBound, routerQualityMaxBound, handleRouterMinCostChange, handleRouterMaxCostChange, handleRouterMinQualityChange, handleRouterCostSplitChange,
+      routerMinCostSliderPosition, routerMinCostSliderMin, routerMinCostSliderMax, routerMinCostSliderStep, formatRouterMinCostTooltip,
       costSplitSliderPosition, costSplitSliderMin, costSplitSliderMax, costSplitSliderStep, formatCostSplitTooltip,
       routerMaxCostSliderPosition, routerMaxCostSliderMin, routerMaxCostSliderMax, routerMaxCostSliderStep, formatRouterMaxCostTooltip,
       popupVisible, popupPoints, popupIndex, popupStyle, popupRef, popupCardHtml,

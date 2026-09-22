@@ -340,3 +340,11 @@ async def test_serve_pareto_page_returns_html():
         assert "MCPTap Pareto" in body
         assert "https://cdn.jsdelivr.net/npm/echarts@6.1.0/dist/echarts.min.js" in body
         assert "https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js" not in body
+        assert 'v-model:value="routerMinCostSliderPosition"' in body
+        assert ':min="routerMinCostSliderMin"' in body
+        assert ':max="routerMinCostSliderMax"' in body
+        assert ':step="routerMinCostSliderStep"' in body
+        assert ':format-tooltip="formatRouterMinCostTooltip"' in body
+        assert "const routerMinCostSliderPosition = computed({" in body
+        assert "const dollars = compressedCostAxis.value ? v * v : v;" in body
+        assert "routerMinCostSliderMax = computed(() => displayXValue(5));" in body
