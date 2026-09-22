@@ -325,8 +325,8 @@
                   v-model:value="routerMinQuality"
                   :min="routerQualityMinBound"
                   :max="routerQualityMaxBound"
-                  :step="1"                  :format-tooltip="formatTooltipTwoDecimals"
-
+                  :step="1"
+                  :format-tooltip="formatTooltipTwoDecimals"
                   data-testid="router-slider-min-quality"
                   @update:value="handleRouterMinQualityChange"
                 />
@@ -339,10 +339,26 @@
                   v-model:value="costSplitSliderPosition"
                   :min="costSplitSliderMin"
                   :max="costSplitSliderMax"
-                  :step="costSplitSliderStep"                  :format-tooltip="formatCostSplitTooltip"
-
+                  :step="costSplitSliderStep"
+                  :format-tooltip="formatCostSplitTooltip"
                   data-testid="router-slider-cost-split"
                   @update:value="handleRouterCostSplitChange"
+                />
+              </div>
+            </div>
+            <div class="quality-slider-row" data-testid="router-slider-row-pareto-stripe">
+              <div class="quality-slider" data-testid="router-slider-pareto-stripe">
+                <label for="router-slider-pareto-stripe">Pareto Stripe</label>
+                <output for="router-slider-pareto-stripe">{{ routerParetoStripe }}%</output>
+                <n-slider
+                  id="router-slider-pareto-stripe"
+                  v-model:value="routerParetoStripe"
+                  :min="10"
+                  :max="150"
+                  :step="1"
+                  :format-tooltip="formatTooltipTwoDecimals"
+                  data-testid="router-slider-pareto-stripe-control"
+                  @update:value="handleRouterParetoStripeChange"
                 />
               </div>
             </div>
@@ -462,6 +478,7 @@ const app = createApp({
     const routerMaxCost = ref(70);
     const routerMinQuality = ref(55);
     const routerCostSplit = ref(2);
+    const routerParetoStripe = ref(50);
     const routerQualityMinBound = ref(0);
     const routerQualityMaxBound = ref(100);
     const routerAllPoints = ref([]);
@@ -498,6 +515,11 @@ const app = createApp({
       const v = typeof value === 'number' && Number.isFinite(value) ? value : displayXValue(routerMinCost.value);
       const dollars = compressedCostAxis.value ? v * v : v;
       routerCostSplit.value = Math.max(routerMinCost.value, Math.min(routerMaxCost.value, dollars));
+      scheduleRenderChart();
+    }
+    function handleRouterParetoStripeChange(value) {
+      const v = typeof value === 'number' && Number.isFinite(value) ? value : 50;
+      routerParetoStripe.value = Math.max(10, Math.min(150, v));
       scheduleRenderChart();
     }
     const routerMinCostSliderPosition = computed({
@@ -1363,10 +1385,10 @@ const app = createApp({
       return frontier;
     }
 
-    function computeParetoCharacteristicPoints(linePoints) {
+    function computeParetoCharacteristicPoints(linePoints, stripePercent) {
       if (!linePoints.length) return [];
       const startCost = linePoints[0].weightedCost;
-      const stripeLimit = startCost + startCost * 0.5;
+      const stripeLimit = startCost + startCost * stripePercent / 100;
       let characteristicPoint = linePoints[0];
       for (const point of linePoints) {
         if (point.weightedCost <= stripeLimit) characteristicPoint = point;
@@ -1425,8 +1447,8 @@ const app = createApp({
       const paretoFrontier = hasActiveFilter ? [] : computeParetoFrontier(displayPoints);
       const paretoAct = paretoFrontier.filter(p => p.weightedCost < routerCostSplit.value - 1e-9);
       const paretoPlan = paretoFrontier.filter(p => p.weightedCost >= routerCostSplit.value - 1e-9);
-      const paretoActCharacteristicPoints = computeParetoCharacteristicPoints(paretoAct);
-      const paretoPlanCharacteristicPoints = computeParetoCharacteristicPoints(paretoPlan);
+      const paretoActCharacteristicPoints = computeParetoCharacteristicPoints(paretoAct, routerParetoStripe.value);
+      const paretoPlanCharacteristicPoints = computeParetoCharacteristicPoints(paretoPlan, routerParetoStripe.value);
       const characteristicPointSet = new Set([
         ...paretoActCharacteristicPoints,
         ...paretoPlanCharacteristicPoints,
@@ -1651,7 +1673,7 @@ const app = createApp({
       areaZoomActive, zoomSelectionStyle, loadData, renderChart,
       QUALITY_SLIDER_MAX, pairedSliderDefinitions, qualityControls, costMix, costMixLabel, handleCostMixChange, handleQualityChange, handleFilterUpdate, formatTooltipTwoDecimals,
       formatTooltipThreeDecimals,
-      routerMinCost, routerMaxCost, routerMinQuality, routerCostSplit, routerQualityMinBound, routerQualityMaxBound, handleRouterMinCostChange, handleRouterMaxCostChange, handleRouterMinQualityChange, handleRouterCostSplitChange,
+      routerMinCost, routerMaxCost, routerMinQuality, routerCostSplit, routerParetoStripe, routerQualityMinBound, routerQualityMaxBound, handleRouterMinCostChange, handleRouterMaxCostChange, handleRouterMinQualityChange, handleRouterCostSplitChange, handleRouterParetoStripeChange,
       routerMinCostSliderPosition, routerMinCostSliderMin, routerMinCostSliderMax, routerMinCostSliderStep, formatRouterMinCostTooltip,
       costSplitSliderPosition, costSplitSliderMin, costSplitSliderMax, costSplitSliderStep, formatCostSplitTooltip,
       routerMaxCostSliderPosition, routerMaxCostSliderMin, routerMaxCostSliderMax, routerMaxCostSliderStep, formatRouterMaxCostTooltip,

@@ -355,13 +355,29 @@ async def test_serve_pareto_page_returns_html():
         assert "function formatTooltipThreeDecimals(value)" in body
         assert "const s = value.toFixed(3);" in body
         assert "formatTooltipThreeDecimals,\n      routerMinCost" in body
-        assert "function computeParetoCharacteristicPoints(linePoints)" in body
-        assert "const paretoActCharacteristicPoints = computeParetoCharacteristicPoints(paretoAct);" in body
-        assert "const paretoPlanCharacteristicPoints = computeParetoCharacteristicPoints(paretoPlan);" in body
+        assert "function computeParetoCharacteristicPoints(linePoints, stripePercent)" in body
+        assert (
+            "const paretoActCharacteristicPoints = computeParetoCharacteristicPoints(paretoAct, routerParetoStripe.value);"
+            in body
+        )
+        assert (
+            "const paretoPlanCharacteristicPoints = computeParetoCharacteristicPoints(paretoPlan, routerParetoStripe.value);"
+            in body
+        )
         assert "const characteristicBorderWidth = isCharacteristic ? 5.04 : 2.52;" not in body
         assert "const characteristicRingSymbolSize = frontierSymbolSize * 2;" in body
         assert "borderWidth: frontierBorderWidth" in body
         assert "color: 'transparent'" in body
         assert "name: `${provider} characteristic`" not in body
         assert "name: '',\n          type: 'scatter',\n          symbolSize: characteristicRingSymbolSize" in body
+        assert 'data-testid="router-slider-pareto-stripe"' in body
+        assert "routerParetoStripe = ref(50)" in body
+        assert ':min="10"' in body
+        assert ':max="150"' in body
+        assert ':step="1"' in body
+        assert "handleRouterParetoStripeChange" in body
+        assert "computeParetoCharacteristicPoints(linePoints, stripePercent)" in body
+        assert "const stripeLimit = startCost + startCost * stripePercent / 100;" in body
+        assert "computeParetoCharacteristicPoints(paretoAct, routerParetoStripe.value)" in body
+        assert "computeParetoCharacteristicPoints(paretoPlan, routerParetoStripe.value)" in body
         assert "legendHoverLink: false" in body
