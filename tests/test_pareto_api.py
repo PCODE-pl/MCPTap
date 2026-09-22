@@ -354,3 +354,4 @@ async def test_serve_pareto_page_returns_html():
         assert "return `${formatTooltipThreeDecimals(dollars)} $`;" in body
         assert "function formatTooltipThreeDecimals(value)" in body
         assert "const s = value.toFixed(3);" in body
+        assert "formatTooltipThreeDecimals,\n      routerMinCost" in body
