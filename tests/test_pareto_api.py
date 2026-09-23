@@ -430,7 +430,11 @@ async def test_serve_pareto_page_returns_html():
         assert "characteristicOverlayGridClips().xAxis" not in body
         assert 'data-testid="pareto-clipped-grid"' not in body
         assert "const clippedGridSeries = buildClippedGridSeries();" in body
-        assert "setTimeout(() => renderChart(true), 0);" in body
+        assert "function refreshClippedGrid()" in body
+        assert "id: 'characteristic-clipped-grid'," in body
+        assert "refreshClippedGrid();" in body
+        assert "setTimeout(() => renderChart(true), 0);" not in body
+        assert "requestAnimationFrame(() => renderChart(true));" not in body
         assert "return segments.length ? {" in body
         assert "series.unshift(clippedGridSeries);" in body
         assert "splitLine: { show: false }" in body
