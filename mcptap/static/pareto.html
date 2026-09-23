@@ -64,8 +64,7 @@
     .pareto-characteristic-overlay { display: none; }
     .characteristic-overlay-hit-targets { position: absolute; z-index: 1000; pointer-events: none; }
     .characteristic-overlay-hit-target { position: absolute; display: block; box-sizing: border-box; margin: 0; padding: 0; border: 0; background: transparent; pointer-events: auto; cursor: pointer; appearance: none; }
-    .characteristic-overlay-hit-target::after { content: ''; position: absolute; inset: 0; background: rgba(0, 0, 0, 0.001); }
-    .characteristic-overlay-hit-target:hover::after { background: rgba(99, 179, 237, 0.08); }
+    .characteristic-overlay-hit-target:hover::after { content: ''; position: absolute; inset: 0; background: rgba(99, 179, 237, 0.08); pointer-events: none; }
 
     .pareto-toast { position: fixed; z-index: 10; top: 12px; left: 12px; max-width: min(520px, 60vw); padding: 8px 12px; border: 1px solid #333; border-radius: 6px; background: rgba(26, 26, 32, .96); color: #9fd68a; font-size: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.6); animation: pareto-toast-in .25s ease-out; }
     .pareto-toast[data-tone="error"] { color: #f0a3a3; }
@@ -756,7 +755,7 @@ const app = createApp({
     // navigation buttons. Both the painted buttons and the click fallback
     // derive their Y range from this single value, so the clickable area can
     // never drift away from the visible buttons.
-    const NAV_BUTTON_TOP_MARGIN = 34;
+    const NAV_BUTTON_TOP_MARGIN = 24;
     const CHARACTERISTIC_OVERLAY_GRID_BOTTOM = 66;
     const CHARACTERISTIC_OVERLAY_GRID_RIGHT = 32;
     const characteristicOverlayLine = ref('act');
