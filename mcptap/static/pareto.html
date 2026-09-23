@@ -1010,8 +1010,12 @@ const app = createApp({
       // is not recomputed here. The watcher below repaints the graphic.
       if (action === 'prev') characteristicOverlayPrev();
       else if (action === 'next') characteristicOverlayNext();
-      else if (action === 'act') characteristicOverlayLine.value = 'act';
-      else if (action === 'plan') characteristicOverlayLine.value = 'plan';
+      else if (action === 'act' || action === 'plan') {
+        // Reset the card position so a single-card line never inherits the
+        // stale index (and its ‹ › arrows) from a multi-card line.
+        if (characteristicOverlayLine.value !== action) characteristicOverlayIndex.value = 0;
+        characteristicOverlayLine.value = action;
+      }
       else return;
     }
 

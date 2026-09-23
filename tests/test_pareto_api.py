@@ -437,6 +437,8 @@ async def test_serve_pareto_page_returns_html():
         assert "cursor: 'default'" in body
         assert "silent: true,\n        cursor: 'default'," in body
         assert "watch([characteristicOverlayLine, characteristicOverlayIndex]" in body
+        assert "characteristicOverlayIndex.value = 0;" in body
+        assert "stale index (and its" in body
         assert "renderChart(true);\n    }\n\n    function expandCharacteristicOverlayPoints" not in body
         assert "onclick: () => { handleOverlayNavButton('prev'); }" in body
         assert "onclick: () => { handleOverlayNavButton('next'); }" in body
