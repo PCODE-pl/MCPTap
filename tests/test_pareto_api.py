@@ -427,28 +427,34 @@ async def test_serve_pareto_page_returns_html():
             "characteristicOverlayIndex.value = nextPoints.findIndex(point => characteristicOverlayPointKey(point) === currentPointKey);"
             in body
         )
-        assert "silent: false" in body
+        assert "silent: false" not in body
         assert "function handleOverlayNavButton(action)" in body
-        assert "onclick: () => { handleOverlayNavButton('prev'); }" in body
-        assert "onclick: () => { handleOverlayNavButton('next'); }" in body
-        assert "onclick: () => { handleOverlayNavButton('act'); }" in body
-        assert "onclick: () => { handleOverlayNavButton('plan'); }" in body
+        assert "onclick: () => { handleOverlayNavButton('prev'); }" not in body
+        assert "onclick: () => { handleOverlayNavButton('next'); }" not in body
+        assert "onclick: () => { handleOverlayNavButton('act'); }" not in body
+        assert "onclick: () => { handleOverlayNavButton('plan'); }" not in body
         assert "cursor: 'pointer'" in body
         assert "cursor: 'default'" in body
         assert "silent: true,\n        cursor: 'default'," in body
+        assert "const clientX = numeric(rawEvent?.clientX);" in body
+        assert (
+            "const chartX = clientX === null ? numeric(params?.zrX) ?? numeric(params?.offsetX) : clientX - chartRect.left;"
+            in body
+        )
         assert "watch([characteristicOverlayLine, characteristicOverlayIndex]" in body
-        assert "silent: false," in body
+        assert "silent: true," in body
         assert "NAV_BUTTON_TOP_MARGIN" in body
+        assert "element onclick never fires inside a silent group" in body
         assert "const NAV_BUTTON_TOP_MARGIN = 34;" in body
         assert "navigationTop = CHARACTERISTIC_OVERLAY_HEIGHT - NAV_BUTTON_TOP_MARGIN" in body
         assert "replaceMerge: ['graphic']" in body
         assert "characteristicOverlayIndex.value = 0;" in body
         assert "stale index (and its" in body
         assert "renderChart(true);\n    }\n\n    function expandCharacteristicOverlayPoints" not in body
-        assert "onclick: () => { handleOverlayNavButton('prev'); }" in body
-        assert "onclick: () => { handleOverlayNavButton('next'); }" in body
-        assert "onclick: () => { handleOverlayNavButton('act'); }" in body
-        assert "onclick: () => { handleOverlayNavButton('plan'); }" in body
+        assert "onclick: () => { handleOverlayNavButton('prev'); }" not in body
+        assert "onclick: () => { handleOverlayNavButton('next'); }" not in body
+        assert "onclick: () => { handleOverlayNavButton('act'); }" not in body
+        assert "onclick: () => { handleOverlayNavButton('plan'); }" not in body
         assert "onclick: () => { characteristicOverlayPrev(); renderChart(true); }" not in body
         assert "onclick: () => { characteristicOverlayNext(); renderChart(true); }" not in body
         assert "onclick: () => { characteristicOverlayLine.value = 'act'; renderChart(true); }" not in body

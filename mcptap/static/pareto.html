@@ -796,21 +796,22 @@ const app = createApp({
       const count = characteristicOverlayPoints.value.length;
       const activeAct = characteristicOverlayLine.value === 'act';
       const navigationTop = CHARACTERISTIC_OVERLAY_HEIGHT - NAV_BUTTON_TOP_MARGIN;
-      // Clickable buttons are real event targets (silent: false + pointer
-      // cursor); the overlay group itself stays silent with the default cursor
-      // so only the buttons suggest clickability.
+      // Clickable buttons are silent shapes with a pointer cursor; the overlay
+      // group itself stays silent with the default cursor so only the buttons
+      // suggest clickability. Clicks are handled by the zrender coordinate
+      // fallback below (element onclick never fires inside a silent group).
       const buttonCursor = { cursor: 'pointer' };
       const navigationControls = [
-        { type: 'rect', shape: { x: 8, y: navigationTop, width: 42, height: 22, r: 4 }, silent: false, onclick: () => { handleOverlayNavButton('act'); }, style: { fill: activeAct ? '#303b4a' : '#25252c', stroke: activeAct ? '#63b3ed' : 'rgba(255,255,255,.2)', lineWidth: 1, ...buttonCursor } },
+        { type: 'rect', shape: { x: 8, y: navigationTop, width: 42, height: 22, r: 4 }, silent: true, style: { fill: activeAct ? '#303b4a' : '#25252c', stroke: activeAct ? '#63b3ed' : 'rgba(255,255,255,.2)', lineWidth: 1, ...buttonCursor } },
         { type: 'text', style: { x: 29, y: navigationTop + 11, text: 'Act', fill: '#ddd', font: '12px sans-serif', textAlign: 'center', textVerticalAlign: 'middle', ...buttonCursor } },
-        { type: 'rect', shape: { x: 54, y: navigationTop, width: 48, height: 22, r: 4 }, silent: false, onclick: () => { handleOverlayNavButton('plan'); }, style: { fill: !activeAct ? '#303b4a' : '#25252c', stroke: !activeAct ? '#63b3ed' : 'rgba(255,255,255,.2)', lineWidth: 1, ...buttonCursor } },
+        { type: 'rect', shape: { x: 54, y: navigationTop, width: 48, height: 22, r: 4 }, silent: true, style: { fill: !activeAct ? '#303b4a' : '#25252c', stroke: !activeAct ? '#63b3ed' : 'rgba(255,255,255,.2)', lineWidth: 1, ...buttonCursor } },
         { type: 'text', style: { x: 78, y: navigationTop + 11, text: 'Plan', fill: '#ddd', font: '12px sans-serif', textAlign: 'center', textVerticalAlign: 'middle', ...buttonCursor } },
       ];
       if (count > 1) navigationControls.push(
         { type: 'text', style: { x: CHARACTERISTIC_OVERLAY_WIDTH - 74, y: navigationTop + 13, text: `${characteristicOverlayIndex.value + 1} / ${count}`, fill: '#aaa', font: '11px monospace', textAlign: 'right', textVerticalAlign: 'middle' } },
-        { type: 'rect', shape: { x: CHARACTERISTIC_OVERLAY_WIDTH - 64, y: navigationTop, width: 26, height: 22, r: 4 }, silent: false, onclick: () => { handleOverlayNavButton('prev'); }, style: { fill: '#25252c', stroke: 'rgba(255,255,255,.2)', lineWidth: 1, ...buttonCursor } },
+        { type: 'rect', shape: { x: CHARACTERISTIC_OVERLAY_WIDTH - 64, y: navigationTop, width: 26, height: 22, r: 4 }, silent: true, style: { fill: '#25252c', stroke: 'rgba(255,255,255,.2)', lineWidth: 1, ...buttonCursor } },
         { type: 'text', style: { x: CHARACTERISTIC_OVERLAY_WIDTH - 51, y: navigationTop + 11, text: '‹', fill: '#ddd', font: '16px sans-serif', textAlign: 'center', textVerticalAlign: 'middle', ...buttonCursor } },
-        { type: 'rect', shape: { x: CHARACTERISTIC_OVERLAY_WIDTH - 32, y: navigationTop, width: 26, height: 22, r: 4 }, silent: false, onclick: () => { handleOverlayNavButton('next'); }, style: { fill: '#25252c', stroke: 'rgba(255,255,255,.2)', lineWidth: 1, ...buttonCursor } },
+        { type: 'rect', shape: { x: CHARACTERISTIC_OVERLAY_WIDTH - 32, y: navigationTop, width: 26, height: 22, r: 4 }, silent: true, style: { fill: '#25252c', stroke: 'rgba(255,255,255,.2)', lineWidth: 1, ...buttonCursor } },
         { type: 'text', style: { x: CHARACTERISTIC_OVERLAY_WIDTH - 19, y: navigationTop + 11, text: '›', fill: '#ddd', font: '16px sans-serif', textAlign: 'center', textVerticalAlign: 'middle', ...buttonCursor } },
       );
       const richText = {
@@ -992,15 +993,20 @@ const app = createApp({
 
     function handleCharacteristicOverlayClick(params) {
       const event = params?.event;
-      const x = numeric(event?.zrX) ?? numeric(event?.offsetX) ?? numeric(params?.zrX) ?? numeric(params?.offsetX);
-      const y = numeric(event?.zrY) ?? numeric(event?.offsetY) ?? numeric(params?.zrY) ?? numeric(params?.offsetY);
-      if (x === null || y === null || !chart.value || !characteristicOverlayPoint.value) return;
+      if (!chart.value || !characteristicOverlayPoint.value) return;
+      const chartRect = chart.value.getDom().getBoundingClientRect();
+      const rawEvent = event || params;
+      const clientX = numeric(rawEvent?.clientX);
+      const clientY = numeric(rawEvent?.clientY);
+      const chartX = clientX === null ? numeric(params?.zrX) ?? numeric(params?.offsetX) : clientX - chartRect.left;
+      const chartY = clientY === null ? numeric(params?.zrY) ?? numeric(params?.offsetY) : clientY - chartRect.top;
+      if (chartX === null || chartY === null) return;
       const { left, top } = characteristicOverlayPosition();
-      const localX = x - left;
-      const localY = y - top;
-      // The overlay buttons are non-silent event targets with their own
-      // onclick handlers, so this zrender fallback stays as a safety net
-      // for clicks that miss the button shapes.
+      const localX = chartX - left;
+      const localY = chartY - top;
+      // Resolve clicks in chart-local coordinates. Firefox can report the
+      // event on the overlay's separate canvas without dispatching child
+      // graphic handlers, so this is the single navigation hit-test path.
       const navigationTop = CHARACTERISTIC_OVERLAY_HEIGHT - NAV_BUTTON_TOP_MARGIN;
       if (localX >= 8 && localX <= 50 && localY >= navigationTop && localY <= navigationTop + 22) handleOverlayNavButton('act');
       else if (localX >= 54 && localX <= 102 && localY >= navigationTop && localY <= navigationTop + 22) handleOverlayNavButton('plan');
@@ -1013,8 +1019,9 @@ const app = createApp({
       // Switching cards only swaps the already computed overlay lists and
       // repaints the card; the full chart pipeline (points, frontier, series)
       // is not recomputed here. The watcher below repaints the graphic.
-      // The buttons are non-silent (silent: false), so each physical click
-      // fires exactly one onclick and never reaches the zrender fallback.
+      // The buttons are silent shapes whose clicks are all handled by the
+      // zrender coordinate fallback, so each physical click advances exactly
+      // one step (no double advance from an element onclick plus fallback).
       if (action === 'prev') characteristicOverlayPrev();
       else if (action === 'next') characteristicOverlayNext();
       else if (action === 'act' || action === 'plan') {
