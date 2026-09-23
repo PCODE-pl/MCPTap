@@ -460,6 +460,11 @@ async def test_serve_pareto_page_returns_html():
         assert "onclick: () => { characteristicOverlayLine.value = 'act'; renderChart(true); }" not in body
         assert "onclick: () => { characteristicOverlayLine.value = 'plan'; renderChart(true); }" not in body
         assert "zr.off('click', handleCharacteristicOverlayClick);" in body
+        assert 'data-testid="characteristic-overlay-hit-targets"' in body
+        assert 'class="characteristic-overlay-hit-target"' in body
+        assert '@click.stop="handleOverlayNavButton(target.action)"' in body
+        assert "const characteristicOverlayHitTargets = computed(() =>" in body
+        assert "characteristicOverlayHitTargetsStyle" in body
         assert "function buildClippedGridSeries()" in body
         assert "function niceTickStep(rawStep)" in body
         assert "characteristicOverlayGridClips().xAxis" not in body

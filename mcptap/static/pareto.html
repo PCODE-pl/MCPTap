@@ -62,6 +62,8 @@
     .pareto-popup__dots span.active { background: #63b3ed; }
     .pareto-popup__actions { display: flex; gap: 8px; padding: 0 12px 10px; }
     .pareto-characteristic-overlay { display: none; }
+    .characteristic-overlay-hit-targets { position: absolute; z-index: 5; pointer-events: none; }
+    .characteristic-overlay-hit-target { position: absolute; box-sizing: border-box; padding: 0; border: 0; background: transparent; pointer-events: auto; cursor: pointer; }
 
     .pareto-toast { position: fixed; z-index: 10; top: 12px; left: 12px; max-width: min(520px, 60vw); padding: 8px 12px; border: 1px solid #333; border-radius: 6px; background: rgba(26, 26, 32, .96); color: #9fd68a; font-size: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.6); animation: pareto-toast-in .25s ease-out; }
     .pareto-toast[data-tone="error"] { color: #f0a3a3; }
@@ -163,6 +165,18 @@
           :data-y-max="formatDiagnosticNumber(viewRange.yMax)"
           :data-zoom-active="areaZoomActive"
           ></div>
+          <div v-if="characteristicOverlayHitTargets.length" class="characteristic-overlay-hit-targets" :style="characteristicOverlayHitTargetsStyle" data-testid="characteristic-overlay-hit-targets">
+            <button
+              v-for="target in characteristicOverlayHitTargets"
+              :key="target.action"
+              type="button"
+              class="characteristic-overlay-hit-target"
+              :style="target.style"
+              :aria-label="target.label"
+              :data-action="target.action"
+              @click.stop="handleOverlayNavButton(target.action)"
+            ></button>
+          </div>
           <section v-if="diagnosticsVisible" class="chart-diagnostics" data-testid="pareto-chart-diagnostics" aria-label="Pareto chart diagnostics">
           <span>state=<strong data-testid="pareto-render-state">{{ chartState }}</strong></span>
           <span>renderer=<strong data-testid="pareto-renderer">{{ renderer }}</strong></span>
@@ -754,6 +768,36 @@ const app = createApp({
       return points[characteristicOverlayIndex.value];
     });
     const characteristicOverlayCardHtml = computed(() => buildPopupCardHtml(characteristicOverlayPoint.value));
+    const characteristicOverlayHitTargetsStyle = computed(() => {
+      const position = characteristicOverlayPosition();
+      const chartDom = chart.value?.getDom();
+      const container = chartDom?.parentElement;
+      if (!chartDom || !container) return { display: 'none' };
+      const chartRect = chartDom.getBoundingClientRect();
+      const containerRect = container.getBoundingClientRect();
+      return {
+        left: `${chartRect.left - containerRect.left + position.left}px`,
+        top: `${chartRect.top - containerRect.top + position.top}px`,
+        width: `${CHARACTERISTIC_OVERLAY_WIDTH}px`,
+        height: `${CHARACTERISTIC_OVERLAY_HEIGHT}px`,
+      };
+    });
+    const characteristicOverlayHitTargets = computed(() => {
+      const points = characteristicOverlayPoints.value;
+      if (!characteristicOverlayPoint.value || !points.length) return [];
+      const top = CHARACTERISTIC_OVERLAY_HEIGHT - NAV_BUTTON_TOP_MARGIN;
+      const targets = [
+        { action: 'act', label: 'Act characteristic points', left: 8, width: 42 },
+        { action: 'plan', label: 'Plan characteristic points', left: 56, width: 48 },
+      ];
+      if (points.length > 1) {
+        targets.push(
+          { action: 'prev', label: 'Previous characteristic point', left: CHARACTERISTIC_OVERLAY_WIDTH - 64, width: 26 },
+          { action: 'next', label: 'Next characteristic point', left: CHARACTERISTIC_OVERLAY_WIDTH - 32, width: 26 },
+        );
+      }
+      return targets.map(target => ({ ...target, style: { left: `${target.left}px`, top: `${top}px`, width: `${target.width}px`, height: '22px' } }));
+    });
     function characteristicOverlayPrev() {
       const count = characteristicOverlayPoints.value.length;
       if (count) characteristicOverlayIndex.value = (characteristicOverlayIndex.value - 1 + count) % count;
@@ -2020,6 +2064,7 @@ const app = createApp({
       popupVisible, popupPoints, popupIndex, popupStyle, popupRef, popupCardHtml,
       handlePopupEnter, handlePopupLeave, popupNext, popupPrev,
       popupActionable, popupActionTitle, toastMessage, toastTone, handleActModel, handlePlanModel,
+      characteristicOverlayHitTargets, characteristicOverlayHitTargetsStyle, handleOverlayNavButton,
     };
   },
 });
