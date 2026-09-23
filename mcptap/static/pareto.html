@@ -818,6 +818,8 @@ const app = createApp({
         z: 100,
         children: [
           { type: 'rect', shape: { x: 0, y: 0, width: CHARACTERISTIC_OVERLAY_WIDTH, height: CHARACTERISTIC_OVERLAY_HEIGHT, r: 8 }, style: { fill: 'rgba(26,26,32,1)', stroke: '#666', lineWidth: 1, shadowBlur: 12, shadowColor: 'rgba(0,0,0,.35)' } },
+          { type: 'rect', shape: { x: CHARACTERISTIC_OVERLAY_WIDTH - 76, y: -9, width: 56, height: 18, r: 4 }, style: { fill: 'rgba(26,26,32,1)', stroke: '#3a3a45', lineWidth: 1 } },
+          { type: 'text', style: { x: CHARACTERISTIC_OVERLAY_WIDTH - 48, y: 0, text: 'PARETO', fill: '#aab', font: '600 11px sans-serif', textAlign: 'center', textVerticalAlign: 'middle' } },
           ...text,
           ...navigationControls,
         ],

@@ -410,6 +410,8 @@ async def test_serve_pareto_page_returns_html():
         assert "const navigationTop = CHARACTERISTIC_OVERLAY_HEIGHT - 34;" in body
         assert "x: CHARACTERISTIC_OVERLAY_WIDTH - 91" not in body
         assert "x: CHARACTERISTIC_OVERLAY_WIDTH - 74" in body
+        assert "text: 'PARETO'" in body
+        assert "PARETO', fill: '#aab'" in body
         assert "y: navigationTop + 13" in body
         assert "...(point.isThinking ? ['Thinking: yes'] : [])," not in body
         assert "text: activeAct ? 'Act' : 'Plan'" not in body
