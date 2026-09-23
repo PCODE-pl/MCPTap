@@ -425,4 +425,13 @@ async def test_serve_pareto_page_returns_html():
         assert "onclick: () => { characteristicOverlayPrev(); renderChart(true); }" in body
         assert "onclick: () => { characteristicOverlayNext(); renderChart(true); }" in body
         assert "onclick: () => { characteristicOverlayLine.value = 'act'; renderChart(true); }" in body
+        assert "function buildClippedGridSeries()" in body
+        assert "function niceTickStep(rawStep)" in body
+        assert "characteristicOverlayGridClips().xAxis" not in body
+        assert 'data-testid="pareto-clipped-grid"' not in body
+        assert "const clippedGridSeries = buildClippedGridSeries();" in body
+        assert "setTimeout(() => renderChart(true), 0);" in body
+        assert "return segments.length ? {" in body
+        assert "series.unshift(clippedGridSeries);" in body
+        assert "splitLine: { show: false }" in body
         assert "legendHoverLink: false" in body

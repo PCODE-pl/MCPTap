@@ -824,6 +824,136 @@ const app = createApp({
       }];
     }
 
+    function niceTickStep(rawStep) {
+      // Fallback grid spacing when the committed axis scale is unavailable.
+      if (!Number.isFinite(rawStep) || rawStep <= 0) return 1;
+      const magnitude = 10 ** Math.floor(Math.log10(rawStep));
+      const normalized = rawStep / magnitude;
+      if (normalized >= 5) return 5 * magnitude;
+      if (normalized >= 2) return 2 * magnitude;
+      return magnitude;
+    }
+
+    function buildClippedGridSeries() {
+      // Grid segments are computed from the last committed axis option, so the
+      // first render (without a committed model yet) has no grid to clip.
+      if (!chart.value || !characteristicOverlayPoint.value) return null;
+      let model = null;
+      try {
+        model = chart.value.getModel?.();
+      } catch (err) {
+        model = null;
+      }
+      if (!model) return null;
+      const optionAxis = axis => {
+        const configured = model?.option?.[axis];
+        return Array.isArray(configured) ? configured[0] : configured;
+      };
+      const committedXAxis = optionAxis('xAxis');
+      const committedYAxis = optionAxis('yAxis');
+      if (committedXAxis == null || committedYAxis == null) return null;
+      const overlay = characteristicOverlayPosition();
+      const right = overlay.left + CHARACTERISTIC_OVERLAY_WIDTH;
+      const bottom = overlay.top + CHARACTERISTIC_OVERLAY_HEIGHT;
+      const segments = [];
+      const ticks = axis => {
+        // ECharts 6 IntervalScale exposes ticks() (getTicks was renamed), so
+        // accept both spellings from the committed axis scale.
+        let scale = null;
+        try {
+          scale = chart.value.getModel().getComponent(axis)?.axis?.scale;
+        } catch (err) {
+          scale = null;
+        }
+        let rawTicks = [];
+        try {
+          rawTicks = typeof scale?.ticks === 'function'
+            ? scale.ticks()
+            : (typeof scale?.getTicks === 'function' ? scale.getTicks() : []);
+        } catch (err) {
+          rawTicks = [];
+        }
+        const values = (Array.isArray(rawTicks) ? rawTicks : []).map(tick => (tick && typeof tick === 'object' && 'value' in tick ? tick.value : tick)).filter(value => typeof value === 'number' && Number.isFinite(value));
+        if (values.length) return values;
+        const configured = axis === 'xAxis' ? committedXAxis : committedYAxis;
+        const min = numeric(configured?.min) ?? viewRange.value[axis === 'xAxis' ? 'xMin' : 'yMin'];
+        const max = numeric(configured?.max) ?? viewRange.value[axis === 'xAxis' ? 'xMax' : 'yMax'];
+        if (min === null || max === null || !(max > min)) return [];
+        const step = niceTickStep((max - min) / 6);
+        const fallback = [];
+        for (let value = Math.ceil(min / step) * step; value <= max + 1e-9; value += step) fallback.push(value);
+        return fallback;
+      };
+      const toPixel = (axis, value) => {
+        // ECharts convertToPixel can return a bare number for a single axis
+        // value, so normalize every spelling before comparing with pixels.
+        let pixel = null;
+        try {
+          pixel = chart.value.convertToPixel(axis === 'x' ? { xAxisIndex: 0 } : { yAxisIndex: 0 }, value);
+        } catch (err) {
+          pixel = null;
+        }
+        if (typeof pixel === 'number') return pixel;
+        if (Array.isArray(pixel)) {
+          const numericParts = pixel.filter(part => typeof part === 'number' && Number.isFinite(part));
+          if (axis === 'x') return typeof pixel[0] === 'number' ? pixel[0] : (numericParts[0] ?? null);
+          return typeof pixel[1] === 'number' ? pixel[1] : (numericParts[0] ?? null);
+        }
+        return null;
+      };
+      const edgePixel = (axis, edge) => {
+        let pixel = null;
+        try {
+          pixel = chart.value.convertToPixel(axis === 'x' ? { xAxisIndex: 0 } : { yAxisIndex: 0 }, edge);
+        } catch (err) {
+          pixel = null;
+        }
+        if (typeof pixel === 'number') return pixel;
+        if (Array.isArray(pixel)) {
+          const numericParts = pixel.filter(part => typeof part === 'number' && Number.isFinite(part));
+          if (axis === 'x') return typeof pixel[0] === 'number' ? pixel[0] : (numericParts[0] ?? null);
+          return typeof pixel[1] === 'number' ? pixel[1] : (numericParts[0] ?? null);
+        }
+        return null;
+      };
+      for (const value of ticks('xAxis')) {
+        if (typeof value !== 'number' || !Number.isFinite(value)) continue;
+        const px = toPixel('x', value);
+        const yTop = edgePixel('y', viewRange.value.yMax);
+        const yBottom = edgePixel('y', viewRange.value.yMin);
+        if (typeof px !== 'number' || !Number.isFinite(px) || typeof yTop !== 'number' || !Number.isFinite(yTop) || typeof yBottom !== 'number' || !Number.isFinite(yBottom)) continue;
+        if (px >= overlay.left && px <= right) {
+          segments.push([[px, yTop], [px, overlay.top]]);
+          segments.push([[px, bottom], [px, yBottom]]);
+        } else {
+          segments.push([[px, yTop], [px, yBottom]]);
+        }
+      }
+      for (const value of ticks('yAxis')) {
+        if (typeof value !== 'number' || !Number.isFinite(value)) continue;
+        const py = toPixel('y', value);
+        const xLeft = edgePixel('x', viewRange.value.xMin);
+        const xRight = edgePixel('x', viewRange.value.xMax);
+        if (typeof py !== 'number' || !Number.isFinite(py) || typeof xLeft !== 'number' || !Number.isFinite(xLeft) || typeof xRight !== 'number' || !Number.isFinite(xRight)) continue;
+        if (py >= overlay.top && py <= bottom) {
+          segments.push([[xLeft, py], [overlay.left, py]]);
+          segments.push([[right, py], [xRight, py]]);
+        } else {
+          segments.push([[xLeft, py], [xRight, py]]);
+        }
+      }
+      return segments.length ? {
+        name: '',
+        type: 'custom',
+        silent: true,
+        legendHoverLink: false,
+        z: 0,
+        renderItem: (params, api) => ({ type: 'line', shape: { x1: api.value(0), y1: api.value(1), x2: api.value(2), y2: api.value(3) }, style: { stroke: '#28282f', lineWidth: 1 } }),
+        dimensions: ['x1', 'y1', 'x2', 'y2'],
+        data: segments.map(([start, end]) => [start[0], start[1], end[0], end[1]]),
+      } : null;
+    }
+
     function handleCharacteristicOverlayClick(params) {
       const event = params?.event;
       const x = numeric(event?.zrX) ?? numeric(event?.offsetX) ?? numeric(params?.zrX) ?? numeric(params?.offsetX);
@@ -1682,6 +1812,14 @@ const app = createApp({
         });
       }
       series.push(...frontierSeries, ...characteristicRingSeries);
+      const clippedGridSeries = buildClippedGridSeries();
+      if (clippedGridSeries) {
+        series.unshift(clippedGridSeries);
+      } else if (characteristicOverlayPoint.value) {
+        // The first commit has no axis model yet, so the clipped grid can only
+        // be computed once the axes exist; rebuild right after this commit.
+        setTimeout(() => renderChart(true), 0);
+      }
       const legendSelection = providers.reduce(
         (selection, provider) => ({ ...selection, [provider]: legendVisibility[provider] !== false }),
         {},
@@ -1703,15 +1841,15 @@ const app = createApp({
                 name: 'Weighted cost ($/M tokens)', nameLocation: 'middle', nameGap: 38,
                 type: 'value', min: viewRange.value.xMin, max: viewRange.value.xMax,
                 axisLabel: { color: '#aaa', formatter: value => formatCompressedAxisLabel(value) },
-                nameTextStyle: { color: '#ccc' }, splitLine: { lineStyle: { color: '#28282f' } },
+                nameTextStyle: { color: '#ccc' }, splitLine: { show: false },
               }
             : {
                 name: 'Weighted cost ($/M tokens)', nameLocation: 'middle', nameGap: 38,
                 type: 'value', scale: true, min: viewRange.value.xMin, max: viewRange.value.xMax,
                 axisLabel: { color: '#aaa', formatter: value => Number.isInteger(value) ? value : value.toFixed(1) },
-                nameTextStyle: { color: '#ccc' }, splitLine: { lineStyle: { color: '#28282f' } },
+                nameTextStyle: { color: '#ccc' }, splitLine: { show: false },
               },
-          yAxis: { name: 'Quality', nameLocation: 'middle', nameGap: 48, type: 'value', min: viewRange.value.yMin, max: viewRange.value.yMax, axisLabel: { color: '#aaa', formatter: value => Number.isInteger(value) ? value : value.toFixed(1) }, nameTextStyle: { color: '#ccc' }, splitLine: { lineStyle: { color: '#28282f' } } },
+          yAxis: { name: 'Quality', nameLocation: 'middle', nameGap: 48, type: 'value', min: viewRange.value.yMin, max: viewRange.value.yMax, axisLabel: { color: '#aaa', formatter: value => Number.isInteger(value) ? value : value.toFixed(1) }, nameTextStyle: { color: '#ccc' }, splitLine: { show: false } },
           series,
         }, { notMerge: true, lazyUpdate: false });
         renderedPoints = displayPoints;
