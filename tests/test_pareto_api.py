@@ -385,9 +385,9 @@ async def test_serve_pareto_page_returns_html():
         assert 'data-testid="pareto-characteristic-overlay-plan"' not in body
         assert "const CHARACTERISTIC_OVERLAY_WIDTH = 300;" in body
         assert "const CHARACTERISTIC_OVERLAY_WIDTH = 340;" not in body
-        assert "const CHARACTERISTIC_OVERLAY_HEIGHT = 130;" in body
-        assert "const CHARACTERISTIC_OVERLAY_HEIGHT = 140;" not in body
-        assert "y: 16 + index * 18" in body
+        assert "const CHARACTERISTIC_OVERLAY_HEIGHT = 122;" in body
+        assert "const CHARACTERISTIC_OVERLAY_HEIGHT = 130;" not in body
+        assert "y: 12 + index * 18" in body
         assert "const CHARACTERISTIC_OVERLAY_HEIGHT = 196;" not in body
         assert "function overlayPointLines(point)" in body
         assert "Provider: {provider|" in body
