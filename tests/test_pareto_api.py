@@ -389,6 +389,8 @@ async def test_serve_pareto_page_returns_html():
         assert "const CHARACTERISTIC_OVERLAY_HEIGHT = 130;" not in body
         assert "y: 12 + index * 18" in body
         assert "const CHARACTERISTIC_OVERLAY_HEIGHT = 196;" not in body
+        assert "const CHARACTERISTIC_OVERLAY_TITLE_LIFT = 9;" in body
+        assert "CHARACTERISTIC_OVERLAY_HEIGHT - CHARACTERISTIC_OVERLAY_TITLE_LIFT" in body
         assert "function overlayPointLines(point)" in body
         assert "Provider: {provider|" in body
         assert "Alias: {alias|" in body

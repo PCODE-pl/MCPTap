@@ -733,6 +733,9 @@ const app = createApp({
     const popupCardHtml = computed(() => buildPopupCardHtml(popupPoints.value[popupIndex.value]));
     const CHARACTERISTIC_OVERLAY_WIDTH = 300;
     const CHARACTERISTIC_OVERLAY_HEIGHT = 122;
+    // The PARETO title badge straddles the top frame edge, so the whole card
+    // is lifted by the badge overhang to keep the bottom edge on the X axis.
+    const CHARACTERISTIC_OVERLAY_TITLE_LIFT = 9;
     const CHARACTERISTIC_OVERLAY_GRID_BOTTOM = 66;
     const CHARACTERISTIC_OVERLAY_GRID_RIGHT = 32;
     const characteristicOverlayLine = ref('act');
@@ -774,7 +777,7 @@ const app = createApp({
       if (!chart.value) return { left: 0, top: 0 };
       return {
         left: Math.max(8, chart.value.getWidth() - CHARACTERISTIC_OVERLAY_GRID_RIGHT - CHARACTERISTIC_OVERLAY_WIDTH),
-        top: Math.max(52, chart.value.getHeight() - CHARACTERISTIC_OVERLAY_GRID_BOTTOM - CHARACTERISTIC_OVERLAY_HEIGHT),
+        top: Math.max(52, chart.value.getHeight() - CHARACTERISTIC_OVERLAY_GRID_BOTTOM - CHARACTERISTIC_OVERLAY_HEIGHT - CHARACTERISTIC_OVERLAY_TITLE_LIFT),
       };
     }
 
