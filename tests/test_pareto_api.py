@@ -402,7 +402,7 @@ async def test_serve_pareto_page_returns_html():
         assert "quality: { font: '600 12px sans-serif', fill: '#fff' }" in body
         assert "function buildCharacteristicOverlayGraphic()" in body
         assert "zlevel: 2" in body
-        assert "const characteristicOverlayTextBackplate =" in body
+        assert "const characteristicOverlayTextBackplate =" not in body
         assert "fill: 'rgba(26,26,32,1)'" in body
 
         assert "graphic: buildCharacteristicOverlayGraphic()" in body

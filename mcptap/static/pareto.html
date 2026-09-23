@@ -807,12 +807,6 @@ const app = createApp({
         weightedCost: { font: '600 12px sans-serif', fill: '#fff' },
         quality: { font: '600 12px sans-serif', fill: '#fff' },
       };
-      const characteristicOverlayTextBackplate = lines.map((line, index) => ({
-        type: 'rect',
-        shape: { x: 8, y: 4 + index * 18, width: CHARACTERISTIC_OVERLAY_WIDTH - 16, height: 18 },
-        silent: true,
-        style: { fill: 'rgba(26,26,32,1)' },
-      }));
       const text = lines.map((line, index) => ({ type: 'text', style: { x: 12, y: 12 + index * 18, text: line, rich: richText, fill: '#ddd', font: '12px sans-serif' } }));
       return [{
         id: 'characteristic-overlay',
@@ -823,8 +817,7 @@ const app = createApp({
         zlevel: 2,
         z: 100,
         children: [
-          { type: 'rect', shape: { x: 0, y: 0, width: CHARACTERISTIC_OVERLAY_WIDTH, height: CHARACTERISTIC_OVERLAY_HEIGHT, r: 8 }, style: { fill: 'rgba(26,26,32,.62)', stroke: '#666', lineWidth: 1, shadowBlur: 12, shadowColor: 'rgba(0,0,0,.35)' } },
-          ...characteristicOverlayTextBackplate,
+          { type: 'rect', shape: { x: 0, y: 0, width: CHARACTERISTIC_OVERLAY_WIDTH, height: CHARACTERISTIC_OVERLAY_HEIGHT, r: 8 }, style: { fill: 'rgba(26,26,32,1)', stroke: '#666', lineWidth: 1, shadowBlur: 12, shadowColor: 'rgba(0,0,0,.35)' } },
           ...text,
           ...navigationControls,
         ],
