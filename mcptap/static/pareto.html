@@ -999,15 +999,14 @@ const app = createApp({
     }
 
     function handleOverlayNavButton(action) {
-      // Exactly one navigation step per physical click: overlay buttons are
-      // silent, so a click on them reaches only their own onclick handler and
-      // never the zrender click fallback (which would advance a second step).
+      // Switching cards only swaps the already computed overlay lists and
+      // repaints the card; the full chart pipeline (points, frontier, series)
+      // is not recomputed here. The watcher below repaints the graphic.
       if (action === 'prev') characteristicOverlayPrev();
       else if (action === 'next') characteristicOverlayNext();
       else if (action === 'act') characteristicOverlayLine.value = 'act';
       else if (action === 'plan') characteristicOverlayLine.value = 'plan';
       else return;
-      renderChart(true);
     }
 
     function expandCharacteristicOverlayPoints(characteristicPoints, allPoints) {
