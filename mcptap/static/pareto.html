@@ -732,7 +732,7 @@ const app = createApp({
 
     const popupCardHtml = computed(() => buildPopupCardHtml(popupPoints.value[popupIndex.value]));
     const CHARACTERISTIC_OVERLAY_WIDTH = 300;
-    const CHARACTERISTIC_OVERLAY_HEIGHT = 152;
+    const CHARACTERISTIC_OVERLAY_HEIGHT = 140;
     const CHARACTERISTIC_OVERLAY_GRID_BOTTOM = 66;
     const CHARACTERISTIC_OVERLAY_GRID_RIGHT = 32;
     const characteristicOverlayLine = ref('act');
@@ -807,7 +807,7 @@ const app = createApp({
         weightedCost: { font: '600 12px sans-serif', fill: '#fff' },
         quality: { font: '600 12px sans-serif', fill: '#fff' },
       };
-      const text = lines.map((line, index) => ({ type: 'text', style: { x: 12, y: 20 + index * 22, text: line, rich: richText, fill: '#ddd', font: '12px sans-serif' } }));
+      const text = lines.map((line, index) => ({ type: 'text', style: { x: 12, y: 20 + index * 18, text: line, rich: richText, fill: '#ddd', font: '12px sans-serif' } }));
       return [{
         id: 'characteristic-overlay',
         type: 'group',
