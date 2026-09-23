@@ -61,13 +61,7 @@
     .pareto-popup__dots span { width: 6px; height: 6px; border-radius: 50%; background: #444; display: inline-block; }
     .pareto-popup__dots span.active { background: #63b3ed; }
     .pareto-popup__actions { display: flex; gap: 8px; padding: 0 12px 10px; }
-    .pareto-characteristic-overlay { position: absolute; z-index: 7; right: 12px; bottom: 12px; width: 340px; height: 240px; box-sizing: border-box; overflow: hidden; display: flex; flex-direction: column; background: rgba(26,26,32,.96); border: 1px solid #444; border-radius: 8px; box-shadow: 0 6px 18px rgba(0,0,0,.45); color: #ddd; font-size: 12px; line-height: 1.5; }
-    .pareto-characteristic-overlay__header { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 8px; border-bottom: 1px solid #28282f; background: #22222a; }
-    .pareto-characteristic-overlay__switch, .pareto-characteristic-overlay__nav { display: flex; align-items: center; gap: 4px; }
-    .pareto-characteristic-overlay button { border: 1px solid rgba(255,255,255,.2); background: #25252c; color: #ddd; border-radius: 4px; min-width: 26px; height: 22px; cursor: pointer; font-size: 12px; line-height: 1; }
-    .pareto-characteristic-overlay button:hover, .pareto-characteristic-overlay button[aria-pressed="true"] { border-color: #63b3ed; background: #303b4a; }
-    .pareto-characteristic-overlay__nav span { opacity: .8; font: 11px monospace; }
-    .pareto-characteristic-overlay__card { flex: 1; min-height: 0; overflow: auto; }
+    .pareto-characteristic-overlay { display: none; }
 
     .pareto-toast { position: fixed; z-index: 10; top: 12px; left: 12px; max-width: min(520px, 60vw); padding: 8px 12px; border: 1px solid #333; border-radius: 6px; background: rgba(26, 26, 32, .96); color: #9fd68a; font-size: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.6); animation: pareto-toast-in .25s ease-out; }
     .pareto-toast[data-tone="error"] { color: #f0a3a3; }
@@ -204,20 +198,6 @@
               <button type="button" class="chart-control" data-testid="pareto-plan-model" :disabled="!popupActionable" :title="popupActionable ? 'Set as plan model' : popupActionTitle" @click="handlePlanModel">Plan model</button>
             </div>
             <div v-if="popupPoints.length > 1" class="pareto-popup__dots" data-testid="pareto-popup-dots"><span v-for="(_, idx) in popupPoints" :key="idx" :class="{active: idx === popupIndex}"></span></div>
-          </div>
-          <div v-if="characteristicOverlayPoint" class="pareto-characteristic-overlay" data-testid="pareto-characteristic-overlay">
-            <div class="pareto-characteristic-overlay__header">
-              <div class="pareto-characteristic-overlay__switch" role="group" aria-label="Characteristic Pareto line">
-                <button type="button" data-testid="pareto-characteristic-overlay-act" :aria-pressed="characteristicOverlayLine === 'act'" @click="characteristicOverlayLine = 'act'">Act</button>
-                <button type="button" data-testid="pareto-characteristic-overlay-plan" :aria-pressed="characteristicOverlayLine === 'plan'" @click="characteristicOverlayLine = 'plan'">Plan</button>
-              </div>
-              <div v-if="characteristicOverlayPoints.length > 1" class="pareto-characteristic-overlay__nav">
-                <button type="button" data-testid="pareto-characteristic-overlay-prev" aria-label="Previous characteristic model" @click="characteristicOverlayPrev">‹</button>
-                <span>{{ characteristicOverlayIndex + 1 }} / {{ characteristicOverlayPoints.length }}</span>
-                <button type="button" data-testid="pareto-characteristic-overlay-next" aria-label="Next characteristic model" @click="characteristicOverlayNext">›</button>
-              </div>
-            </div>
-            <div class="pareto-popup__card pareto-characteristic-overlay__card" data-testid="pareto-characteristic-overlay-card" v-html="characteristicOverlayCardHtml"></div>
           </div>
           <div v-if="toastMessage" class="pareto-toast" data-testid="pareto-toast" role="status" aria-live="polite" :data-tone="toastTone">{{ toastMessage }}</div>
         </section>
@@ -391,7 +371,7 @@
 </main>
 
 <script>
-const { createApp, ref, computed, reactive, onMounted, onBeforeUnmount } = Vue;
+const { createApp, ref, computed, reactive, watch, onMounted, onBeforeUnmount } = Vue;
 
 // The token mix and quality controls are intentionally explicit for the Pareto view.
 const COST_INPUT_TOKENS = 1000000;
@@ -751,6 +731,10 @@ const app = createApp({
     }
 
     const popupCardHtml = computed(() => buildPopupCardHtml(popupPoints.value[popupIndex.value]));
+    const CHARACTERISTIC_OVERLAY_WIDTH = 340;
+    const CHARACTERISTIC_OVERLAY_HEIGHT = 240;
+    const CHARACTERISTIC_OVERLAY_GRID_BOTTOM = 66;
+    const CHARACTERISTIC_OVERLAY_GRID_RIGHT = 32;
     const characteristicOverlayLine = ref('act');
     const characteristicOverlayPointLists = reactive({ act: [], plan: [] });
     const characteristicOverlayPoints = computed(() => characteristicOverlayPointLists[characteristicOverlayLine.value]);
@@ -771,6 +755,78 @@ const app = createApp({
       if (count) characteristicOverlayIndex.value = (characteristicOverlayIndex.value + 1) % count;
     }
 
+    function overlayPointLines(point) {
+      if (!point) return [];
+      const fmt = value => {
+        const n = numeric(value);
+        if (n === null) return '—';
+        return n.toFixed(2).replace(/\.00$/, '').replace(/(\.\d*?[1-9])0$/, '$1');
+      };
+      return [
+        `${point.name}`,
+        `Provider: ${point.provider}`,
+        `Alias: ${point.alias}`,
+        `In: $${fmt(point.cost.input)} · Out: $${fmt(point.cost.output)}`,
+        `Weighted cost: $${fmt(point.weightedCost)}`,
+        `Quality: ${fmt(point.value[1])}   Accuracy: ${fmt(point.accuracy)}`,
+        ...(point.isThinking ? ['Thinking: yes'] : []),
+      ];
+    }
+
+    function buildCharacteristicOverlayGraphic() {
+      const point = characteristicOverlayPoint.value;
+      if (!point || !chart.value) return [];
+      const width = chart.value.getWidth();
+      const height = chart.value.getHeight();
+      const x = Math.max(8, width - CHARACTERISTIC_OVERLAY_GRID_RIGHT - CHARACTERISTIC_OVERLAY_WIDTH);
+      const y = Math.max(52, height - CHARACTERISTIC_OVERLAY_GRID_BOTTOM - CHARACTERISTIC_OVERLAY_HEIGHT);
+      const lines = overlayPointLines(point);
+      const count = characteristicOverlayPoints.value.length;
+      const activeAct = characteristicOverlayLine.value === 'act';
+      const text = [
+        { type: 'text', style: { x: 12, y: 11, text: activeAct ? 'Act characteristic point' : 'Plan characteristic point', fill: '#fff', font: '600 12px sans-serif' } },
+        ...lines.map((line, index) => ({ type: 'text', style: { x: 12, y: 48 + index * 22, text: line, fill: index === 0 ? '#fff' : '#ddd', font: index === 0 ? '600 12px sans-serif' : '12px sans-serif' } })),
+      ];
+      return [{
+        id: 'characteristic-overlay',
+        type: 'group',
+        left: x,
+        top: y,
+        silent: true,
+        z: 100,
+        children: [
+          { type: 'rect', shape: { x: 0, y: 0, width: CHARACTERISTIC_OVERLAY_WIDTH, height: CHARACTERISTIC_OVERLAY_HEIGHT, r: 8 }, style: { fill: 'rgba(26,26,32,.62)', stroke: '#666', lineWidth: 1, shadowBlur: 12, shadowColor: 'rgba(0,0,0,.35)' } },
+          { type: 'rect', shape: { x: 8, y: 7, width: 42, height: 22, r: 4 }, style: { fill: activeAct ? '#303b4a' : '#25252c', stroke: activeAct ? '#63b3ed' : 'rgba(255,255,255,.2)', lineWidth: 1 } },
+          { type: 'text', style: { x: 29, y: 18, text: 'Act', fill: '#ddd', font: '12px sans-serif', textAlign: 'center', textVerticalAlign: 'middle' } },
+          { type: 'rect', shape: { x: 54, y: 7, width: 48, height: 22, r: 4 }, style: { fill: !activeAct ? '#303b4a' : '#25252c', stroke: !activeAct ? '#63b3ed' : 'rgba(255,255,255,.2)', lineWidth: 1 } },
+          { type: 'text', style: { x: 78, y: 18, text: 'Plan', fill: '#ddd', font: '12px sans-serif', textAlign: 'center', textVerticalAlign: 'middle' } },
+          { type: 'text', style: { x: CHARACTERISTIC_OVERLAY_WIDTH - 84, y: 18, text: count > 1 ? `${characteristicOverlayIndex.value + 1} / ${count}` : '', fill: '#aaa', font: '11px monospace', textAlign: 'center', textVerticalAlign: 'middle' } },
+          { type: 'rect', shape: { x: CHARACTERISTIC_OVERLAY_WIDTH - 64, y: 7, width: 26, height: 22, r: 4 }, style: { fill: '#25252c', stroke: 'rgba(255,255,255,.2)', lineWidth: 1 } },
+          { type: 'text', style: { x: CHARACTERISTIC_OVERLAY_WIDTH - 51, y: 18, text: '‹', fill: '#ddd', font: '16px sans-serif', textAlign: 'center', textVerticalAlign: 'middle' } },
+          { type: 'rect', shape: { x: CHARACTERISTIC_OVERLAY_WIDTH - 32, y: 7, width: 26, height: 22, r: 4 }, style: { fill: '#25252c', stroke: 'rgba(255,255,255,.2)', lineWidth: 1 } },
+          { type: 'text', style: { x: CHARACTERISTIC_OVERLAY_WIDTH - 19, y: 18, text: '›', fill: '#ddd', font: '16px sans-serif', textAlign: 'center', textVerticalAlign: 'middle' } },
+          ...text,
+        ],
+      }];
+    }
+
+    function handleCharacteristicOverlayClick(params) {
+      const event = params?.event;
+      const x = numeric(event?.zrX) ?? numeric(event?.offsetX);
+      const y = numeric(event?.zrY) ?? numeric(event?.offsetY);
+      if (x === null || y === null || !chart.value || !characteristicOverlayPoint.value) return;
+      const left = chart.value.getWidth() - CHARACTERISTIC_OVERLAY_GRID_RIGHT - CHARACTERISTIC_OVERLAY_WIDTH;
+      const top = chart.value.getHeight() - CHARACTERISTIC_OVERLAY_GRID_BOTTOM - CHARACTERISTIC_OVERLAY_HEIGHT;
+      const localX = x - left;
+      const localY = y - top;
+      if (localX >= 8 && localX <= 50 && localY >= 7 && localY <= 29) characteristicOverlayLine.value = 'act';
+      else if (localX >= 54 && localX <= 102 && localY >= 7 && localY <= 29) characteristicOverlayLine.value = 'plan';
+      else if (localX >= CHARACTERISTIC_OVERLAY_WIDTH - 64 && localX <= CHARACTERISTIC_OVERLAY_WIDTH - 38 && localY >= 7 && localY <= 29) characteristicOverlayPrev();
+      else if (localX >= CHARACTERISTIC_OVERLAY_WIDTH - 32 && localX <= CHARACTERISTIC_OVERLAY_WIDTH - 6 && localY >= 7 && localY <= 29) characteristicOverlayNext();
+      else return;
+      renderChart(true);
+    }
+
     function expandCharacteristicOverlayPoints(characteristicPoints, allPoints) {
       const keys = new Set(characteristicPoints.map(pointValueKey));
       return allPoints.filter(point => keys.has(pointValueKey(point)));
@@ -781,6 +837,9 @@ const app = createApp({
       characteristicOverlayPointLists.plan = expandCharacteristicOverlayPoints(planPoints, allPoints);
       characteristicOverlayIndex.value = 0;
     }
+    watch([characteristicOverlayLine, characteristicOverlayIndex], () => {
+      if (chart.value) chart.value.setOption({ graphic: buildCharacteristicOverlayGraphic() }, { lazyUpdate: false });
+    });
     function formatDiagnosticNumber(value) {
       return numeric(value) === null ? '—' : Number(value).toFixed(4).replace(/0+$/, '').replace(/\.$/, '');
     }
@@ -1614,6 +1673,7 @@ const app = createApp({
           legend: { type: 'scroll', selected: legendSelection, textStyle: { color: '#ddd' }, top: 8 },
           grid: { left: 72, right: 32, top: 52, bottom: 66 },
           tooltip: { show: false },
+          graphic: buildCharacteristicOverlayGraphic(),
           xAxis: compressedCostAxis.value
             ? {
                 name: 'Weighted cost ($/M tokens)', nameLocation: 'middle', nameGap: 38,
@@ -1677,6 +1737,7 @@ const app = createApp({
 
     function resizeChart() {
       if (chart.value) chart.value.resize();
+      if (chart.value) chart.value.setOption({ graphic: buildCharacteristicOverlayGraphic() }, { lazyUpdate: false });
       requestAnimationFrame(() => updateScaleOverlay());
     }
 
@@ -1692,6 +1753,7 @@ const app = createApp({
       zr.on('mousedown', handleChartMouseDown);
       zr.on('mousemove', handleChartMouseMove);
       zr.on('mouseup', handleChartMouseUp);
+      zr.on('click', handleCharacteristicOverlayClick);
       window.addEventListener('resize', resizeChart);
       await loadData();
     });
@@ -1713,6 +1775,7 @@ const app = createApp({
         zr.off('mousedown', handleChartMouseDown);
         zr.off('mousemove', handleChartMouseMove);
         zr.off('mouseup', handleChartMouseUp);
+        zr.off('click', handleCharacteristicOverlayClick);
         chart.value.dispose();
       }
     });
@@ -1731,7 +1794,6 @@ const app = createApp({
       routerMaxCostSliderPosition, routerMaxCostSliderMin, routerMaxCostSliderMax, routerMaxCostSliderStep, formatRouterMaxCostTooltip,
       popupVisible, popupPoints, popupIndex, popupStyle, popupRef, popupCardHtml,
       handlePopupEnter, handlePopupLeave, popupNext, popupPrev,
-      characteristicOverlayLine, characteristicOverlayPoints, characteristicOverlayIndex, characteristicOverlayPoint, characteristicOverlayCardHtml, characteristicOverlayPrev, characteristicOverlayNext,
       popupActionable, popupActionTitle, toastMessage, toastTone, handleActModel, handlePlanModel,
     };
   },
