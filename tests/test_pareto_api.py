@@ -401,6 +401,8 @@ async def test_serve_pareto_page_returns_html():
         assert "weightedCost: { font: '600 12px sans-serif', fill: '#fff' }" in body
         assert "quality: { font: '600 12px sans-serif', fill: '#fff' }" in body
         assert "function buildCharacteristicOverlayGraphic()" in body
+        assert "zlevel: 1" in body
+        assert "zlevel: 2" in body
         assert "graphic: buildCharacteristicOverlayGraphic()" in body
         assert "const navigationTop = CHARACTERISTIC_OVERLAY_HEIGHT - 34;" in body
         assert "x: CHARACTERISTIC_OVERLAY_WIDTH - 91" in body
