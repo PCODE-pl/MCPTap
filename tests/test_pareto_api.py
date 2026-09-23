@@ -437,6 +437,8 @@ async def test_serve_pareto_page_returns_html():
         assert "cursor: 'default'" in body
         assert "silent: true,\n        cursor: 'default'," in body
         assert "watch([characteristicOverlayLine, characteristicOverlayIndex]" in body
+        assert "silent: false," in body
+        assert "NAV_BUTTON_TOP_MARGIN" in body
         assert "const NAV_BUTTON_TOP_MARGIN = 34;" in body
         assert "navigationTop = CHARACTERISTIC_OVERLAY_HEIGHT - NAV_BUTTON_TOP_MARGIN" in body
         assert "replaceMerge: ['graphic']" in body

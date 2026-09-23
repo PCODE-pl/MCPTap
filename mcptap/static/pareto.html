@@ -1013,6 +1013,8 @@ const app = createApp({
       // Switching cards only swaps the already computed overlay lists and
       // repaints the card; the full chart pipeline (points, frontier, series)
       // is not recomputed here. The watcher below repaints the graphic.
+      // The buttons are non-silent (silent: false), so each physical click
+      // fires exactly one onclick and never reaches the zrender fallback.
       if (action === 'prev') characteristicOverlayPrev();
       else if (action === 'next') characteristicOverlayNext();
       else if (action === 'act' || action === 'plan') {
