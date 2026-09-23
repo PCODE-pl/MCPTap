@@ -763,6 +763,8 @@ const app = createApp({
         return n.toFixed(2).replace(/\.00$/, '').replace(/(\.\d*?[1-9])0$/, '$1');
       };
       return [
+        `Provider: ${point.provider}`,
+        `Alias: ${point.alias}`,
         `In: $${fmt(point.cost.input)} · Out: $${fmt(point.cost.output)} · Weighted cost: $${fmt(point.weightedCost)}`,
         `Quality: ${fmt(point.value[1])}   Accuracy: ${fmt(point.accuracy)}`,
       ];
