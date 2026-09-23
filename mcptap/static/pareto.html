@@ -791,18 +791,22 @@ const app = createApp({
       const count = characteristicOverlayPoints.value.length;
       const activeAct = characteristicOverlayLine.value === 'act';
       const navigationTop = CHARACTERISTIC_OVERLAY_HEIGHT - 34;
+      // Clickable buttons are real event targets (silent: false + pointer
+      // cursor); the overlay group itself stays silent with the default cursor
+      // so only the buttons suggest clickability.
+      const buttonCursor = { cursor: 'pointer' };
       const navigationControls = [
-        { type: 'rect', shape: { x: 8, y: navigationTop, width: 42, height: 22, r: 4 }, silent: true, onclick: () => { handleOverlayNavButton('act'); }, style: { fill: activeAct ? '#303b4a' : '#25252c', stroke: activeAct ? '#63b3ed' : 'rgba(255,255,255,.2)', lineWidth: 1 } },
-        { type: 'text', style: { x: 29, y: navigationTop + 11, text: 'Act', fill: '#ddd', font: '12px sans-serif', textAlign: 'center', textVerticalAlign: 'middle' } },
-        { type: 'rect', shape: { x: 54, y: navigationTop, width: 48, height: 22, r: 4 }, silent: true, onclick: () => { handleOverlayNavButton('plan'); }, style: { fill: !activeAct ? '#303b4a' : '#25252c', stroke: !activeAct ? '#63b3ed' : 'rgba(255,255,255,.2)', lineWidth: 1 } },
-        { type: 'text', style: { x: 78, y: navigationTop + 11, text: 'Plan', fill: '#ddd', font: '12px sans-serif', textAlign: 'center', textVerticalAlign: 'middle' } },
+        { type: 'rect', shape: { x: 8, y: navigationTop, width: 42, height: 22, r: 4 }, silent: false, onclick: () => { handleOverlayNavButton('act'); }, style: { fill: activeAct ? '#303b4a' : '#25252c', stroke: activeAct ? '#63b3ed' : 'rgba(255,255,255,.2)', lineWidth: 1, ...buttonCursor } },
+        { type: 'text', style: { x: 29, y: navigationTop + 11, text: 'Act', fill: '#ddd', font: '12px sans-serif', textAlign: 'center', textVerticalAlign: 'middle', ...buttonCursor } },
+        { type: 'rect', shape: { x: 54, y: navigationTop, width: 48, height: 22, r: 4 }, silent: false, onclick: () => { handleOverlayNavButton('plan'); }, style: { fill: !activeAct ? '#303b4a' : '#25252c', stroke: !activeAct ? '#63b3ed' : 'rgba(255,255,255,.2)', lineWidth: 1, ...buttonCursor } },
+        { type: 'text', style: { x: 78, y: navigationTop + 11, text: 'Plan', fill: '#ddd', font: '12px sans-serif', textAlign: 'center', textVerticalAlign: 'middle', ...buttonCursor } },
       ];
       if (count > 1) navigationControls.push(
         { type: 'text', style: { x: CHARACTERISTIC_OVERLAY_WIDTH - 74, y: navigationTop + 13, text: `${characteristicOverlayIndex.value + 1} / ${count}`, fill: '#aaa', font: '11px monospace', textAlign: 'right', textVerticalAlign: 'middle' } },
-        { type: 'rect', shape: { x: CHARACTERISTIC_OVERLAY_WIDTH - 64, y: navigationTop, width: 26, height: 22, r: 4 }, silent: true, onclick: () => { handleOverlayNavButton('prev'); }, style: { fill: '#25252c', stroke: 'rgba(255,255,255,.2)', lineWidth: 1 } },
-        { type: 'text', style: { x: CHARACTERISTIC_OVERLAY_WIDTH - 51, y: navigationTop + 11, text: '‹', fill: '#ddd', font: '16px sans-serif', textAlign: 'center', textVerticalAlign: 'middle' } },
-        { type: 'rect', shape: { x: CHARACTERISTIC_OVERLAY_WIDTH - 32, y: navigationTop, width: 26, height: 22, r: 4 }, silent: true, onclick: () => { handleOverlayNavButton('next'); }, style: { fill: '#25252c', stroke: 'rgba(255,255,255,.2)', lineWidth: 1 } },
-        { type: 'text', style: { x: CHARACTERISTIC_OVERLAY_WIDTH - 19, y: navigationTop + 11, text: '›', fill: '#ddd', font: '16px sans-serif', textAlign: 'center', textVerticalAlign: 'middle' } },
+        { type: 'rect', shape: { x: CHARACTERISTIC_OVERLAY_WIDTH - 64, y: navigationTop, width: 26, height: 22, r: 4 }, silent: false, onclick: () => { handleOverlayNavButton('prev'); }, style: { fill: '#25252c', stroke: 'rgba(255,255,255,.2)', lineWidth: 1, ...buttonCursor } },
+        { type: 'text', style: { x: CHARACTERISTIC_OVERLAY_WIDTH - 51, y: navigationTop + 11, text: '‹', fill: '#ddd', font: '16px sans-serif', textAlign: 'center', textVerticalAlign: 'middle', ...buttonCursor } },
+        { type: 'rect', shape: { x: CHARACTERISTIC_OVERLAY_WIDTH - 32, y: navigationTop, width: 26, height: 22, r: 4 }, silent: false, onclick: () => { handleOverlayNavButton('next'); }, style: { fill: '#25252c', stroke: 'rgba(255,255,255,.2)', lineWidth: 1, ...buttonCursor } },
+        { type: 'text', style: { x: CHARACTERISTIC_OVERLAY_WIDTH - 19, y: navigationTop + 11, text: '›', fill: '#ddd', font: '16px sans-serif', textAlign: 'center', textVerticalAlign: 'middle', ...buttonCursor } },
       );
       const richText = {
         provider: { font: '600 12px sans-serif', fill: '#fff' },
@@ -816,7 +820,8 @@ const app = createApp({
         type: 'group',
         left: x,
         top: y,
-        silent: false,
+        silent: true,
+        cursor: 'default',
         zlevel: 20,
         z: 100,
         children: [
@@ -988,8 +993,9 @@ const app = createApp({
       const { left, top } = characteristicOverlayPosition();
       const localX = x - left;
       const localY = y - top;
-      // Coordinate fallback for clicks that miss the silent button shapes;
-      // button clicks are handled by their onclick handlers instead.
+      // The overlay buttons are non-silent event targets with their own
+      // onclick handlers, so this zrender fallback stays as a safety net
+      // for clicks that miss the button shapes.
       const navigationTop = CHARACTERISTIC_OVERLAY_HEIGHT - 34;
       if (localX >= 8 && localX <= 50 && localY >= navigationTop && localY <= navigationTop + 22) handleOverlayNavButton('act');
       else if (localX >= 54 && localX <= 102 && localY >= navigationTop && localY <= navigationTop + 22) handleOverlayNavButton('plan');

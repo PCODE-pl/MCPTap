@@ -429,6 +429,13 @@ async def test_serve_pareto_page_returns_html():
         )
         assert "silent: false" in body
         assert "function handleOverlayNavButton(action)" in body
+        assert "onclick: () => { handleOverlayNavButton('prev'); }" in body
+        assert "onclick: () => { handleOverlayNavButton('next'); }" in body
+        assert "onclick: () => { handleOverlayNavButton('act'); }" in body
+        assert "onclick: () => { handleOverlayNavButton('plan'); }" in body
+        assert "cursor: 'pointer'" in body
+        assert "cursor: 'default'" in body
+        assert "silent: true,\n        cursor: 'default'," in body
         assert "watch([characteristicOverlayLine, characteristicOverlayIndex]" in body
         assert "renderChart(true);\n    }\n\n    function expandCharacteristicOverlayPoints" not in body
         assert "onclick: () => { handleOverlayNavButton('prev'); }" in body
