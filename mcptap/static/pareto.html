@@ -62,8 +62,10 @@
     .pareto-popup__dots span.active { background: #63b3ed; }
     .pareto-popup__actions { display: flex; gap: 8px; padding: 0 12px 10px; }
     .pareto-characteristic-overlay { display: none; }
-    .characteristic-overlay-hit-targets { position: absolute; z-index: 5; pointer-events: none; }
-    .characteristic-overlay-hit-target { position: absolute; box-sizing: border-box; padding: 0; border: 0; background: transparent; pointer-events: auto; cursor: pointer; }
+    .characteristic-overlay-hit-targets { position: absolute; z-index: 1000; pointer-events: none; }
+    .characteristic-overlay-hit-target { position: absolute; display: block; box-sizing: border-box; margin: 0; padding: 0; border: 0; background: transparent; pointer-events: auto; cursor: pointer; appearance: none; }
+    .characteristic-overlay-hit-target::after { content: ''; position: absolute; inset: 0; background: rgba(0, 0, 0, 0.001); }
+    .characteristic-overlay-hit-target:hover::after { background: rgba(99, 179, 237, 0.08); }
 
     .pareto-toast { position: fixed; z-index: 10; top: 12px; left: 12px; max-width: min(520px, 60vw); padding: 8px 12px; border: 1px solid #333; border-radius: 6px; background: rgba(26, 26, 32, .96); color: #9fd68a; font-size: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.6); animation: pareto-toast-in .25s ease-out; }
     .pareto-toast[data-tone="error"] { color: #f0a3a3; }
@@ -165,7 +167,7 @@
           :data-y-max="formatDiagnosticNumber(viewRange.yMax)"
           :data-zoom-active="areaZoomActive"
           ></div>
-          <div v-if="characteristicOverlayHitTargets.length" class="characteristic-overlay-hit-targets" :style="characteristicOverlayHitTargetsStyle" data-testid="characteristic-overlay-hit-targets">
+          <div v-if="characteristicOverlayHitTargets.length" class="characteristic-overlay-hit-targets" :style="characteristicOverlayHitTargetsStyle" data-testid="characteristic-overlay-hit-targets" @pointerdown.stop @mousedown.stop @click.stop>
             <button
               v-for="target in characteristicOverlayHitTargets"
               :key="target.action"
@@ -780,6 +782,8 @@ const app = createApp({
         top: `${chartRect.top - containerRect.top + position.top}px`,
         width: `${CHARACTERISTIC_OVERLAY_WIDTH}px`,
         height: `${CHARACTERISTIC_OVERLAY_HEIGHT}px`,
+        pointerEvents: 'none',
+        zIndex: 1000,
       };
     });
     const characteristicOverlayHitTargets = computed(() => {
