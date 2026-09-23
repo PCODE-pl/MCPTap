@@ -380,4 +380,14 @@ async def test_serve_pareto_page_returns_html():
         assert "const stripeLimit = startCost + startCost * stripePercent / 100;" in body
         assert "computeParetoCharacteristicPoints(paretoAct, routerParetoStripe.value)" in body
         assert "computeParetoCharacteristicPoints(paretoPlan, routerParetoStripe.value)" in body
+        assert 'data-testid="pareto-characteristic-overlay"' in body
+        assert 'data-testid="pareto-characteristic-overlay-act"' in body
+        assert 'data-testid="pareto-characteristic-overlay-plan"' in body
+        assert "characteristicOverlayLine = ref('act')" in body
+        assert "characteristicOverlayPrev" in body
+        assert "characteristicOverlayNext" in body
+        assert "characteristicOverlayCardHtml" in body
+        assert "position: absolute; z-index: 7" in body
+        assert "width: 340px" in body
+        assert "height: 240px" in body
         assert "legendHoverLink: false" in body

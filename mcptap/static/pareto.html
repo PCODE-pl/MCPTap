@@ -61,7 +61,14 @@
     .pareto-popup__dots span { width: 6px; height: 6px; border-radius: 50%; background: #444; display: inline-block; }
     .pareto-popup__dots span.active { background: #63b3ed; }
     .pareto-popup__actions { display: flex; gap: 8px; padding: 0 12px 10px; }
-    .pareto-popup__actions .chart-control:disabled { opacity: .4; cursor: not-allowed; }
+    .pareto-characteristic-overlay { position: absolute; z-index: 7; right: 12px; bottom: 12px; width: 340px; height: 240px; box-sizing: border-box; overflow: hidden; display: flex; flex-direction: column; background: rgba(26,26,32,.96); border: 1px solid #444; border-radius: 8px; box-shadow: 0 6px 18px rgba(0,0,0,.45); color: #ddd; font-size: 12px; line-height: 1.5; }
+    .pareto-characteristic-overlay__header { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 8px; border-bottom: 1px solid #28282f; background: #22222a; }
+    .pareto-characteristic-overlay__switch, .pareto-characteristic-overlay__nav { display: flex; align-items: center; gap: 4px; }
+    .pareto-characteristic-overlay button { border: 1px solid rgba(255,255,255,.2); background: #25252c; color: #ddd; border-radius: 4px; min-width: 26px; height: 22px; cursor: pointer; font-size: 12px; line-height: 1; }
+    .pareto-characteristic-overlay button:hover, .pareto-characteristic-overlay button[aria-pressed="true"] { border-color: #63b3ed; background: #303b4a; }
+    .pareto-characteristic-overlay__nav span { opacity: .8; font: 11px monospace; }
+    .pareto-characteristic-overlay__card { flex: 1; min-height: 0; overflow: auto; }
+
     .pareto-toast { position: fixed; z-index: 10; top: 12px; left: 12px; max-width: min(520px, 60vw); padding: 8px 12px; border: 1px solid #333; border-radius: 6px; background: rgba(26, 26, 32, .96); color: #9fd68a; font-size: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.6); animation: pareto-toast-in .25s ease-out; }
     .pareto-toast[data-tone="error"] { color: #f0a3a3; }
     @keyframes pareto-toast-in { from { transform: translateY(-120%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
@@ -197,6 +204,20 @@
               <button type="button" class="chart-control" data-testid="pareto-plan-model" :disabled="!popupActionable" :title="popupActionable ? 'Set as plan model' : popupActionTitle" @click="handlePlanModel">Plan model</button>
             </div>
             <div v-if="popupPoints.length > 1" class="pareto-popup__dots" data-testid="pareto-popup-dots"><span v-for="(_, idx) in popupPoints" :key="idx" :class="{active: idx === popupIndex}"></span></div>
+          </div>
+          <div v-if="characteristicOverlayPoint" class="pareto-characteristic-overlay" data-testid="pareto-characteristic-overlay">
+            <div class="pareto-characteristic-overlay__header">
+              <div class="pareto-characteristic-overlay__switch" role="group" aria-label="Characteristic Pareto line">
+                <button type="button" data-testid="pareto-characteristic-overlay-act" :aria-pressed="characteristicOverlayLine === 'act'" @click="characteristicOverlayLine = 'act'">Act</button>
+                <button type="button" data-testid="pareto-characteristic-overlay-plan" :aria-pressed="characteristicOverlayLine === 'plan'" @click="characteristicOverlayLine = 'plan'">Plan</button>
+              </div>
+              <div v-if="characteristicOverlayPoints.length > 1" class="pareto-characteristic-overlay__nav">
+                <button type="button" data-testid="pareto-characteristic-overlay-prev" aria-label="Previous characteristic model" @click="characteristicOverlayPrev">‹</button>
+                <span>{{ characteristicOverlayIndex + 1 }} / {{ characteristicOverlayPoints.length }}</span>
+                <button type="button" data-testid="pareto-characteristic-overlay-next" aria-label="Next characteristic model" @click="characteristicOverlayNext">›</button>
+              </div>
+            </div>
+            <div class="pareto-popup__card pareto-characteristic-overlay__card" data-testid="pareto-characteristic-overlay-card" v-html="characteristicOverlayCardHtml"></div>
           </div>
           <div v-if="toastMessage" class="pareto-toast" data-testid="pareto-toast" role="status" aria-live="polite" :data-tone="toastTone">{{ toastMessage }}</div>
         </section>
@@ -613,8 +634,7 @@ const app = createApp({
     const POPUP_OVERLAP_PX = 14;
     const POPUP_GAP = 14;
 
-    const popupCardHtml = computed(() => {
-      const point = popupPoints.value[popupIndex.value];
+    function buildPopupCardHtml(point) {
       if (!point) return '';
       function fmtSig(v) {
         const n = numeric(v);
@@ -728,8 +748,34 @@ const app = createApp({
         `<br>Weighted cost: <b>$${fmtSig(point.weightedCost)}</b>` +
         `<br>Quality: <b>${debugMode ? Number(point.value[1]).toFixed(6) : fmtSig(point.value[1])}</b><br>Accuracy: ${fmtSig(point.accuracy)}` +
         (point.isThinking ? '<br>Thinking: yes' : '') + debugBlock;
-    });
+    }
 
+    const popupCardHtml = computed(() => buildPopupCardHtml(popupPoints.value[popupIndex.value]));
+    const characteristicOverlayLine = ref('act');
+    const characteristicOverlayPointLists = reactive({ act: [], plan: [] });
+    const characteristicOverlayPoints = computed(() => characteristicOverlayPointLists[characteristicOverlayLine.value]);
+    const characteristicOverlayIndex = ref(0);
+    const characteristicOverlayPoint = computed(() => {
+      const points = characteristicOverlayPoints.value;
+      if (!points.length) return null;
+      characteristicOverlayIndex.value = Math.min(characteristicOverlayIndex.value, points.length - 1);
+      return points[characteristicOverlayIndex.value];
+    });
+    const characteristicOverlayCardHtml = computed(() => buildPopupCardHtml(characteristicOverlayPoint.value));
+    function characteristicOverlayPrev() {
+      const count = characteristicOverlayPoints.value.length;
+      if (count) characteristicOverlayIndex.value = (characteristicOverlayIndex.value - 1 + count) % count;
+    }
+    function characteristicOverlayNext() {
+      const count = characteristicOverlayPoints.value.length;
+      if (count) characteristicOverlayIndex.value = (characteristicOverlayIndex.value + 1) % count;
+    }
+
+    function updateCharacteristicOverlayPoints(actPoints, planPoints) {
+      characteristicOverlayPointLists.act = actPoints;
+      characteristicOverlayPointLists.plan = planPoints;
+      characteristicOverlayIndex.value = 0;
+    }
     function formatDiagnosticNumber(value) {
       return numeric(value) === null ? '—' : Number(value).toFixed(4).replace(/0+$/, '').replace(/\.$/, '');
     }
@@ -1449,6 +1495,7 @@ const app = createApp({
       const paretoPlan = paretoFrontier.filter(p => p.weightedCost >= routerCostSplit.value - 1e-9);
       const paretoActCharacteristicPoints = computeParetoCharacteristicPoints(paretoAct, routerParetoStripe.value);
       const paretoPlanCharacteristicPoints = computeParetoCharacteristicPoints(paretoPlan, routerParetoStripe.value);
+      updateCharacteristicOverlayPoints(paretoActCharacteristicPoints, paretoPlanCharacteristicPoints);
       const characteristicPointSet = new Set([
         ...paretoActCharacteristicPoints,
         ...paretoPlanCharacteristicPoints,
@@ -1679,6 +1726,7 @@ const app = createApp({
       routerMaxCostSliderPosition, routerMaxCostSliderMin, routerMaxCostSliderMax, routerMaxCostSliderStep, formatRouterMaxCostTooltip,
       popupVisible, popupPoints, popupIndex, popupStyle, popupRef, popupCardHtml,
       handlePopupEnter, handlePopupLeave, popupNext, popupPrev,
+      characteristicOverlayLine, characteristicOverlayPoints, characteristicOverlayIndex, characteristicOverlayPoint, characteristicOverlayCardHtml, characteristicOverlayPrev, characteristicOverlayNext,
       popupActionable, popupActionTitle, toastMessage, toastTone, handleActModel, handlePlanModel,
     };
   },
