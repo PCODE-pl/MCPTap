@@ -1037,7 +1037,9 @@ const app = createApp({
       if (characteristicOverlayIndex.value < 0) characteristicOverlayIndex.value = 0;
     }
     watch([characteristicOverlayLine, characteristicOverlayIndex], () => {
-      if (chart.value) chart.value.setOption({ graphic: buildCharacteristicOverlayGraphic() }, { lazyUpdate: false });
+      // replaceMerge drops removed children (e.g. the ‹ › arrows when the new
+      // line has a single card); a plain merge would keep the stale elements.
+      if (chart.value) chart.value.setOption({ graphic: buildCharacteristicOverlayGraphic() }, { replaceMerge: ['graphic'], lazyUpdate: false });
       // The overlay card changes, so the grid hole moves with it.
       refreshClippedGrid();
     });
