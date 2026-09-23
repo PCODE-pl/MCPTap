@@ -814,7 +814,7 @@ const app = createApp({
         left: x,
         top: y,
         silent: false,
-        zlevel: 1,
+        zlevel: 2,
         z: 100,
         children: [
           { type: 'rect', shape: { x: 0, y: 0, width: CHARACTERISTIC_OVERLAY_WIDTH, height: CHARACTERISTIC_OVERLAY_HEIGHT, r: 8 }, style: { fill: 'rgba(26,26,32,.62)', stroke: '#666', lineWidth: 1, shadowBlur: 12, shadowColor: 'rgba(0,0,0,.35)' } },
@@ -1599,7 +1599,7 @@ const app = createApp({
         data: displayPoints.filter(p => p.provider === provider && !frontierSet.has(p) && !frontierValueKeys.has(pointValueKey(p))),
         emphasis: { focus: 'series', scale: false },
         z: 4,
-        zlevel: 2,
+        zlevel: 3,
         itemStyle: { color: providerColorMap.get(provider) },
       }));
       const frontierSymbolSize = 13;
@@ -1620,7 +1620,7 @@ const app = createApp({
           }),
           emphasis: { focus: 'series', scale: false },
           z: 5,
-          zlevel: 2,
+          zlevel: 3,
         };
       }).filter(Boolean);
       const characteristicRingSeries = providers.map((provider) => {
@@ -1639,7 +1639,7 @@ const app = createApp({
           silent: true,
           legendHoverLink: false,
           z: 6,
-          zlevel: 2,
+          zlevel: 3,
         };
       }).filter(Boolean);
       const series = [...baseSeries];
