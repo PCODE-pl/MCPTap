@@ -389,16 +389,18 @@ async def test_serve_pareto_page_returns_html():
         assert "graphic: buildCharacteristicOverlayGraphic()" in body
         assert "const navigationTop = CHARACTERISTIC_OVERLAY_HEIGHT - 34;" in body
         assert "text: activeAct ? 'Act' : 'Plan'" in body
+        assert "function characteristicOverlayPointKey(point)" in body
+        assert "return `${pointValueKey(point)},${point.provider},${point.alias},${point.name}`;" in body
         assert (
-            "const currentPointKey = characteristicOverlayPoint.value ? pointValueKey(characteristicOverlayPoint.value) : null;"
+            "const currentPointKey = characteristicOverlayPoint.value ? characteristicOverlayPointKey(characteristicOverlayPoint.value) : null;"
             in body
         )
         assert (
-            "characteristicOverlayIndex.value = nextPoints.findIndex(point => pointValueKey(point) === currentPointKey);"
+            "characteristicOverlayIndex.value = nextPoints.findIndex(point => characteristicOverlayPointKey(point) === currentPointKey);"
             in body
         )
-        assert (
-            "const x = numeric(event?.zrX) ?? numeric(event?.offsetX) ?? numeric(params?.zrX) ?? numeric(params?.offsetX);"
-            in body
-        )
+        assert "silent: false" in body
+        assert "onclick: () => { characteristicOverlayPrev(); renderChart(true); }" in body
+        assert "onclick: () => { characteristicOverlayNext(); renderChart(true); }" in body
+        assert "onclick: () => { characteristicOverlayLine.value = 'act'; renderChart(true); }" in body
         assert "legendHoverLink: false" in body

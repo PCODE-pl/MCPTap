@@ -800,18 +800,18 @@ const app = createApp({
         type: 'group',
         left: x,
         top: y,
-        silent: true,
+        silent: false,
         z: 100,
         children: [
           { type: 'rect', shape: { x: 0, y: 0, width: CHARACTERISTIC_OVERLAY_WIDTH, height: CHARACTERISTIC_OVERLAY_HEIGHT, r: 8 }, style: { fill: 'rgba(26,26,32,.62)', stroke: '#666', lineWidth: 1, shadowBlur: 12, shadowColor: 'rgba(0,0,0,.35)' } },
-          { type: 'rect', shape: { x: 8, y: navigationTop, width: 42, height: 22, r: 4 }, style: { fill: activeAct ? '#303b4a' : '#25252c', stroke: activeAct ? '#63b3ed' : 'rgba(255,255,255,.2)', lineWidth: 1 } },
+          { type: 'rect', shape: { x: 8, y: navigationTop, width: 42, height: 22, r: 4 }, silent: false, onclick: () => { characteristicOverlayLine.value = 'act'; renderChart(true); }, style: { fill: activeAct ? '#303b4a' : '#25252c', stroke: activeAct ? '#63b3ed' : 'rgba(255,255,255,.2)', lineWidth: 1 } },
           { type: 'text', style: { x: 29, y: navigationTop + 11, text: 'Act', fill: '#ddd', font: '12px sans-serif', textAlign: 'center', textVerticalAlign: 'middle' } },
-          { type: 'rect', shape: { x: 54, y: navigationTop, width: 48, height: 22, r: 4 }, style: { fill: !activeAct ? '#303b4a' : '#25252c', stroke: !activeAct ? '#63b3ed' : 'rgba(255,255,255,.2)', lineWidth: 1 } },
+          { type: 'rect', shape: { x: 54, y: navigationTop, width: 48, height: 22, r: 4 }, silent: false, onclick: () => { characteristicOverlayLine.value = 'plan'; renderChart(true); }, style: { fill: !activeAct ? '#303b4a' : '#25252c', stroke: !activeAct ? '#63b3ed' : 'rgba(255,255,255,.2)', lineWidth: 1 } },
           { type: 'text', style: { x: 78, y: navigationTop + 11, text: 'Plan', fill: '#ddd', font: '12px sans-serif', textAlign: 'center', textVerticalAlign: 'middle' } },
           { type: 'text', style: { x: CHARACTERISTIC_OVERLAY_WIDTH - 84, y: navigationTop + 11, text: count > 1 ? `${characteristicOverlayIndex.value + 1} / ${count}` : '', fill: '#aaa', font: '11px monospace', textAlign: 'center', textVerticalAlign: 'middle' } },
-          { type: 'rect', shape: { x: CHARACTERISTIC_OVERLAY_WIDTH - 64, y: navigationTop, width: 26, height: 22, r: 4 }, style: { fill: '#25252c', stroke: 'rgba(255,255,255,.2)', lineWidth: 1 } },
+          { type: 'rect', shape: { x: CHARACTERISTIC_OVERLAY_WIDTH - 64, y: navigationTop, width: 26, height: 22, r: 4 }, silent: false, onclick: () => { characteristicOverlayPrev(); renderChart(true); }, style: { fill: '#25252c', stroke: 'rgba(255,255,255,.2)', lineWidth: 1 } },
           { type: 'text', style: { x: CHARACTERISTIC_OVERLAY_WIDTH - 51, y: navigationTop + 11, text: '‹', fill: '#ddd', font: '16px sans-serif', textAlign: 'center', textVerticalAlign: 'middle' } },
-          { type: 'rect', shape: { x: CHARACTERISTIC_OVERLAY_WIDTH - 32, y: navigationTop, width: 26, height: 22, r: 4 }, style: { fill: '#25252c', stroke: 'rgba(255,255,255,.2)', lineWidth: 1 } },
+          { type: 'rect', shape: { x: CHARACTERISTIC_OVERLAY_WIDTH - 32, y: navigationTop, width: 26, height: 22, r: 4 }, silent: false, onclick: () => { characteristicOverlayNext(); renderChart(true); }, style: { fill: '#25252c', stroke: 'rgba(255,255,255,.2)', lineWidth: 1 } },
           { type: 'text', style: { x: CHARACTERISTIC_OVERLAY_WIDTH - 19, y: navigationTop + 11, text: '›', fill: '#ddd', font: '16px sans-serif', textAlign: 'center', textVerticalAlign: 'middle' } },
           ...text,
         ],
@@ -840,12 +840,16 @@ const app = createApp({
       return allPoints.filter(point => keys.has(pointValueKey(point)));
     }
 
+    function characteristicOverlayPointKey(point) {
+      return `${pointValueKey(point)},${point.provider},${point.alias},${point.name}`;
+    }
+
     function updateCharacteristicOverlayPoints(actPoints, planPoints, allPoints) {
-      const currentPointKey = characteristicOverlayPoint.value ? pointValueKey(characteristicOverlayPoint.value) : null;
+      const currentPointKey = characteristicOverlayPoint.value ? characteristicOverlayPointKey(characteristicOverlayPoint.value) : null;
       characteristicOverlayPointLists.act = expandCharacteristicOverlayPoints(actPoints, allPoints);
       characteristicOverlayPointLists.plan = expandCharacteristicOverlayPoints(planPoints, allPoints);
       const nextPoints = characteristicOverlayPointLists[characteristicOverlayLine.value];
-      characteristicOverlayIndex.value = nextPoints.findIndex(point => pointValueKey(point) === currentPointKey);
+      characteristicOverlayIndex.value = nextPoints.findIndex(point => characteristicOverlayPointKey(point) === currentPointKey);
       if (characteristicOverlayIndex.value < 0) characteristicOverlayIndex.value = 0;
     }
     watch([characteristicOverlayLine, characteristicOverlayIndex], () => {
