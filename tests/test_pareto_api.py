@@ -389,8 +389,8 @@ async def test_serve_pareto_page_returns_html():
         assert "function overlayPointLines(point)" in body
         assert "`Provider: ${point.provider}`" in body
         assert "`Alias: ${point.alias}`" in body
-        assert "const navigationControls = count > 1 ? [" in body
-        assert "...navigationControls" in body
+        assert "const navigationControls = [" in body
+        assert "if (count > 1) navigationControls.push(" in body
         assert "Weighted cost: {weightedCost|" in body
         assert "Quality: {quality|" in body
         assert "weightedCost: { font: '600 12px sans-serif', fill: '#fff' }" in body
