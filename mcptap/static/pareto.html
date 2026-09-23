@@ -765,8 +765,8 @@ const app = createApp({
       return [
         `Provider: ${point.provider}`,
         `Alias: ${point.alias}`,
-        `In: $${fmt(point.cost.input)} · Out: $${fmt(point.cost.output)} · Weighted cost: $${fmt(point.weightedCost)}`,
-        `Quality: ${fmt(point.value[1])}   Accuracy: ${fmt(point.accuracy)}`,
+        `In: $${fmt(point.cost.input)} · Out: $${fmt(point.cost.output)} · Weighted cost: {weightedCost|$${fmt(point.weightedCost)}}`,
+        `Accuracy: ${fmt(point.accuracy)}   Quality: {quality|${fmt(point.value[1])}}`,
       ];
     }
 
@@ -788,9 +788,22 @@ const app = createApp({
       const count = characteristicOverlayPoints.value.length;
       const activeAct = characteristicOverlayLine.value === 'act';
       const navigationTop = CHARACTERISTIC_OVERLAY_HEIGHT - 34;
-      const text = [
-        ...lines.map((line, index) => ({ type: 'text', style: { x: 12, y: 20 + index * 22, text: line, fill: index === 0 ? '#fff' : '#ddd', font: index === 0 ? '600 12px sans-serif' : '12px sans-serif' } })),
-      ];
+      const navigationControls = count > 1 ? [
+        { type: 'rect', shape: { x: 8, y: navigationTop, width: 42, height: 22, r: 4 }, silent: false, onclick: () => { characteristicOverlayLine.value = 'act'; renderChart(true); }, style: { fill: activeAct ? '#303b4a' : '#25252c', stroke: activeAct ? '#63b3ed' : 'rgba(255,255,255,.2)', lineWidth: 1 } },
+        { type: 'text', style: { x: 29, y: navigationTop + 11, text: 'Act', fill: '#ddd', font: '12px sans-serif', textAlign: 'center', textVerticalAlign: 'middle' } },
+        { type: 'rect', shape: { x: 54, y: navigationTop, width: 48, height: 22, r: 4 }, silent: false, onclick: () => { characteristicOverlayLine.value = 'plan'; renderChart(true); }, style: { fill: !activeAct ? '#303b4a' : '#25252c', stroke: !activeAct ? '#63b3ed' : 'rgba(255,255,255,.2)', lineWidth: 1 } },
+        { type: 'text', style: { x: 78, y: navigationTop + 11, text: 'Plan', fill: '#ddd', font: '12px sans-serif', textAlign: 'center', textVerticalAlign: 'middle' } },
+        { type: 'text', style: { x: CHARACTERISTIC_OVERLAY_WIDTH - 91, y: navigationTop + 11, text: `${characteristicOverlayIndex.value + 1} / ${count}`, fill: '#aaa', font: '11px monospace', textAlign: 'center', textVerticalAlign: 'middle' } },
+        { type: 'rect', shape: { x: CHARACTERISTIC_OVERLAY_WIDTH - 64, y: navigationTop, width: 26, height: 22, r: 4 }, silent: false, onclick: () => { characteristicOverlayPrev(); renderChart(true); }, style: { fill: '#25252c', stroke: 'rgba(255,255,255,.2)', lineWidth: 1 } },
+        { type: 'text', style: { x: CHARACTERISTIC_OVERLAY_WIDTH - 51, y: navigationTop + 11, text: '‹', fill: '#ddd', font: '16px sans-serif', textAlign: 'center', textVerticalAlign: 'middle' } },
+        { type: 'rect', shape: { x: CHARACTERISTIC_OVERLAY_WIDTH - 32, y: navigationTop, width: 26, height: 22, r: 4 }, silent: false, onclick: () => { characteristicOverlayNext(); renderChart(true); }, style: { fill: '#25252c', stroke: 'rgba(255,255,255,.2)', lineWidth: 1 } },
+        { type: 'text', style: { x: CHARACTERISTIC_OVERLAY_WIDTH - 19, y: navigationTop + 11, text: '›', fill: '#ddd', font: '16px sans-serif', textAlign: 'center', textVerticalAlign: 'middle' } },
+      ] : [];
+      const richText = {
+        weightedCost: { font: '600 12px sans-serif', fill: '#fff' },
+        quality: { font: '600 12px sans-serif', fill: '#fff' },
+      };
+      const text = lines.map((line, index) => ({ type: 'text', style: { x: 12, y: 20 + index * 22, text: line, rich: richText, fill: '#ddd', font: '12px sans-serif' } }));
       return [{
         id: 'characteristic-overlay',
         type: 'group',
@@ -800,16 +813,8 @@ const app = createApp({
         z: 100,
         children: [
           { type: 'rect', shape: { x: 0, y: 0, width: CHARACTERISTIC_OVERLAY_WIDTH, height: CHARACTERISTIC_OVERLAY_HEIGHT, r: 8 }, style: { fill: 'rgba(26,26,32,.62)', stroke: '#666', lineWidth: 1, shadowBlur: 12, shadowColor: 'rgba(0,0,0,.35)' } },
-          { type: 'rect', shape: { x: 8, y: navigationTop, width: 42, height: 22, r: 4 }, silent: false, onclick: () => { characteristicOverlayLine.value = 'act'; renderChart(true); }, style: { fill: activeAct ? '#303b4a' : '#25252c', stroke: activeAct ? '#63b3ed' : 'rgba(255,255,255,.2)', lineWidth: 1 } },
-          { type: 'text', style: { x: 29, y: navigationTop + 11, text: 'Act', fill: '#ddd', font: '12px sans-serif', textAlign: 'center', textVerticalAlign: 'middle' } },
-          { type: 'rect', shape: { x: 54, y: navigationTop, width: 48, height: 22, r: 4 }, silent: false, onclick: () => { characteristicOverlayLine.value = 'plan'; renderChart(true); }, style: { fill: !activeAct ? '#303b4a' : '#25252c', stroke: !activeAct ? '#63b3ed' : 'rgba(255,255,255,.2)', lineWidth: 1 } },
-          { type: 'text', style: { x: 78, y: navigationTop + 11, text: 'Plan', fill: '#ddd', font: '12px sans-serif', textAlign: 'center', textVerticalAlign: 'middle' } },
-          { type: 'text', style: { x: CHARACTERISTIC_OVERLAY_WIDTH - 91, y: navigationTop + 11, text: count > 1 ? `${characteristicOverlayIndex.value + 1} / ${count}` : '', fill: '#aaa', font: '11px monospace', textAlign: 'center', textVerticalAlign: 'middle' } },
-          { type: 'rect', shape: { x: CHARACTERISTIC_OVERLAY_WIDTH - 64, y: navigationTop, width: 26, height: 22, r: 4 }, silent: false, onclick: () => { characteristicOverlayPrev(); renderChart(true); }, style: { fill: '#25252c', stroke: 'rgba(255,255,255,.2)', lineWidth: 1 } },
-          { type: 'text', style: { x: CHARACTERISTIC_OVERLAY_WIDTH - 51, y: navigationTop + 11, text: '‹', fill: '#ddd', font: '16px sans-serif', textAlign: 'center', textVerticalAlign: 'middle' } },
-          { type: 'rect', shape: { x: CHARACTERISTIC_OVERLAY_WIDTH - 32, y: navigationTop, width: 26, height: 22, r: 4 }, silent: false, onclick: () => { characteristicOverlayNext(); renderChart(true); }, style: { fill: '#25252c', stroke: 'rgba(255,255,255,.2)', lineWidth: 1 } },
-          { type: 'text', style: { x: CHARACTERISTIC_OVERLAY_WIDTH - 19, y: navigationTop + 11, text: '›', fill: '#ddd', font: '16px sans-serif', textAlign: 'center', textVerticalAlign: 'middle' } },
           ...text,
+          ...navigationControls,
         ],
       }];
     }

@@ -389,10 +389,12 @@ async def test_serve_pareto_page_returns_html():
         assert "function overlayPointLines(point)" in body
         assert "`Provider: ${point.provider}`" in body
         assert "`Alias: ${point.alias}`" in body
-        assert (
-            "`In: $${fmt(point.cost.input)} · Out: $${fmt(point.cost.output)} · Weighted cost: $${fmt(point.weightedCost)}`"
-            in body
-        )
+        assert "const navigationControls = count > 1 ? [" in body
+        assert "...navigationControls" in body
+        assert "Weighted cost: {weightedCost|" in body
+        assert "Quality: {quality|" in body
+        assert "weightedCost: { font: '600 12px sans-serif', fill: '#fff' }" in body
+        assert "quality: { font: '600 12px sans-serif', fill: '#fff' }" in body
         assert "function buildCharacteristicOverlayGraphic()" in body
         assert "graphic: buildCharacteristicOverlayGraphic()" in body
         assert "const navigationTop = CHARACTERISTIC_OVERLAY_HEIGHT - 34;" in body
