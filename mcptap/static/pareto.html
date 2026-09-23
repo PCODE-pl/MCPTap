@@ -771,9 +771,14 @@ const app = createApp({
       if (count) characteristicOverlayIndex.value = (characteristicOverlayIndex.value + 1) % count;
     }
 
-    function updateCharacteristicOverlayPoints(actPoints, planPoints) {
-      characteristicOverlayPointLists.act = actPoints;
-      characteristicOverlayPointLists.plan = planPoints;
+    function expandCharacteristicOverlayPoints(characteristicPoints, allPoints) {
+      const keys = new Set(characteristicPoints.map(pointValueKey));
+      return allPoints.filter(point => keys.has(pointValueKey(point)));
+    }
+
+    function updateCharacteristicOverlayPoints(actPoints, planPoints, allPoints) {
+      characteristicOverlayPointLists.act = expandCharacteristicOverlayPoints(actPoints, allPoints);
+      characteristicOverlayPointLists.plan = expandCharacteristicOverlayPoints(planPoints, allPoints);
       characteristicOverlayIndex.value = 0;
     }
     function formatDiagnosticNumber(value) {
@@ -1495,7 +1500,7 @@ const app = createApp({
       const paretoPlan = paretoFrontier.filter(p => p.weightedCost >= routerCostSplit.value - 1e-9);
       const paretoActCharacteristicPoints = computeParetoCharacteristicPoints(paretoAct, routerParetoStripe.value);
       const paretoPlanCharacteristicPoints = computeParetoCharacteristicPoints(paretoPlan, routerParetoStripe.value);
-      updateCharacteristicOverlayPoints(paretoActCharacteristicPoints, paretoPlanCharacteristicPoints);
+      updateCharacteristicOverlayPoints(paretoActCharacteristicPoints, paretoPlanCharacteristicPoints, displayPoints);
       const characteristicPointSet = new Set([
         ...paretoActCharacteristicPoints,
         ...paretoPlanCharacteristicPoints,
