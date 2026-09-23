@@ -384,11 +384,13 @@ async def test_serve_pareto_page_returns_html():
         assert 'data-testid="pareto-characteristic-overlay-act"' not in body
         assert 'data-testid="pareto-characteristic-overlay-plan"' not in body
         assert "const CHARACTERISTIC_OVERLAY_WIDTH = 340;" in body
-        assert "const CHARACTERISTIC_OVERLAY_HEIGHT = 240;" in body
+        assert "const CHARACTERISTIC_OVERLAY_HEIGHT = 196;" in body
         assert "function buildCharacteristicOverlayGraphic()" in body
         assert "graphic: buildCharacteristicOverlayGraphic()" in body
         assert "const navigationTop = CHARACTERISTIC_OVERLAY_HEIGHT - 34;" in body
-        assert "text: activeAct ? 'Act' : 'Plan'" in body
+        assert "x: CHARACTERISTIC_OVERLAY_WIDTH - 91" in body
+        assert "...(point.isThinking ? ['Thinking: yes'] : [])," not in body
+        assert "text: activeAct ? 'Act' : 'Plan'" not in body
         assert "function characteristicOverlayPointKey(point)" in body
         assert "return `${pointValueKey(point)},${point.provider},${point.alias},${point.name}`;" in body
         assert (
