@@ -409,7 +409,7 @@ async def test_serve_pareto_page_returns_html():
         assert "zlevel: 3," not in body
 
         assert "graphic: buildCharacteristicOverlayGraphic()" in body
-        assert "const navigationTop = CHARACTERISTIC_OVERLAY_HEIGHT - 34;" in body
+        assert "const navigationTop = CHARACTERISTIC_OVERLAY_HEIGHT - NAV_BUTTON_TOP_MARGIN;" in body
         assert "x: CHARACTERISTIC_OVERLAY_WIDTH - 91" not in body
         assert "x: CHARACTERISTIC_OVERLAY_WIDTH - 74" in body
         assert "text: 'PARETO'" in body
@@ -437,6 +437,8 @@ async def test_serve_pareto_page_returns_html():
         assert "cursor: 'default'" in body
         assert "silent: true,\n        cursor: 'default'," in body
         assert "watch([characteristicOverlayLine, characteristicOverlayIndex]" in body
+        assert "const NAV_BUTTON_TOP_MARGIN = 34;" in body
+        assert "navigationTop = CHARACTERISTIC_OVERLAY_HEIGHT - NAV_BUTTON_TOP_MARGIN" in body
         assert "replaceMerge: ['graphic']" in body
         assert "characteristicOverlayIndex.value = 0;" in body
         assert "stale index (and its" in body

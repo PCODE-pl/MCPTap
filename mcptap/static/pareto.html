@@ -736,6 +736,11 @@ const app = createApp({
     // The PARETO title badge straddles the top frame edge, so the whole card
     // is lifted by the badge overhang to keep the bottom edge on the X axis.
     const CHARACTERISTIC_OVERLAY_TITLE_LIFT = 9;
+    // Distance from the overlay bottom edge to the top edge of the bottom
+    // navigation buttons. Both the painted buttons and the click fallback
+    // derive their Y range from this single value, so the clickable area can
+    // never drift away from the visible buttons.
+    const NAV_BUTTON_TOP_MARGIN = 34;
     const CHARACTERISTIC_OVERLAY_GRID_BOTTOM = 66;
     const CHARACTERISTIC_OVERLAY_GRID_RIGHT = 32;
     const characteristicOverlayLine = ref('act');
@@ -790,7 +795,7 @@ const app = createApp({
       const lines = overlayPointLines(point);
       const count = characteristicOverlayPoints.value.length;
       const activeAct = characteristicOverlayLine.value === 'act';
-      const navigationTop = CHARACTERISTIC_OVERLAY_HEIGHT - 34;
+      const navigationTop = CHARACTERISTIC_OVERLAY_HEIGHT - NAV_BUTTON_TOP_MARGIN;
       // Clickable buttons are real event targets (silent: false + pointer
       // cursor); the overlay group itself stays silent with the default cursor
       // so only the buttons suggest clickability.
@@ -996,7 +1001,7 @@ const app = createApp({
       // The overlay buttons are non-silent event targets with their own
       // onclick handlers, so this zrender fallback stays as a safety net
       // for clicks that miss the button shapes.
-      const navigationTop = CHARACTERISTIC_OVERLAY_HEIGHT - 34;
+      const navigationTop = CHARACTERISTIC_OVERLAY_HEIGHT - NAV_BUTTON_TOP_MARGIN;
       if (localX >= 8 && localX <= 50 && localY >= navigationTop && localY <= navigationTop + 22) handleOverlayNavButton('act');
       else if (localX >= 54 && localX <= 102 && localY >= navigationTop && localY <= navigationTop + 22) handleOverlayNavButton('plan');
       else if (localX >= CHARACTERISTIC_OVERLAY_WIDTH - 64 && localX <= CHARACTERISTIC_OVERLAY_WIDTH - 38 && localY >= navigationTop && localY <= navigationTop + 22) handleOverlayNavButton('prev');
