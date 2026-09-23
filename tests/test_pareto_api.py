@@ -387,8 +387,10 @@ async def test_serve_pareto_page_returns_html():
         assert "const CHARACTERISTIC_OVERLAY_HEIGHT = 152;" in body
         assert "const CHARACTERISTIC_OVERLAY_HEIGHT = 196;" not in body
         assert "function overlayPointLines(point)" in body
-        assert "`Provider: ${point.provider}`" in body
-        assert "`Alias: ${point.alias}`" in body
+        assert "Provider: {provider|" in body
+        assert "Alias: {alias|" in body
+        assert "provider: { font: '600 12px sans-serif', fill: '#fff' }" in body
+        assert "alias: { font: '600 12px sans-serif', fill: '#fff' }" in body
         assert "const navigationControls = [" in body
         assert "if (count > 1) navigationControls.push(" in body
         assert "Weighted cost: {weightedCost|" in body

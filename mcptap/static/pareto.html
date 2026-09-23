@@ -763,8 +763,8 @@ const app = createApp({
         return n.toFixed(2).replace(/\.00$/, '').replace(/(\.\d*?[1-9])0$/, '$1');
       };
       return [
-        `Provider: ${point.provider}`,
-        `Alias: ${point.alias}`,
+        `Provider: {provider|${point.provider}}`,
+        `Alias: {alias|${point.alias}}`,
         `In: $${fmt(point.cost.input)} · Out: $${fmt(point.cost.output)} · Weighted cost: {weightedCost|$${fmt(point.weightedCost)}}`,
         `Accuracy: ${fmt(point.accuracy)}   Quality: {quality|${fmt(point.value[1])}}`,
       ];
@@ -802,6 +802,8 @@ const app = createApp({
         { type: 'text', style: { x: CHARACTERISTIC_OVERLAY_WIDTH - 19, y: navigationTop + 11, text: '›', fill: '#ddd', font: '16px sans-serif', textAlign: 'center', textVerticalAlign: 'middle' } },
       );
       const richText = {
+        provider: { font: '600 12px sans-serif', fill: '#fff' },
+        alias: { font: '600 12px sans-serif', fill: '#fff' },
         weightedCost: { font: '600 12px sans-serif', fill: '#fff' },
         quality: { font: '600 12px sans-serif', fill: '#fff' },
       };
