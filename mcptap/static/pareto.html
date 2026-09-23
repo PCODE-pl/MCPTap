@@ -789,16 +789,16 @@ const app = createApp({
       const activeAct = characteristicOverlayLine.value === 'act';
       const navigationTop = CHARACTERISTIC_OVERLAY_HEIGHT - 34;
       const navigationControls = [
-        { type: 'rect', shape: { x: 8, y: navigationTop, width: 42, height: 22, r: 4 }, silent: false, onclick: () => { characteristicOverlayLine.value = 'act'; renderChart(true); }, style: { fill: activeAct ? '#303b4a' : '#25252c', stroke: activeAct ? '#63b3ed' : 'rgba(255,255,255,.2)', lineWidth: 1 } },
+        { type: 'rect', shape: { x: 8, y: navigationTop, width: 42, height: 22, r: 4 }, silent: true, onclick: () => { handleOverlayNavButton('act'); }, style: { fill: activeAct ? '#303b4a' : '#25252c', stroke: activeAct ? '#63b3ed' : 'rgba(255,255,255,.2)', lineWidth: 1 } },
         { type: 'text', style: { x: 29, y: navigationTop + 11, text: 'Act', fill: '#ddd', font: '12px sans-serif', textAlign: 'center', textVerticalAlign: 'middle' } },
-        { type: 'rect', shape: { x: 54, y: navigationTop, width: 48, height: 22, r: 4 }, silent: false, onclick: () => { characteristicOverlayLine.value = 'plan'; renderChart(true); }, style: { fill: !activeAct ? '#303b4a' : '#25252c', stroke: !activeAct ? '#63b3ed' : 'rgba(255,255,255,.2)', lineWidth: 1 } },
+        { type: 'rect', shape: { x: 54, y: navigationTop, width: 48, height: 22, r: 4 }, silent: true, onclick: () => { handleOverlayNavButton('plan'); }, style: { fill: !activeAct ? '#303b4a' : '#25252c', stroke: !activeAct ? '#63b3ed' : 'rgba(255,255,255,.2)', lineWidth: 1 } },
         { type: 'text', style: { x: 78, y: navigationTop + 11, text: 'Plan', fill: '#ddd', font: '12px sans-serif', textAlign: 'center', textVerticalAlign: 'middle' } },
       ];
       if (count > 1) navigationControls.push(
         { type: 'text', style: { x: CHARACTERISTIC_OVERLAY_WIDTH - 74, y: navigationTop + 13, text: `${characteristicOverlayIndex.value + 1} / ${count}`, fill: '#aaa', font: '11px monospace', textAlign: 'right', textVerticalAlign: 'middle' } },
-        { type: 'rect', shape: { x: CHARACTERISTIC_OVERLAY_WIDTH - 64, y: navigationTop, width: 26, height: 22, r: 4 }, silent: false, onclick: () => { characteristicOverlayPrev(); renderChart(true); }, style: { fill: '#25252c', stroke: 'rgba(255,255,255,.2)', lineWidth: 1 } },
+        { type: 'rect', shape: { x: CHARACTERISTIC_OVERLAY_WIDTH - 64, y: navigationTop, width: 26, height: 22, r: 4 }, silent: true, onclick: () => { handleOverlayNavButton('prev'); }, style: { fill: '#25252c', stroke: 'rgba(255,255,255,.2)', lineWidth: 1 } },
         { type: 'text', style: { x: CHARACTERISTIC_OVERLAY_WIDTH - 51, y: navigationTop + 11, text: '‹', fill: '#ddd', font: '16px sans-serif', textAlign: 'center', textVerticalAlign: 'middle' } },
-        { type: 'rect', shape: { x: CHARACTERISTIC_OVERLAY_WIDTH - 32, y: navigationTop, width: 26, height: 22, r: 4 }, silent: false, onclick: () => { characteristicOverlayNext(); renderChart(true); }, style: { fill: '#25252c', stroke: 'rgba(255,255,255,.2)', lineWidth: 1 } },
+        { type: 'rect', shape: { x: CHARACTERISTIC_OVERLAY_WIDTH - 32, y: navigationTop, width: 26, height: 22, r: 4 }, silent: true, onclick: () => { handleOverlayNavButton('next'); }, style: { fill: '#25252c', stroke: 'rgba(255,255,255,.2)', lineWidth: 1 } },
         { type: 'text', style: { x: CHARACTERISTIC_OVERLAY_WIDTH - 19, y: navigationTop + 11, text: '›', fill: '#ddd', font: '16px sans-serif', textAlign: 'center', textVerticalAlign: 'middle' } },
       );
       const richText = {
@@ -983,11 +983,24 @@ const app = createApp({
       const { left, top } = characteristicOverlayPosition();
       const localX = x - left;
       const localY = y - top;
+      // Coordinate fallback for clicks that miss the silent button shapes;
+      // button clicks are handled by their onclick handlers instead.
       const navigationTop = CHARACTERISTIC_OVERLAY_HEIGHT - 34;
-      if (localX >= 8 && localX <= 50 && localY >= navigationTop && localY <= navigationTop + 22) characteristicOverlayLine.value = 'act';
-      else if (localX >= 54 && localX <= 102 && localY >= navigationTop && localY <= navigationTop + 22) characteristicOverlayLine.value = 'plan';
-      else if (localX >= CHARACTERISTIC_OVERLAY_WIDTH - 64 && localX <= CHARACTERISTIC_OVERLAY_WIDTH - 38 && localY >= navigationTop && localY <= navigationTop + 22) characteristicOverlayPrev();
-      else if (localX >= CHARACTERISTIC_OVERLAY_WIDTH - 32 && localX <= CHARACTERISTIC_OVERLAY_WIDTH - 6 && localY >= navigationTop && localY <= navigationTop + 22) characteristicOverlayNext();
+      if (localX >= 8 && localX <= 50 && localY >= navigationTop && localY <= navigationTop + 22) handleOverlayNavButton('act');
+      else if (localX >= 54 && localX <= 102 && localY >= navigationTop && localY <= navigationTop + 22) handleOverlayNavButton('plan');
+      else if (localX >= CHARACTERISTIC_OVERLAY_WIDTH - 64 && localX <= CHARACTERISTIC_OVERLAY_WIDTH - 38 && localY >= navigationTop && localY <= navigationTop + 22) handleOverlayNavButton('prev');
+      else if (localX >= CHARACTERISTIC_OVERLAY_WIDTH - 32 && localX <= CHARACTERISTIC_OVERLAY_WIDTH - 6 && localY >= navigationTop && localY <= navigationTop + 22) handleOverlayNavButton('next');
+      else return;
+    }
+
+    function handleOverlayNavButton(action) {
+      // Exactly one navigation step per physical click: overlay buttons are
+      // silent, so a click on them reaches only their own onclick handler and
+      // never the zrender click fallback (which would advance a second step).
+      if (action === 'prev') characteristicOverlayPrev();
+      else if (action === 'next') characteristicOverlayNext();
+      else if (action === 'act') characteristicOverlayLine.value = 'act';
+      else if (action === 'plan') characteristicOverlayLine.value = 'plan';
       else return;
       renderChart(true);
     }

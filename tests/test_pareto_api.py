@@ -424,9 +424,16 @@ async def test_serve_pareto_page_returns_html():
             in body
         )
         assert "silent: false" in body
-        assert "onclick: () => { characteristicOverlayPrev(); renderChart(true); }" in body
-        assert "onclick: () => { characteristicOverlayNext(); renderChart(true); }" in body
-        assert "onclick: () => { characteristicOverlayLine.value = 'act'; renderChart(true); }" in body
+        assert "function handleOverlayNavButton(action)" in body
+        assert "onclick: () => { handleOverlayNavButton('prev'); }" in body
+        assert "onclick: () => { handleOverlayNavButton('next'); }" in body
+        assert "onclick: () => { handleOverlayNavButton('act'); }" in body
+        assert "onclick: () => { handleOverlayNavButton('plan'); }" in body
+        assert "onclick: () => { characteristicOverlayPrev(); renderChart(true); }" not in body
+        assert "onclick: () => { characteristicOverlayNext(); renderChart(true); }" not in body
+        assert "onclick: () => { characteristicOverlayLine.value = 'act'; renderChart(true); }" not in body
+        assert "onclick: () => { characteristicOverlayLine.value = 'plan'; renderChart(true); }" not in body
+        assert "zr.off('click', handleCharacteristicOverlayClick);" in body
         assert "function buildClippedGridSeries()" in body
         assert "function niceTickStep(rawStep)" in body
         assert "characteristicOverlayGridClips().xAxis" not in body
