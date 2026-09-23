@@ -409,6 +409,7 @@ async def test_serve_pareto_page_returns_html():
         assert "graphic: buildCharacteristicOverlayGraphic()" in body
         assert "const navigationTop = CHARACTERISTIC_OVERLAY_HEIGHT - 34;" in body
         assert "x: CHARACTERISTIC_OVERLAY_WIDTH - 91" in body
+        assert "y: navigationTop + 13" in body
         assert "...(point.isThinking ? ['Thinking: yes'] : [])," not in body
         assert "text: activeAct ? 'Act' : 'Plan'" not in body
         assert "function characteristicOverlayPointKey(point)" in body
