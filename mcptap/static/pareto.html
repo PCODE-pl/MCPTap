@@ -732,7 +732,7 @@ const app = createApp({
 
     const popupCardHtml = computed(() => buildPopupCardHtml(popupPoints.value[popupIndex.value]));
     const CHARACTERISTIC_OVERLAY_WIDTH = 340;
-    const CHARACTERISTIC_OVERLAY_HEIGHT = 196;
+    const CHARACTERISTIC_OVERLAY_HEIGHT = 152;
     const CHARACTERISTIC_OVERLAY_GRID_BOTTOM = 66;
     const CHARACTERISTIC_OVERLAY_GRID_RIGHT = 32;
     const characteristicOverlayLine = ref('act');
@@ -763,11 +763,7 @@ const app = createApp({
         return n.toFixed(2).replace(/\.00$/, '').replace(/(\.\d*?[1-9])0$/, '$1');
       };
       return [
-        `${point.name}`,
-        `Provider: ${point.provider}`,
-        `Alias: ${point.alias}`,
-        `In: $${fmt(point.cost.input)} · Out: $${fmt(point.cost.output)}`,
-        `Weighted cost: $${fmt(point.weightedCost)}`,
+        `In: $${fmt(point.cost.input)} · Out: $${fmt(point.cost.output)} · Weighted cost: $${fmt(point.weightedCost)}`,
         `Quality: ${fmt(point.value[1])}   Accuracy: ${fmt(point.accuracy)}`,
       ];
     }
