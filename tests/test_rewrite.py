@@ -107,6 +107,55 @@ def test_per_model_disable_custom_tools_matches_model_suffix():
         assert payload["tools"] == []
 
 
+def test_per_model_disable_reasoning_effort_removes_reasoning_on_every_request():
+    with (
+        patch.object(
+            settings,
+            "per_model_yaml",
+            "mimo/mimo-v2.5:\n  disable_reasoning_effort: true\n",
+        ),
+        patch.object(settings, "model", "mimo/mimo-v2.5"),
+        patch.object(settings, "upstream_provider", "requesty"),
+    ):
+        per_model_config = load_per_model_config()
+        assert per_model_config["mimo/mimo-v2.5"]["disable_reasoning_effort"] is True
+
+        for payload in (
+            {"model": "client-model", "input": [], "reasoning": {"effort": "high"}},
+            {
+                "model": "client-model",
+                "input": [],
+                "previous_response_id": "resp_123",
+                "reasoning": {"effort": "medium", "summary": "auto"},
+            },
+        ):
+            rewrite_json_payload(
+                MagicMock(method="POST", path_qs="/v1/responses"), payload, MCPInterceptor(None), per_model_config
+            )
+            assert "reasoning" not in payload
+
+
+def test_reasoning_is_preserved_for_models_without_disable_flag():
+    with (
+        patch.object(settings, "model", "openai/gpt-5.5-luna"),
+        patch.object(settings, "upstream_provider", PROVIDER_OPENROUTER),
+    ):
+        payload = {
+            "model": "client-model",
+            "input": [],
+            "reasoning": {"effort": "high"},
+        }
+
+        rewrite_json_payload(
+            MagicMock(method="POST", path_qs="/v1/responses"),
+            payload,
+            MCPInterceptor(None),
+            {},
+        )
+
+        assert payload["reasoning"] == {"effort": "high"}
+
+
 def test_meta_tool_schemas_require_all_properties_and_nullable_optional_values():
     payload = {
         "model": "client-model",

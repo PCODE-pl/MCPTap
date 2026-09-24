@@ -48,6 +48,7 @@ def load_per_model_config() -> Dict[str, Dict[str, Any]]:
             isinstance(cfg.get("instructions"), str)
             or isinstance(cfg.get("disable_builtin_tools"), bool)
             or isinstance(cfg.get("disable_custom_tools"), bool)
+            or isinstance(cfg.get("disable_reasoning_effort"), bool)
         ):
             result[model_key] = cfg
             if base_model != model_key:
@@ -301,6 +302,21 @@ def _disable_per_model_custom_tools(
     LOGGER.debug("Disabled custom tools for model=%s", model)
 
 
+def _disable_per_model_reasoning_effort(
+    payload: Dict[str, Any],
+    model: str,
+    per_model_config: Dict[str, Dict[str, Any]],
+) -> None:
+    """Remove the reasoning parameter for models without a thinking mode."""
+    config = _get_per_model_config(model, per_model_config)
+    if not config or config.get("disable_reasoning_effort") is not True:
+        return
+
+    if "reasoning" in payload:
+        payload.pop("reasoning", None)
+        LOGGER.debug("Disabled reasoning effort for model=%s", model)
+
+
 def rewrite_json_payload(
     request: web.Request,
     payload: Dict[str, Any],
@@ -322,6 +338,7 @@ def rewrite_json_payload(
         _inject_per_model_instructions(payload, forced_model, per_model_config)
         _disable_per_model_builtin_tools(payload, forced_model, per_model_config)
         _disable_per_model_custom_tools(payload, forced_model, per_model_config)
+        _disable_per_model_reasoning_effort(payload, forced_model, per_model_config)
 
     candidate_force_model = (
         settings.plan_mode_model if reasoning_effort == settings.plan_mode_trigger else settings.model

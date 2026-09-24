@@ -300,6 +300,7 @@ Notes:
 * Requesty policies such as `policy/name` are supported,
 * `disable_builtin_tools: true` removes Responses built-in tool types for that model while preserving function tools,
 * `disable_custom_tools: true` removes Responses custom tools for that model while preserving function tools,
+* `disable_reasoning_effort: true` removes the `reasoning` parameter for that model on every request, for models without a thinking mode,
 * instructions are injected only on the first request, not on follow-up requests using `previous_response_id`.
 
 ## 7. Tool-call hook
