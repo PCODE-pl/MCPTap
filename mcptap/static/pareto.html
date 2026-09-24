@@ -1741,6 +1741,37 @@ const app = createApp({
       return [characteristicPoint];
     }
 
+    function buildStripeAwareLineSeries(name, points, color, stripePercent) {
+      if (points.length < 2) return null;
+      const startCost = points[0].weightedCost;
+      const stripeLimit = startCost + startCost * stripePercent / 100;
+      const thin = 3.2;
+      const thick = thin * 2;
+      const data = [];
+      for (let i = 0; i < points.length - 1; i++) {
+        const c1 = points[i].weightedCost;
+        const c2 = points[i + 1].weightedCost;
+        const bothInStripe = c1 >= startCost - 1e-9 && c1 <= stripeLimit + 1e-9
+          && c2 >= startCost - 1e-9 && c2 <= stripeLimit + 1e-9;
+        data.push({ value: [points[i].value, points[i + 1].value], lineStyle: { width: bothInStripe ? thick : thin } });
+      }
+      return {
+        name,
+        type: 'custom',
+        silent: true,
+        data,
+        renderItem: (params, api) => {
+          const p1 = api.value(0);
+          const p2 = api.value(1);
+          const c1 = api.coord(p1);
+          const c2 = api.coord(p2);
+          return { type: 'line', shape: { x1: c1[0], y1: c1[1], x2: c2[0], y2: c2[1] }, style: api.style({ stroke: color, fill: 'none' }) };
+        },
+        encode: { x: [0, 1], y: [0, 1] },
+        z: 1,
+      };
+    }
+
     function pointValueKey(point) {
       return JSON.stringify(point.value);
     }
@@ -1866,26 +1897,12 @@ const app = createApp({
       const showParetoPlanLine = !hasActiveFilter && paretoPlan.length >= 1 && !isSplitAtMax;
       const showParetoActLine = !hasActiveFilter && paretoAct.length >= 1 && !isSplitAtMin;
       if (showParetoPlanLine) {
-        series.unshift({
-          name: 'pareto plan',
-          type: 'line',
-          data: paretoPlan.map(point => point.value),
-          showSymbol: false,
-          silent: true,
-          lineStyle: { color: '#8B4513', width: 3.2 },
-          z: 1,
-        });
+        const planLine = buildStripeAwareLineSeries('pareto plan', paretoPlan, '#8B4513', routerParetoStripe.value);
+        if (planLine) series.unshift(planLine);
       }
       if (showParetoActLine) {
-        series.unshift({
-          name: 'pareto act',
-          type: 'line',
-          data: paretoAct.map(point => point.value),
-          showSymbol: false,
-          silent: true,
-          lineStyle: { color: '#63b3ed', width: 3.2 },
-          z: 1,
-        });
+        const actLine = buildStripeAwareLineSeries('pareto act', paretoAct, '#63b3ed', routerParetoStripe.value);
+        if (actLine) series.unshift(actLine);
       }
       if (showParetoPlanLine && showParetoActLine) {
         series.unshift({
