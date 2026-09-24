@@ -1016,10 +1016,10 @@ const app = createApp({
       const localY = chartY - top;
       const navigationTop = CHARACTERISTIC_OVERLAY_HEIGHT - NAV_BUTTON_TOP_MARGIN;
       const showLineButtons = hasBothCharacteristicOverlayLines.value;
-      if (showLineButtons && localX >= 8 && localX <= 50 && localY >= navigationTop && localY <= navigationTop + 22) handleOverlayNavButton('act');
-      else if (showLineButtons && localX >= 54 && localX <= 102 && localY >= navigationTop && localY <= navigationTop + 22) handleOverlayNavButton('plan');
-      else if (localX >= CHARACTERISTIC_OVERLAY_WIDTH - 64 && localX <= CHARACTERISTIC_OVERLAY_WIDTH - 38 && localY >= navigationTop && localY <= navigationTop + 22) handleOverlayNavButton('prev');
-      else if (localX >= CHARACTERISTIC_OVERLAY_WIDTH - 32 && localX <= CHARACTERISTIC_OVERLAY_WIDTH - 6 && localY >= navigationTop && localY <= navigationTop + 22) handleOverlayNavButton('next');
+      if (showLineButtons && localX >= 8 && localX <= 50 && localY >= navigationTop + 10 && localY <= navigationTop + 32) handleOverlayNavButton('act');
+      else if (showLineButtons && localX >= 54 && localX <= 102 && localY >= navigationTop + 10 && localY <= navigationTop + 32) handleOverlayNavButton('plan');
+      else if (localX >= CHARACTERISTIC_OVERLAY_WIDTH - 64 && localX <= CHARACTERISTIC_OVERLAY_WIDTH - 38 && localY >= navigationTop + 10 && localY <= navigationTop + 32) handleOverlayNavButton('prev');
+      else if (localX >= CHARACTERISTIC_OVERLAY_WIDTH - 32 && localX <= CHARACTERISTIC_OVERLAY_WIDTH - 6 && localY >= navigationTop + 10 && localY <= navigationTop + 32) handleOverlayNavButton('next');
     }
 
     function handleOverlayNavButton(action) {
