@@ -489,7 +489,10 @@ async def test_serve_pareto_page_returns_html():
         assert "legendHoverLink: false" in body
         assert "const prevProviderCount = ref(0);" in body
         assert "const prevModelCount = ref(0);" in body
+        assert "const pendingQualityReset = ref(false);" in body
         assert "function handleFilterUpdate()" in body
         assert "const providerRemoved = providers.length < prevProviderCount.value;" in body
         assert "const modelRemoved = models.length < prevModelCount.value;" in body
+        assert "pendingQualityReset.value = providerRemoved || modelRemoved;" in body
+        assert "if (pendingQualityReset.value) {" in body
         assert "routerMinQuality.value = Math.max(routerQualityMinBound.value, 55);" in body

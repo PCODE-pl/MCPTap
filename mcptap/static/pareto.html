@@ -453,6 +453,7 @@ const app = createApp({
     const selectedModels = ref([]);
     const prevProviderCount = ref(0);
     const prevModelCount = ref(0);
+    const pendingQualityReset = ref(false);
     const includeUntested = ref(false);
     const onlyConfigured = ref(true);
     const configuredProviders = ref([]);
@@ -1139,10 +1140,7 @@ const app = createApp({
       const providerRemoved = providers.length < prevProviderCount.value;
       const modelRemoved = models.length < prevModelCount.value;
 
-      if (providerRemoved || modelRemoved) {
-        routerMinQuality.value = Math.max(routerQualityMinBound.value, 55);
-      }
-
+      pendingQualityReset.value = providerRemoved || modelRemoved;
       prevProviderCount.value = providers.length;
       prevModelCount.value = models.length;
       if (selectedProviders.value === null) selectedProviders.value = [];
@@ -1755,6 +1753,10 @@ const app = createApp({
       const points = buildPoints();
       routerAllPoints.value = points;
       updateRouterQualityBounds();
+      if (pendingQualityReset.value) {
+        routerMinQuality.value = Math.max(routerQualityMinBound.value, 55);
+        pendingQualityReset.value = false;
+      }
       const displayPoints = points.filter(p => p.weightedCost >= routerMinCost.value && p.weightedCost <= routerMaxCost.value && (typeof p.accuracy !== 'number' || p.accuracy >= routerMinQuality.value));
       const preservedRange = preserveViewportForVisiblePoints(previousPoints, displayPoints, previousViewRange);
       chartState.value = 'rendering';
