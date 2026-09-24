@@ -1753,21 +1753,31 @@ const app = createApp({
         const c2 = points[i + 1].weightedCost;
         const bothInStripe = c1 >= startCost - 1e-9 && c1 <= stripeLimit + 1e-9
           && c2 >= startCost - 1e-9 && c2 <= stripeLimit + 1e-9;
-        data.push({ value: [points[i].value, points[i + 1].value], lineStyle: { width: bothInStripe ? thick : thin } });
+        data.push({
+          value: [
+            points[i].value[0], points[i].value[1],
+            points[i + 1].value[0], points[i + 1].value[1],
+          ],
+          lineStyle: { width: bothInStripe ? thick : thin },
+        });
       }
       return {
         name,
         type: 'custom',
         silent: true,
         data,
+        dimensions: ['x1', 'y1', 'x2', 'y2'],
         renderItem: (params, api) => {
-          const p1 = api.value(0);
-          const p2 = api.value(1);
-          const c1 = api.coord(p1);
-          const c2 = api.coord(p2);
-          return { type: 'line', shape: { x1: c1[0], y1: c1[1], x2: c2[0], y2: c2[1] }, style: api.style({ stroke: color, fill: 'none' }) };
+          const c1 = api.coord([api.value(0), api.value(1)]);
+          const c2 = api.coord([api.value(2), api.value(3)]);
+          const lineWidth = data[params.dataIndex]?.lineStyle?.width || thin;
+          return {
+            type: 'line',
+            shape: { x1: c1[0], y1: c1[1], x2: c2[0], y2: c2[1] },
+            style: api.style({ stroke: color, fill: 'none', lineWidth }),
+          };
         },
-        encode: { x: [0, 1], y: [0, 1] },
+        encode: { x: [0, 2], y: [1, 3] },
         z: 1,
       };
     }
