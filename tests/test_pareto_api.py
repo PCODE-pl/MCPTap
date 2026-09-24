@@ -447,7 +447,7 @@ async def test_serve_pareto_page_returns_html():
         assert "silent: true," in body
         assert "NAV_BUTTON_TOP_MARGIN" in body
         assert "element onclick never fires inside a silent group" in body
-        assert "const NAV_BUTTON_TOP_MARGIN = 24;" in body
+        assert "const NAV_BUTTON_TOP_MARGIN = 34;" in body
         assert "const CHARACTERISTIC_OVERLAY_HIT_TARGET_TOP = 98;" not in body
         assert ".characteristic-overlay-hit-target" not in body
         assert "characteristicOverlayHitTargets" not in body
