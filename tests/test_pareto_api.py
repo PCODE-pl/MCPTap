@@ -377,7 +377,9 @@ async def test_serve_pareto_page_returns_html():
         assert ':max="150"' not in body
         assert "Math.min(200, v)" in body
         assert "computeParetoCharacteristicPoints(linePoints, stripePercent)" in body
-        assert "const stripeLimit = startCost + startCost * stripePercent / 100;" in body
+        assert "const stripeLimit = computeParetoStripeLimit(startCost, stripePercent);" in body
+        assert "function computeParetoStripeLimit(price, stripePercent)" in body
+        assert "return price + (price + 1) * stripePercent / 100;" in body
         assert "computeParetoCharacteristicPoints(paretoAct, routerParetoStripe.value)" in body
         assert "computeParetoCharacteristicPoints(paretoPlan, routerParetoStripe.value)" in body
         assert 'data-testid="pareto-characteristic-overlay"' not in body

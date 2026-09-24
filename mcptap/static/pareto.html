@@ -1730,10 +1730,14 @@ const app = createApp({
       return frontier;
     }
 
+    function computeParetoStripeLimit(price, stripePercent) {
+      return price + (price + 1) * stripePercent / 100;
+    }
+
     function computeParetoCharacteristicPoints(linePoints, stripePercent) {
       if (!linePoints.length) return [];
       const startCost = linePoints[0].weightedCost;
-      const stripeLimit = startCost + startCost * stripePercent / 100;
+      const stripeLimit = computeParetoStripeLimit(startCost, stripePercent);
       let characteristicPoint = linePoints[0];
       for (const point of linePoints) {
         if (point.weightedCost <= stripeLimit) characteristicPoint = point;
@@ -1744,7 +1748,7 @@ const app = createApp({
     function buildStripeAwareLineSeries(name, points, color, stripePercent) {
       if (points.length < 2) return null;
       const startCost = points[0].weightedCost;
-      const stripeLimit = startCost + startCost * stripePercent / 100;
+      const stripeLimit = computeParetoStripeLimit(startCost, stripePercent);
       const thin = 3.2;
       const thick = thin * 2;
       const data = [];
