@@ -212,6 +212,7 @@ _FILE_STEPFUN_STEP_PLAN_ENV = "stepfun-step-plan.env"
 _FILE_SUBCONSCIOUS_ENV = "subconscious.env"
 _FILE_SUBMODEL_ENV = "submodel.env"
 _FILE_SYNTHETIC_ENV = "synthetic.env"
+_FILE_TEMPR_ENV = "tempr.env"
 _FILE_TENCENT_CODING_PLAN_ENV = "tencent-coding-plan.env"
 _FILE_TENCENT_TOKEN_PLAN_ENV = "tencent-token-plan.env"
 _FILE_TENCENT_TOKENHUB_ENV = "tencent-tokenhub.env"
@@ -436,6 +437,7 @@ _ENV_FILES = {
     _FILE_SUBCONSCIOUS_ENV,
     _FILE_SUBMODEL_ENV,
     _FILE_SYNTHETIC_ENV,
+    _FILE_TEMPR_ENV,
     _FILE_TENCENT_CODING_PLAN_ENV,
     _FILE_TENCENT_TOKEN_PLAN_ENV,
     _FILE_TENCENT_TOKENHUB_ENV,

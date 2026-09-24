@@ -278,6 +278,7 @@ PROVIDER_STEPFUN_STEP_PLAN = "stepfun-step-plan"
 PROVIDER_SUBCONSCIOUS = "subconscious"
 PROVIDER_SUBMODEL = "submodel"
 PROVIDER_SYNTHETIC = "synthetic"
+PROVIDER_TEMPR = "tempr"
 PROVIDER_TENCENT_CODING_PLAN = "tencent-coding-plan"
 PROVIDER_TENCENT_TOKEN_PLAN = "tencent-token-plan"
 PROVIDER_TENCENT_TOKENHUB = "tencent-tokenhub"
@@ -522,6 +523,7 @@ _PROVIDER_ENV_FILES = {
     PROVIDER_SUBCONSCIOUS: "subconscious.env",
     PROVIDER_SUBMODEL: "submodel.env",
     PROVIDER_SYNTHETIC: "synthetic.env",
+    PROVIDER_TEMPR: "tempr.env",
     PROVIDER_TENCENT_CODING_PLAN: "tencent-coding-plan.env",
     PROVIDER_TENCENT_TOKEN_PLAN: "tencent-token-plan.env",
     PROVIDER_TENCENT_TOKENHUB: "tencent-tokenhub.env",
@@ -740,6 +742,7 @@ _UPSTREAM_BASE_URLS = {
     PROVIDER_SUBCONSCIOUS: "https://api.subconscious.dev/v1",
     PROVIDER_SUBMODEL: "https://llm.submodel.ai/v1",
     PROVIDER_SYNTHETIC: "https://api.synthetic.new/openai/v1",
+    PROVIDER_TEMPR: "https://api.temprhq.io/v1",
     PROVIDER_TENCENT_CODING_PLAN: "https://api.lkeap.cloud.tencent.com/coding/v3",
     PROVIDER_TENCENT_TOKEN_PLAN: "https://api.lkeap.cloud.tencent.com/plan/v3",
     PROVIDER_TENCENT_TOKENHUB: "https://tokenhub.tencentmaas.com/v1",

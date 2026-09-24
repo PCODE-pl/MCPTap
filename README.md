@@ -352,6 +352,7 @@ stepfun-step-plan
 subconscious
 submodel
 synthetic
+tempr
 tencent-coding-plan
 tencent-token-plan
 tencent-tokenhub
