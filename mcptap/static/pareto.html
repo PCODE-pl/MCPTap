@@ -355,7 +355,7 @@
                   id="router-slider-pareto-stripe"
                   v-model:value="routerParetoStripe"
                   :min="10"
-                  :max="150"
+                  :max="200"
                   :step="5"
                   :format-tooltip="formatTooltipTwoDecimals"
                   data-testid="router-slider-pareto-stripe-control"
@@ -520,7 +520,7 @@ const app = createApp({
     }
     function handleRouterParetoStripeChange(value) {
       const v = typeof value === 'number' && Number.isFinite(value) ? value : 50;
-      routerParetoStripe.value = Math.max(10, Math.min(150, v));
+      routerParetoStripe.value = Math.max(10, Math.min(200, v));
       scheduleRenderChart();
     }
     const routerMinCostSliderPosition = computed({
