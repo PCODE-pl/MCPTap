@@ -441,7 +441,9 @@ async def test_serve_pareto_page_returns_html():
             "const chartX = clientX === null ? numeric(params?.zrX) ?? numeric(params?.offsetX) : clientX - chartRect.left;"
             in body
         )
-        assert "watch([characteristicOverlayLine, characteristicOverlayIndex]" in body
+        assert (
+            "watch([characteristicOverlayLine, characteristicOverlayEffectiveLine, characteristicOverlayIndex]" in body
+        )
         assert "silent: true," in body
         assert "NAV_BUTTON_TOP_MARGIN" in body
         assert "element onclick never fires inside a silent group" in body

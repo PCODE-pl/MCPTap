@@ -761,7 +761,16 @@ const app = createApp({
     const CHARACTERISTIC_OVERLAY_GRID_RIGHT = 32;
     const characteristicOverlayLine = ref('act');
     const characteristicOverlayPointLists = reactive({ act: [], plan: [] });
-    const characteristicOverlayPoints = computed(() => characteristicOverlayPointLists[characteristicOverlayLine.value]);
+    const hasBothCharacteristicOverlayLines = computed(() => (
+      characteristicOverlayPointLists.act.length > 0 && characteristicOverlayPointLists.plan.length > 0
+    ));
+    const characteristicOverlayEffectiveLine = computed(() => {
+      if (hasBothCharacteristicOverlayLines.value) return characteristicOverlayLine.value;
+      if (characteristicOverlayPointLists.act.length > 0) return 'act';
+      if (characteristicOverlayPointLists.plan.length > 0) return 'plan';
+      return characteristicOverlayLine.value;
+    });
+    const characteristicOverlayPoints = computed(() => characteristicOverlayPointLists[characteristicOverlayEffectiveLine.value]);
     const characteristicOverlayIndex = ref(0);
     const characteristicOverlayPoint = computed(() => {
       const points = characteristicOverlayPoints.value;
@@ -790,10 +799,14 @@ const app = createApp({
       const points = characteristicOverlayPoints.value;
       if (!characteristicOverlayPoint.value || !points.length) return [];
       const top = CHARACTERISTIC_OVERLAY_HIT_TARGET_TOP;
-      const targets = [
-        { action: 'act', label: 'Act characteristic points', left: 8, width: 42 },
-        { action: 'plan', label: 'Plan characteristic points', left: 56, width: 48 },
-      ];
+      const showLineButtons = hasBothCharacteristicOverlayLines.value;
+      const targets = [];
+      if (showLineButtons) {
+        targets.push(
+          { action: 'act', label: 'Act characteristic points', left: 8, width: 42 },
+          { action: 'plan', label: 'Plan characteristic points', left: 56, width: 48 },
+        );
+      }
       if (points.length > 1) {
         targets.push(
           { action: 'prev', label: 'Previous characteristic point', left: CHARACTERISTIC_OVERLAY_WIDTH - 64, width: 26 },
@@ -842,7 +855,8 @@ const app = createApp({
       const { left: x, top: y } = characteristicOverlayPosition();
       const lines = overlayPointLines(point);
       const count = characteristicOverlayPoints.value.length;
-      const activeAct = characteristicOverlayLine.value === 'act';
+      const showLineButtons = hasBothCharacteristicOverlayLines.value;
+      const activeAct = characteristicOverlayEffectiveLine.value === 'act';
       const navigationTop = CHARACTERISTIC_OVERLAY_HEIGHT - NAV_BUTTON_TOP_MARGIN;
       // Clickable buttons are silent shapes with a pointer cursor; the overlay
       // group itself stays silent with the default cursor so only the buttons
@@ -850,10 +864,12 @@ const app = createApp({
       // fallback below (element onclick never fires inside a silent group).
       const buttonCursor = { cursor: 'pointer' };
       const navigationControls = [
-        { type: 'rect', shape: { x: 8, y: navigationTop, width: 42, height: 22, r: 4 }, silent: true, style: { fill: activeAct ? '#303b4a' : '#25252c', stroke: activeAct ? '#63b3ed' : 'rgba(255,255,255,.2)', lineWidth: 1, ...buttonCursor } },
-        { type: 'text', style: { x: 29, y: navigationTop + 11, text: 'Act', fill: '#ddd', font: '12px sans-serif', textAlign: 'center', textVerticalAlign: 'middle', ...buttonCursor } },
-        { type: 'rect', shape: { x: 54, y: navigationTop, width: 48, height: 22, r: 4 }, silent: true, style: { fill: !activeAct ? '#303b4a' : '#25252c', stroke: !activeAct ? '#63b3ed' : 'rgba(255,255,255,.2)', lineWidth: 1, ...buttonCursor } },
-        { type: 'text', style: { x: 78, y: navigationTop + 11, text: 'Plan', fill: '#ddd', font: '12px sans-serif', textAlign: 'center', textVerticalAlign: 'middle', ...buttonCursor } },
+        ...(showLineButtons ? [
+          { type: 'rect', shape: { x: 8, y: navigationTop, width: 42, height: 22, r: 4 }, silent: true, style: { fill: activeAct ? '#303b4a' : '#25252c', stroke: activeAct ? '#63b3ed' : 'rgba(255,255,255,.2)', lineWidth: 1, ...buttonCursor } },
+          { type: 'text', style: { x: 29, y: navigationTop + 11, text: 'Act', fill: '#ddd', font: '12px sans-serif', textAlign: 'center', textVerticalAlign: 'middle', ...buttonCursor } },
+          { type: 'rect', shape: { x: 54, y: navigationTop, width: 48, height: 22, r: 4 }, silent: true, style: { fill: !activeAct ? '#303b4a' : '#25252c', stroke: !activeAct ? '#63b3ed' : 'rgba(255,255,255,.2)', lineWidth: 1, ...buttonCursor } },
+          { type: 'text', style: { x: 78, y: navigationTop + 11, text: 'Plan', fill: '#ddd', font: '12px sans-serif', textAlign: 'center', textVerticalAlign: 'middle', ...buttonCursor } },
+        ] : []),
       ];
       if (count > 1) navigationControls.push(
         { type: 'text', style: { x: CHARACTERISTIC_OVERLAY_WIDTH - 74, y: navigationTop + 13, text: `${characteristicOverlayIndex.value + 1} / ${count}`, fill: '#aaa', font: '11px monospace', textAlign: 'right', textVerticalAlign: 'middle' } },
@@ -1056,8 +1072,9 @@ const app = createApp({
       // event on the overlay's separate canvas without dispatching child
       // graphic handlers, so this is the single navigation hit-test path.
       const navigationTop = CHARACTERISTIC_OVERLAY_HEIGHT - NAV_BUTTON_TOP_MARGIN;
-      if (localX >= 8 && localX <= 50 && localY >= navigationTop && localY <= navigationTop + 22) handleOverlayNavButton('act');
-      else if (localX >= 54 && localX <= 102 && localY >= navigationTop && localY <= navigationTop + 22) handleOverlayNavButton('plan');
+      const showLineButtons = hasBothCharacteristicOverlayLines.value;
+      if (showLineButtons && localX >= 8 && localX <= 50 && localY >= navigationTop && localY <= navigationTop + 22) handleOverlayNavButton('act');
+      else if (showLineButtons && localX >= 54 && localX <= 102 && localY >= navigationTop && localY <= navigationTop + 22) handleOverlayNavButton('plan');
       else if (localX >= CHARACTERISTIC_OVERLAY_WIDTH - 64 && localX <= CHARACTERISTIC_OVERLAY_WIDTH - 38 && localY >= navigationTop && localY <= navigationTop + 22) handleOverlayNavButton('prev');
       else if (localX >= CHARACTERISTIC_OVERLAY_WIDTH - 32 && localX <= CHARACTERISTIC_OVERLAY_WIDTH - 6 && localY >= navigationTop && localY <= navigationTop + 22) handleOverlayNavButton('next');
       else return;
@@ -1094,11 +1111,12 @@ const app = createApp({
       const currentPointKey = characteristicOverlayPoint.value ? characteristicOverlayPointKey(characteristicOverlayPoint.value) : null;
       characteristicOverlayPointLists.act = expandCharacteristicOverlayPoints(actPoints, allPoints);
       characteristicOverlayPointLists.plan = expandCharacteristicOverlayPoints(planPoints, allPoints);
-      const nextPoints = characteristicOverlayPointLists[characteristicOverlayLine.value];
+      const effectiveLine = characteristicOverlayEffectiveLine.value;
+      const nextPoints = characteristicOverlayPointLists[effectiveLine];
       characteristicOverlayIndex.value = nextPoints.findIndex(point => characteristicOverlayPointKey(point) === currentPointKey);
       if (characteristicOverlayIndex.value < 0) characteristicOverlayIndex.value = 0;
     }
-    watch([characteristicOverlayLine, characteristicOverlayIndex], () => {
+    watch([characteristicOverlayLine, characteristicOverlayEffectiveLine, characteristicOverlayIndex], () => {
       // replaceMerge drops removed children (e.g. the ‹ › arrows when the new
       // line has a single card); a plain merge would keep the stale elements.
       if (chart.value) chart.value.setOption({ graphic: buildCharacteristicOverlayGraphic() }, { replaceMerge: ['graphic'], lazyUpdate: false });
