@@ -6,7 +6,65 @@ from pathlib import Path
 
 import pytest  # type: ignore
 
-from mcptap.pareto_data import ParetoDataTask
+from mcptap.pareto_data import ParetoDataTask, _github_headers
+
+
+@pytest.mark.asyncio
+async def test_fetch_remote_sends_github_token(monkeypatch):
+    captured = {}
+
+    class FakeResponse:
+        status = 200
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, traceback):
+            return None
+
+        async def read(self):
+            return b"{}"
+
+    class FakeSession:
+        def __init__(self, *, timeout):
+            self.timeout = timeout
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, traceback):
+            return None
+
+        def get(self, url, *, headers):
+            captured["url"] = url
+            captured["headers"] = headers
+            return FakeResponse()
+
+    monkeypatch.setenv("MCPTAP_GITHUB_TOKEN", "test-token")
+    monkeypatch.setattr("mcptap.pareto_data.aiohttp.ClientSession", FakeSession)
+
+    result = await ParetoDataTask._fetch_remote(
+        "https://raw.githubusercontent.com/PCODE-pl/MCPTap-Pareto/dev/pareto.json"
+    )
+
+    assert result == b"{}"
+    assert captured["headers"] == {
+        "Accept": "application/vnd.github.raw+json",
+        "Authorization": "Bearer test-token",
+    }
+
+
+def test_github_headers_require_token(monkeypatch):
+    monkeypatch.delenv("MCPTAP_GITHUB_TOKEN", raising=False)
+
+    with pytest.raises(RuntimeError, match="MCPTAP_GITHUB_TOKEN"):
+        _github_headers("https://raw.githubusercontent.com/PCODE-pl/MCPTap-Pareto/dev/pareto.json")
+
+
+def test_github_headers_are_not_added_to_other_hosts(monkeypatch):
+    monkeypatch.setenv("MCPTAP_GITHUB_TOKEN", "test-token")
+
+    assert _github_headers("https://example.com/pareto.json") == {}
 
 
 @pytest.mark.asyncio

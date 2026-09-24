@@ -6,6 +6,7 @@ import os
 import tempfile
 from pathlib import Path
 from typing import Optional
+from urllib.parse import urlparse
 
 import aiohttp  # type: ignore
 
@@ -13,6 +14,8 @@ from mcptap.settings import LOGGER
 
 _PARETO_URL = "https://raw.githubusercontent.com/PCODE-pl/MCPTap-Pareto/dev/pareto.json"
 _TESTED_MODELS_URL = "https://raw.githubusercontent.com/PCODE-pl/MCPTap-Pareto/dev/tested_models.json"
+_GITHUB_RAW_HOST = "raw.githubusercontent.com"
+_GITHUB_TOKEN_ENV = "MCPTAP_GITHUB_TOKEN"
 _PARETO_INTERVAL = 3600
 _FETCH_TIMEOUT = 30
 _DEFAULT_TARGET_PATH = Path(__file__).resolve().parent.parent / "data" / "pareto.json"
@@ -100,9 +103,25 @@ class ParetoDataTask:
     @staticmethod
     async def _fetch_remote(url: str) -> bytes:
         timeout = aiohttp.ClientTimeout(total=_FETCH_TIMEOUT)
+        headers = _github_headers(url)
         async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.get(url) as response:
+            async with session.get(url, headers=headers) as response:
                 if response.status != 200:
                     body = await response.text()
                     raise RuntimeError(f"HTTP {response.status} from {url}: {body[:200]}")
                 return await response.read()
+
+
+def _github_headers(url: str) -> dict[str, str]:
+    """Return GitHub authentication headers for the private Pareto files."""
+    parsed_url = urlparse(url)
+    if parsed_url.scheme != "https" or parsed_url.hostname != _GITHUB_RAW_HOST:
+        return {}
+
+    token = os.environ.get(_GITHUB_TOKEN_ENV, "").strip()
+    if not token:
+        raise RuntimeError(f"{_GITHUB_TOKEN_ENV} is required to fetch private GitHub resources")
+    return {
+        "Accept": "application/vnd.github.raw+json",
+        "Authorization": f"Bearer {token}",
+    }
