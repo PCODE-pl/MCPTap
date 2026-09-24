@@ -451,6 +451,8 @@ const app = createApp({
     }
     const selectedProviders = ref([]);
     const selectedModels = ref([]);
+    const prevProviderCount = ref(0);
+    const prevModelCount = ref(0);
     const includeUntested = ref(false);
     const onlyConfigured = ref(true);
     const configuredProviders = ref([]);
@@ -1131,7 +1133,18 @@ const app = createApp({
 
     const scheduleRenderChart = debounce((preserveViewport) => renderChart(preserveViewport), 100);
 
-    function handleFilterUpdate(value) {
+    function handleFilterUpdate() {
+      const providers = selectedProviders.value || [];
+      const models = selectedModels.value || [];
+      const providerRemoved = providers.length < prevProviderCount.value;
+      const modelRemoved = models.length < prevModelCount.value;
+
+      if (providerRemoved || modelRemoved) {
+        routerMinQuality.value = Math.max(routerQualityMinBound.value, 55);
+      }
+
+      prevProviderCount.value = providers.length;
+      prevModelCount.value = models.length;
       if (selectedProviders.value === null) selectedProviders.value = [];
       if (selectedModels.value === null) selectedModels.value = [];
       Vue.nextTick(() => renderChart());
