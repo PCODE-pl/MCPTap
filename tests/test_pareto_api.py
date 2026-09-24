@@ -473,6 +473,8 @@ async def test_serve_pareto_page_returns_html():
         assert "zr.off('click', handleCharacteristicOverlayClick);" in body
         assert "function buildClippedGridSeries()" in body
         assert "function niceTickStep(rawStep)" in body
+        assert "if (!chart.value) return null;" in body
+        assert "if (!chart.value || !characteristicOverlayPoint.value) return null;" not in body
         assert "characteristicOverlayGridClips().xAxis" not in body
         assert 'data-testid="pareto-clipped-grid"' not in body
         assert "const clippedGridSeries = buildClippedGridSeries();" in body

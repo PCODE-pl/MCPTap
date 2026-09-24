@@ -863,7 +863,7 @@ const app = createApp({
     function buildClippedGridSeries() {
       // Grid segments are computed from the last committed axis option, so the
       // first render (without a committed model yet) has no grid to clip.
-      if (!chart.value || !characteristicOverlayPoint.value) return null;
+      if (!chart.value) return null;
       let model = null;
       try {
         model = chart.value.getModel?.();
@@ -878,9 +878,10 @@ const app = createApp({
       const committedXAxis = optionAxis('xAxis');
       const committedYAxis = optionAxis('yAxis');
       if (committedXAxis == null || committedYAxis == null) return null;
-      const overlay = characteristicOverlayPosition();
-      const right = overlay.left + CHARACTERISTIC_OVERLAY_WIDTH;
-      const bottom = overlay.top + CHARACTERISTIC_OVERLAY_HEIGHT;
+      const position = characteristicOverlayPosition();
+      const overlay = characteristicOverlayPoint.value ? position : null;
+      const right = position.left + CHARACTERISTIC_OVERLAY_WIDTH;
+      const bottom = position.top + CHARACTERISTIC_OVERLAY_HEIGHT;
       const segments = [];
       const ticks = axis => {
         // ECharts 6 IntervalScale exposes ticks() (getTicks was renamed), so
@@ -948,7 +949,7 @@ const app = createApp({
         const yTop = edgePixel('y', viewRange.value.yMax);
         const yBottom = edgePixel('y', viewRange.value.yMin);
         if (typeof px !== 'number' || !Number.isFinite(px) || typeof yTop !== 'number' || !Number.isFinite(yTop) || typeof yBottom !== 'number' || !Number.isFinite(yBottom)) continue;
-        if (px >= overlay.left && px <= right) {
+        if (overlay && px >= overlay.left && px <= right) {
           segments.push([[px, yTop], [px, overlay.top]]);
           segments.push([[px, bottom], [px, yBottom]]);
         } else {
@@ -961,7 +962,7 @@ const app = createApp({
         const xLeft = edgePixel('x', viewRange.value.xMin);
         const xRight = edgePixel('x', viewRange.value.xMax);
         if (typeof py !== 'number' || !Number.isFinite(py) || typeof xLeft !== 'number' || !Number.isFinite(xLeft) || typeof xRight !== 'number' || !Number.isFinite(xRight)) continue;
-        if (py >= overlay.top && py <= bottom) {
+        if (overlay && py >= overlay.top && py <= bottom) {
           segments.push([[xLeft, py], [overlay.left, py]]);
           segments.push([[right, py], [xRight, py]]);
         } else {
