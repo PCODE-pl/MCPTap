@@ -62,9 +62,6 @@
     .pareto-popup__dots span.active { background: #63b3ed; }
     .pareto-popup__actions { display: flex; gap: 8px; padding: 0 12px 10px; }
     .pareto-characteristic-overlay { display: none; }
-    .characteristic-overlay-hit-targets { position: absolute; z-index: 1000; pointer-events: none; }
-    .characteristic-overlay-hit-target { position: absolute; display: block; box-sizing: border-box; margin: 0; padding: 0; border: 0; background: transparent; pointer-events: auto; cursor: pointer; appearance: none; }
-    .characteristic-overlay-hit-target:hover::after { content: ''; position: absolute; inset: 0; background: rgba(99, 179, 237, 0.08); pointer-events: none; }
 
     .pareto-toast { position: fixed; z-index: 10; top: 12px; left: 12px; max-width: min(520px, 60vw); padding: 8px 12px; border: 1px solid #333; border-radius: 6px; background: rgba(26, 26, 32, .96); color: #9fd68a; font-size: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.6); animation: pareto-toast-in .25s ease-out; }
     .pareto-toast[data-tone="error"] { color: #f0a3a3; }
@@ -166,18 +163,6 @@
           :data-y-max="formatDiagnosticNumber(viewRange.yMax)"
           :data-zoom-active="areaZoomActive"
           ></div>
-          <div v-if="characteristicOverlayHitTargets.length" class="characteristic-overlay-hit-targets" :style="characteristicOverlayHitTargetsStyle" data-testid="characteristic-overlay-hit-targets" @pointerdown.stop @mousedown.stop @click.stop>
-            <button
-              v-for="target in characteristicOverlayHitTargets"
-              :key="target.action"
-              type="button"
-              class="characteristic-overlay-hit-target"
-              :style="target.style"
-              :aria-label="target.label"
-              :data-action="target.action"
-              @click.stop="handleOverlayNavButton(target.action)"
-            ></button>
-          </div>
           <section v-if="diagnosticsVisible" class="chart-diagnostics" data-testid="pareto-chart-diagnostics" aria-label="Pareto chart diagnostics">
           <span>state=<strong data-testid="pareto-render-state">{{ chartState }}</strong></span>
           <span>renderer=<strong data-testid="pareto-renderer">{{ renderer }}</strong></span>
@@ -752,11 +737,8 @@ const app = createApp({
     // is lifted by the badge overhang to keep the bottom edge on the X axis.
     const CHARACTERISTIC_OVERLAY_TITLE_LIFT = 9;
     // Distance from the overlay bottom edge to the top edge of the bottom
-    // navigation buttons. Both the painted buttons and the click fallback
-    // derive their Y range from this single value, so the clickable area can
-    // never drift away from the visible buttons.
+    // navigation buttons.
     const NAV_BUTTON_TOP_MARGIN = 34;
-    const CHARACTERISTIC_OVERLAY_HIT_TARGET_TOP = 98;
     const CHARACTERISTIC_OVERLAY_GRID_BOTTOM = 66;
     const CHARACTERISTIC_OVERLAY_GRID_RIGHT = 32;
     const characteristicOverlayLine = ref('act');
@@ -779,42 +761,6 @@ const app = createApp({
       return points[characteristicOverlayIndex.value];
     });
     const characteristicOverlayCardHtml = computed(() => buildPopupCardHtml(characteristicOverlayPoint.value));
-    const characteristicOverlayHitTargetsStyle = computed(() => {
-      const position = characteristicOverlayPosition();
-      const chartDom = chart.value?.getDom();
-      const container = chartDom?.parentElement;
-      if (!chartDom || !container) return { display: 'none' };
-      const chartRect = chartDom.getBoundingClientRect();
-      const containerRect = container.getBoundingClientRect();
-      return {
-        left: `${chartRect.left - containerRect.left + position.left}px`,
-        top: `${chartRect.top - containerRect.top + position.top}px`,
-        width: `${CHARACTERISTIC_OVERLAY_WIDTH}px`,
-        height: `${CHARACTERISTIC_OVERLAY_HEIGHT}px`,
-        pointerEvents: 'none',
-        zIndex: 1000,
-      };
-    });
-    const characteristicOverlayHitTargets = computed(() => {
-      const points = characteristicOverlayPoints.value;
-      if (!characteristicOverlayPoint.value || !points.length) return [];
-      const top = CHARACTERISTIC_OVERLAY_HIT_TARGET_TOP;
-      const showLineButtons = hasBothCharacteristicOverlayLines.value;
-      const targets = [];
-      if (showLineButtons) {
-        targets.push(
-          { action: 'act', label: 'Act characteristic points', left: 8, width: 42 },
-          { action: 'plan', label: 'Plan characteristic points', left: 56, width: 48 },
-        );
-      }
-      if (points.length > 1) {
-        targets.push(
-          { action: 'prev', label: 'Previous characteristic point', left: CHARACTERISTIC_OVERLAY_WIDTH - 64, width: 26 },
-          { action: 'next', label: 'Next characteristic point', left: CHARACTERISTIC_OVERLAY_WIDTH - 32, width: 26 },
-        );
-      }
-      return targets.map(target => ({ ...target, style: { left: `${target.left}px`, top: `${top}px`, width: `${target.width}px`, height: '22px' } }));
-    });
     function characteristicOverlayPrev() {
       const count = characteristicOverlayPoints.value.length;
       if (count) characteristicOverlayIndex.value = (characteristicOverlayIndex.value - 1 + count) % count;
@@ -1068,25 +1014,18 @@ const app = createApp({
       const { left, top } = characteristicOverlayPosition();
       const localX = chartX - left;
       const localY = chartY - top;
-      // Resolve clicks in chart-local coordinates. Firefox can report the
-      // event on the overlay's separate canvas without dispatching child
-      // graphic handlers, so this is the single navigation hit-test path.
       const navigationTop = CHARACTERISTIC_OVERLAY_HEIGHT - NAV_BUTTON_TOP_MARGIN;
       const showLineButtons = hasBothCharacteristicOverlayLines.value;
       if (showLineButtons && localX >= 8 && localX <= 50 && localY >= navigationTop && localY <= navigationTop + 22) handleOverlayNavButton('act');
       else if (showLineButtons && localX >= 54 && localX <= 102 && localY >= navigationTop && localY <= navigationTop + 22) handleOverlayNavButton('plan');
       else if (localX >= CHARACTERISTIC_OVERLAY_WIDTH - 64 && localX <= CHARACTERISTIC_OVERLAY_WIDTH - 38 && localY >= navigationTop && localY <= navigationTop + 22) handleOverlayNavButton('prev');
       else if (localX >= CHARACTERISTIC_OVERLAY_WIDTH - 32 && localX <= CHARACTERISTIC_OVERLAY_WIDTH - 6 && localY >= navigationTop && localY <= navigationTop + 22) handleOverlayNavButton('next');
-      else return;
     }
 
     function handleOverlayNavButton(action) {
       // Switching cards only swaps the already computed overlay lists and
       // repaints the card; the full chart pipeline (points, frontier, series)
       // is not recomputed here. The watcher below repaints the graphic.
-      // The buttons are silent shapes whose clicks are all handled by the
-      // zrender coordinate fallback, so each physical click advances exactly
-      // one step (no double advance from an element onclick plus fallback).
       if (action === 'prev') characteristicOverlayPrev();
       else if (action === 'next') characteristicOverlayNext();
       else if (action === 'act' || action === 'plan') {
@@ -2086,7 +2025,7 @@ const app = createApp({
       popupVisible, popupPoints, popupIndex, popupStyle, popupRef, popupCardHtml,
       handlePopupEnter, handlePopupLeave, popupNext, popupPrev,
       popupActionable, popupActionTitle, toastMessage, toastTone, handleActModel, handlePlanModel,
-      characteristicOverlayHitTargets, characteristicOverlayHitTargetsStyle, handleOverlayNavButton,
+      handleOverlayNavButton,
     };
   },
 });

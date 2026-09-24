@@ -448,12 +448,15 @@ async def test_serve_pareto_page_returns_html():
         assert "NAV_BUTTON_TOP_MARGIN" in body
         assert "element onclick never fires inside a silent group" in body
         assert "const NAV_BUTTON_TOP_MARGIN = 34;" in body
-        assert "const CHARACTERISTIC_OVERLAY_HIT_TARGET_TOP = 98;" in body
-        assert "const top = CHARACTERISTIC_OVERLAY_HIT_TARGET_TOP;" in body
-        assert (
-            ".characteristic-overlay-hit-target:hover::after { content: ''; position: absolute; inset: 0; background: rgba(99, 179, 237, 0.08); pointer-events: none; }"
-            in body
-        )
+        assert "const CHARACTERISTIC_OVERLAY_HIT_TARGET_TOP = 98;" not in body
+        assert ".characteristic-overlay-hit-target" not in body
+        assert "characteristicOverlayHitTargets" not in body
+        assert "characteristicOverlayHitTargetsStyle" not in body
+        assert 'data-testid="characteristic-overlay-hit-targets"' not in body
+        assert "function handleCharacteristicOverlayClick(params)" in body
+        assert "zr.on('click', handleCharacteristicOverlayClick);" in body
+        assert "zr.off('click', handleCharacteristicOverlayClick);" in body
+        assert "const top = CHARACTERISTIC_OVERLAY_HIT_TARGET_TOP;" not in body
         assert "navigationTop = CHARACTERISTIC_OVERLAY_HEIGHT - NAV_BUTTON_TOP_MARGIN" in body
         assert "replaceMerge: ['graphic']" in body
         assert "characteristicOverlayIndex.value = 0;" in body
@@ -468,11 +471,6 @@ async def test_serve_pareto_page_returns_html():
         assert "onclick: () => { characteristicOverlayLine.value = 'act'; renderChart(true); }" not in body
         assert "onclick: () => { characteristicOverlayLine.value = 'plan'; renderChart(true); }" not in body
         assert "zr.off('click', handleCharacteristicOverlayClick);" in body
-        assert 'data-testid="characteristic-overlay-hit-targets"' in body
-        assert 'class="characteristic-overlay-hit-target"' in body
-        assert '@click.stop="handleOverlayNavButton(target.action)"' in body
-        assert "const characteristicOverlayHitTargets = computed(() =>" in body
-        assert "characteristicOverlayHitTargetsStyle" in body
         assert "function buildClippedGridSeries()" in body
         assert "function niceTickStep(rawStep)" in body
         assert "characteristicOverlayGridClips().xAxis" not in body
