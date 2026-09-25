@@ -1602,6 +1602,7 @@
             act: [],
             plan: [],
           });
+          let enrichmentDistanceByValueKey = new Map();
           const hasBothCharacteristicOverlayLines = computed(
             () =>
               characteristicOverlayPointLists.act.length > 0 &&
@@ -1646,6 +1647,34 @@
                 (characteristicOverlayIndex.value + 1) % count;
           }
 
+          function computeEnrichmentDistance(point, characteristicPoint, bounds) {
+            if (!point || !characteristicPoint || !bounds) return 0;
+            const characteristicCost = normalizeToUnit(
+              characteristicPoint.weightedCost,
+              bounds.costMin,
+              bounds.costMax,
+            );
+            const characteristicQuality = normalizeToUnit(
+              characteristicPoint.value[1],
+              bounds.qualityMin,
+              bounds.qualityMax,
+            );
+            const cost = normalizeToUnit(
+              point.weightedCost,
+              bounds.costMin,
+              bounds.costMax,
+            );
+            const quality = normalizeToUnit(
+              point.value[1],
+              bounds.qualityMin,
+              bounds.qualityMax,
+            );
+            return Math.hypot(
+              cost - characteristicCost,
+              quality - characteristicQuality,
+            );
+          }
+
           function downloadCharacteristicOverlayJson() {
             const line = characteristicOverlayEffectiveLine.value;
             const points = characteristicOverlayPointLists[line];
@@ -1675,6 +1704,15 @@
                 only_configured: onlyConfigured.value,
               },
               points: points.map((point) => ({
+                _metadata: {
+                  enrichment_distance: Number(
+                    (
+                      enrichmentDistanceByValueKey.get(
+                        `${line}:${pointValueKey(point)}`,
+                      ) ?? 0
+                    ).toFixed(6),
+                  ),
+                },
                 model: point.name,
                 provider: point.provider,
                 alias: point.alias,
@@ -3681,6 +3719,35 @@
                 !planCharacteristicPoint ||
                 pointValueKey(point) !== pointValueKey(planCharacteristicPoint),
             );
+            enrichmentDistanceByValueKey = new Map();
+            for (const point of paretoActCharacteristicPoints)
+              enrichmentDistanceByValueKey.set(
+                `act:${pointValueKey(point)}`,
+                0,
+              );
+            for (const point of enrichedActPoints)
+              enrichmentDistanceByValueKey.set(
+                `act:${pointValueKey(point)}`,
+                computeEnrichmentDistance(
+                  point,
+                  actCharacteristicPoint,
+                  enrichmentBounds,
+                ),
+              );
+            for (const point of paretoPlanCharacteristicPoints)
+              enrichmentDistanceByValueKey.set(
+                `plan:${pointValueKey(point)}`,
+                0,
+              );
+            for (const point of enrichedPlanPoints)
+              enrichmentDistanceByValueKey.set(
+                `plan:${pointValueKey(point)}`,
+                computeEnrichmentDistance(
+                  point,
+                  planCharacteristicPoint,
+                  enrichmentBounds,
+                ),
+              );
             const actOverlayPoints = [
               ...paretoActCharacteristicPoints,
               ...enrichedActPoints,
