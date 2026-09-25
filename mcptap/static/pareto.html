@@ -380,6 +380,7 @@
                   :step="0.05"
                   :format-tooltip="formatTooltipTwoDecimals"
                   data-testid="router-slider-enrichment-control"
+                  @update:value="handleEnrichmentChange"
                 />
               </div>
             </div>
@@ -562,6 +563,11 @@ const app = createApp({
     function handleRouterParetoStripeChange(value) {
       const v = typeof value === 'number' && Number.isFinite(value) ? value : 50;
       routerParetoStripe.value = Math.max(10, Math.min(200, v));
+      scheduleRenderChart();
+    }
+    function handleEnrichmentChange(value) {
+      const v = typeof value === 'number' && Number.isFinite(value) ? value : 0;
+      enrichment.value = Math.max(0, Math.min(0.5, v));
       scheduleRenderChart();
     }
     const routerMinCostSliderPosition = computed({
@@ -1798,6 +1804,43 @@ function handleQualitySliderChange(control, value) {
       return frontier;
     }
 
+    function computeNormalizationBounds(points) {
+      if (!points.length) return { costMin: 0, costMax: 1, qualityMin: 0, qualityMax: 1 };
+      const costs = points.map(point => point.weightedCost).filter(value => Number.isFinite(value));
+      const qualities = points.map(point => point.value[1]).filter(value => Number.isFinite(value));
+      const costMin = costs.length ? Math.min(...costs) : 0;
+      const costMax = costs.length ? Math.max(...costs) : 1;
+      const qualityMin = qualities.length ? Math.min(...qualities) : 0;
+      const qualityMax = qualities.length ? Math.max(...qualities) : 1;
+      return {
+        costMin,
+        costMax: costMax === costMin ? costMin + 1 : costMax,
+        qualityMin,
+        qualityMax: qualityMax === qualityMin ? qualityMin + 1 : qualityMax,
+      };
+    }
+
+    function normalizeToUnit(value, min, max) {
+      if (!Number.isFinite(value)) return 0;
+      return (value - min) / (max - min);
+    }
+
+    function computeEnrichmentPoints(characteristicPoint, points, bounds, radius, minAccuracy, minCost, costSplit) {
+      if (radius <= 0 || !characteristicPoint) return [];
+      const characteristicCost = normalizeToUnit(characteristicPoint.weightedCost, bounds.costMin, bounds.costMax);
+      const characteristicQuality = normalizeToUnit(characteristicPoint.value[1], bounds.qualityMin, bounds.qualityMax);
+      const radiusSquared = radius * radius;
+      return points.filter(candidate => {
+        if (!(candidate.accuracy >= minAccuracy)) return false;
+        if (!(candidate.weightedCost >= minCost && candidate.weightedCost < costSplit)) return false;
+        const cost = normalizeToUnit(candidate.weightedCost, bounds.costMin, bounds.costMax);
+        const quality = normalizeToUnit(candidate.value[1], bounds.qualityMin, bounds.qualityMax);
+        const dx = cost - characteristicCost;
+        const dy = quality - characteristicQuality;
+        return dx * dx + dy * dy <= radiusSquared;
+      });
+    }
+
     function computeParetoStripeLimit(price, stripePercent) {
       return price + (price + 1) * stripePercent / 100;
     }
@@ -1870,6 +1913,7 @@ function handleQualitySliderChange(control, value) {
         routerMinQuality.value = Math.max(routerQualityMinBound.value, 60);
         pendingQualityReset.value = false;
       }
+      const enrichmentBounds = computeNormalizationBounds(points);
       const displayPoints = points.filter(p => p.weightedCost >= routerMinCost.value && p.weightedCost <= routerMaxCost.value && (typeof p.accuracy !== 'number' || p.accuracy >= routerMinQuality.value));
       const preservedRange = preserveViewportForVisiblePoints(previousPoints, displayPoints, previousViewRange);
       chartState.value = 'rendering';
@@ -1911,12 +1955,26 @@ function handleQualitySliderChange(control, value) {
       const paretoPlan = paretoFrontier.filter(p => p.weightedCost >= routerCostSplit.value - 1e-9);
       const paretoActCharacteristicPoints = computeParetoCharacteristicPoints(paretoAct, routerParetoStripe.value);
       const paretoPlanCharacteristicPoints = computeParetoCharacteristicPoints(paretoPlan, routerParetoStripe.value);
-      updateCharacteristicOverlayPoints(paretoActCharacteristicPoints, paretoPlanCharacteristicPoints, displayPoints);
+      const actCharacteristicPoint = paretoActCharacteristicPoints[0] || null;
+      const enrichedActPoints = computeEnrichmentPoints(
+        actCharacteristicPoint,
+        displayPoints,
+        enrichmentBounds,
+        enrichment.value,
+        routerMinQuality.value,
+        routerMinCost.value,
+        routerCostSplit.value,
+      ).filter(point => !actCharacteristicPoint || pointValueKey(point) !== pointValueKey(actCharacteristicPoint));
+      const actOverlayPoints = [...paretoActCharacteristicPoints, ...enrichedActPoints];
+      updateCharacteristicOverlayPoints(actOverlayPoints, paretoPlanCharacteristicPoints, displayPoints);
       const characteristicPointSet = new Set([
         ...paretoActCharacteristicPoints,
         ...paretoPlanCharacteristicPoints,
       ]);
-      const characteristicValueKeys = new Set([...characteristicPointSet].map(pointValueKey));
+      const characteristicValueKeys = new Set([
+        ...[...characteristicPointSet].map(pointValueKey),
+        ...enrichedActPoints.map(pointValueKey),
+      ]);
       const frontierSet = new Set(paretoFrontier);
       const frontierValueKeys = new Set(paretoFrontier.map(pointValueKey));
       const actSet = new Set(paretoAct);
@@ -1955,7 +2013,7 @@ function handleQualitySliderChange(control, value) {
         };
       }).filter(Boolean);
       const characteristicRingSeries = providers.map((provider) => {
-        const fpts = paretoFrontier.filter(p => (p.provider === provider) && (characteristicPointSet.has(p) || characteristicValueKeys.has(pointValueKey(p))));
+        const fpts = displayPoints.filter((p) => (p.provider === provider) && characteristicValueKeys.has(pointValueKey(p)));
         if (!fpts.length) return null;
         const col = providerColorMap.get(provider);
         return {
@@ -2144,7 +2202,7 @@ function handleQualitySliderChange(control, value) {
       areaZoomActive, zoomSelectionStyle, loadData, renderChart,
       QUALITY_SLIDER_MAX, QUALITY_SLIDER_POSITIONS, QUALITY_SLIDER_MARKS, pairedSliderDefinitions, qualityControls, accuracySliderControl, handleAccuracySliderChange, costSliderControl, handleCostSliderChange, costMix, costMixLabel, handleCostMixChange, handleQualityChange, handleQualitySliderChange, handleFilterUpdate, formatTooltipTwoDecimals,
       formatTooltipThreeDecimals,
-      routerMinCost, routerMaxCost, routerMinQuality, routerCostSplit, routerParetoStripe, enrichment, routerQualityMinBound, routerQualityMaxBound, handleRouterMinCostChange, handleRouterMaxCostChange, handleRouterMinQualityChange, handleRouterCostSplitChange, handleRouterParetoStripeChange,
+      routerMinCost, routerMaxCost, routerMinQuality, routerCostSplit, routerParetoStripe, enrichment, routerQualityMinBound, routerQualityMaxBound, handleRouterMinCostChange, handleRouterMaxCostChange, handleRouterMinQualityChange, handleRouterCostSplitChange, handleRouterParetoStripeChange, handleEnrichmentChange,
       routerMinCostSliderPosition, routerMinCostSliderMin, routerMinCostSliderMax, routerMinCostSliderStep, formatRouterMinCostTooltip,
       costSplitSliderPosition, costSplitSliderMin, costSplitSliderMax, costSplitSliderStep, formatCostSplitTooltip,
       routerMaxCostSliderPosition, routerMaxCostSliderMin, routerMaxCostSliderMax, routerMaxCostSliderStep, formatRouterMaxCostTooltip,

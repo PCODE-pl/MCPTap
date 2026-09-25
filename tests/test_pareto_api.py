@@ -364,6 +364,23 @@ async def test_serve_pareto_page_returns_html():
             "const paretoPlanCharacteristicPoints = computeParetoCharacteristicPoints(paretoPlan, routerParetoStripe.value);"
             in body
         )
+        assert "function computeNormalizationBounds(points)" in body
+        assert "function normalizeToUnit(value, min, max)" in body
+        assert (
+            "function computeEnrichmentPoints(characteristicPoint, points, bounds, radius, minAccuracy, minCost, costSplit)"
+            in body
+        )
+        assert "if (radius <= 0 || !characteristicPoint) return [];" in body
+        assert "candidate.weightedCost >= minCost" in body
+        assert "candidate.weightedCost < costSplit" in body
+        assert "candidate.accuracy >= minAccuracy" in body
+        assert "const enrichmentBounds = computeNormalizationBounds(points);" in body
+        assert "const enrichedActPoints = computeEnrichmentPoints(" in body
+        assert "const actOverlayPoints = [...paretoActCharacteristicPoints, ...enrichedActPoints];" in body
+        assert (
+            "displayPoints.filter((p) => (p.provider === provider) && characteristicValueKeys.has(pointValueKey(p)))"
+            in body
+        )
         assert "const characteristicBorderWidth = isCharacteristic ? 5.04 : 2.52;" not in body
         assert "const characteristicRingSymbolSize = frontierSymbolSize * 2;" in body
         assert "borderWidth: frontierBorderWidth" in body
@@ -406,6 +423,8 @@ async def test_serve_pareto_page_returns_html():
         )
         assert "lineStyle: { color: '#aaa', width: 1.5, type: 'dashed' }" in body
         assert 'data-testid="router-slider-enrichment-control"' in body
+        assert '@update:value="handleEnrichmentChange"' in body
+        assert "function handleEnrichmentChange(value)" in body
         assert 'v-model:value="enrichment"' in body
         assert ':min="0"' in body
         assert ':max="0.5"' in body
