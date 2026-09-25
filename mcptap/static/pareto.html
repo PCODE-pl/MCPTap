@@ -1657,12 +1657,11 @@ function handleQualitySliderChange(control, value) {
       return offers;
     }
 
-    function isPointVisible(point) {
-      const selectedModelsSet = selectedModels.value.length ? new Set(selectedModels.value) : null;
-      if (selectedModelsSet && !selectedModelsSet.has(point.name)) return false;
-      if (selectedProviders.value.length && !selectedProviders.value.includes(point.provider)) return false;
-      if (onlyConfigured.value && !configuredProviders.value.includes(point.provider)) return false;
-      if (!includeUntested.value && !buildTestedOfferKeys(rawTested.value).has(`${point.name} ${point.provider} ${point.alias}`)) return false;
+    function isPointVisible(point, visibility) {
+      if (visibility.selectedModelsSet && !visibility.selectedModelsSet.has(point.name)) return false;
+      if (visibility.selectedProviders.length && !visibility.selectedProviders.includes(point.provider)) return false;
+      if (visibility.onlyConfigured && !visibility.configuredProviders.has(point.provider)) return false;
+      if (!visibility.includeUntested && !visibility.testedKeys.has(`${point.name} ${point.provider} ${point.alias}`)) return false;
       return true;
     }
 
@@ -1715,6 +1714,14 @@ function handleQualitySliderChange(control, value) {
         maxima[key] = Math.max(0, ...offers.map(offer => numeric(effectiveStats(offer.offer.stats)?.[key]) ?? 0));
       }
       lastMaxima.value = maxima;
+      const visibility = {
+        selectedModelsSet: selectedModels.value.length ? new Set(selectedModels.value) : null,
+        selectedProviders: selectedProviders.value,
+        onlyConfigured: onlyConfigured.value,
+        configuredProviders: new Set(configuredProviders.value),
+        includeUntested: includeUntested.value,
+        testedKeys: buildTestedOfferKeys(rawTested.value),
+      };
       return offers.map(offer => {
         const stats = effectiveStats(offer.offer.stats);
         const quality = qualityScore(offer, maxima);
@@ -1731,7 +1738,7 @@ function handleQualitySliderChange(control, value) {
           cost: offer.offer.cost,
           isThinking: offer.offer.is_thinking,
         };
-      }).filter(Boolean).filter(isPointVisible);
+      }).filter(Boolean).filter(point => isPointVisible(point, visibility));
     }
 
     function preserveViewportForVisiblePoints(previousPoints, nextPoints, range) {
