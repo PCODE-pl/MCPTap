@@ -1681,9 +1681,9 @@
                 cost: {
                   input: point.cost?.input ?? null,
                   output: point.cost?.output ?? null,
-                  weighted: point.weightedCost,
+                  weighted: Number(point.weightedCost.toFixed(2)),
                 },
-                quality: point.value[1],
+                quality: Number(point.value[1].toFixed(2)),
                 accuracy: point.accuracy,
                 thinking: Boolean(point.isThinking),
               })),

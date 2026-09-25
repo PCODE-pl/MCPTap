@@ -341,8 +341,8 @@ async def test_serve_pareto_page_returns_html():
         assert 'text: "Download"' in body
         assert "function downloadCharacteristicOverlayJson()" in body
         assert "quality_weights" in body
-        assert "qualityControls.accuracy" in body
-        assert "filters:" in body
+        assert "weighted: Number(point.weightedCost.toFixed(2))" in body
+        assert "quality: Number(point.value[1].toFixed(2))" in body
         assert body.index("quality_weights:") < body.index("filters:")
         assert "link.download = `pareto-${line}.json`" in body
         assert 'handleOverlayNavButton("download")' in body
