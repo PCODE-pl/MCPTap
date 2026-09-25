@@ -371,7 +371,7 @@ async def test_serve_pareto_page_returns_html():
         assert "name: `${provider} characteristic`" not in body
         assert "name: '',\n          type: 'scatter',\n          symbolSize: characteristicRingSymbolSize" in body
         assert 'data-testid="router-slider-pareto-stripe"' in body
-        assert "routerParetoStripe = ref(50)" in body
+        assert "routerParetoStripe = ref(30)" in body
         assert ':min="10"' in body
         assert ':max="200"' in body
         assert ':max="150"' not in body
