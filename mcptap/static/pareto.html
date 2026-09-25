@@ -1960,6 +1960,17 @@ function handleQualitySliderChange(control, value) {
         };
       }).filter(Boolean);
       const series = [...baseSeries];
+      series.unshift({
+        id: 'plan-act-split-line',
+        name: '',
+        type: 'line',
+        data: [[displayXValue(routerCostSplit.value), viewRange.value.yMin], [displayXValue(routerCostSplit.value), viewRange.value.yMax]],
+        showSymbol: false,
+        silent: true,
+        legendHoverLink: false,
+        lineStyle: { color: '#aaa', width: 1.5, type: 'dashed' },
+        z: 0,
+      });
       const isSplitAtMin = routerCostSplit.value <= routerMinCost.value + 1e-9;
       const isSplitAtMax = routerCostSplit.value >= routerMaxCost.value - 1e-9;
       const showParetoPlanLine = !hasActiveFilter && paretoPlan.length >= 1 && !isSplitAtMax;

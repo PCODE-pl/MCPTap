@@ -399,6 +399,12 @@ async def test_serve_pareto_page_returns_html():
             in body
         )
         assert "const paretoFrontier = hasActiveFilter ? [] : computeParetoFrontier(displayPoints);" in body
+        assert "id: 'plan-act-split-line'" in body
+        assert (
+            "data: [[displayXValue(routerCostSplit.value), viewRange.value.yMin], [displayXValue(routerCostSplit.value), viewRange.value.yMax]]"
+            in body
+        )
+        assert "lineStyle: { color: '#aaa', width: 1.5, type: 'dashed' }" in body
         assert "const QUALITY_SLIDER_POSITIONS = {" in body
         assert "const QUALITY_SLIDER_MARKS = {" in body
         assert 'step="mark"' in body
