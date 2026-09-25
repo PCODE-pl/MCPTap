@@ -341,8 +341,13 @@ async def test_serve_pareto_page_returns_html():
         assert 'text: "JSON"' in body
         assert 'text: "Download"' not in body
         assert "function downloadCharacteristicOverlayJson()" in body
-        assert "quality_weights" in body
-        assert "input:\n                    point.cost?.input == null" in body
+        assert '"uptime_short": qualityControls["uptime-short"]' in body
+        assert '"uptime_long": qualityControls["uptime-long"]' in body
+        assert '"latency_short": qualityControls["latency-short"]' in body
+        assert '"latency_long": qualityControls["latency-long"]' in body
+        assert '"throughput_short": qualityControls["throughput-short"]' in body
+        assert '"throughput_long": qualityControls["throughput-long"]' in body
+        assert '"uptime-short": qualityControls["uptime-short"]' not in body
         assert "output:\n                    point.cost?.output == null" in body
         assert "weighted: Number(point.weightedCost.toFixed(3))" in body
         assert "function sortCharacteristicOverlayPoints(" in body
