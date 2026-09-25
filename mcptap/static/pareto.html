@@ -1691,17 +1691,13 @@
                 "throughput-short": qualityControls["throughput-short"],
                 "throughput-long": qualityControls["throughput-long"],
               },
-              filters: {
+              pareto_config: {
                 min_cost: routerMinCost.value,
                 max_cost: routerMaxCost.value,
                 min_accuracy: routerMinQuality.value,
                 plan_act_split: routerCostSplit.value,
                 pareto_stripe: routerParetoStripe.value,
                 enrichment: enrichment.value,
-                selected_providers: [...selectedProviders.value],
-                selected_models: [...selectedModels.value],
-                include_untested: includeUntested.value,
-                only_configured: onlyConfigured.value,
               },
               points: points.map((point) => ({
                 _metadata: {

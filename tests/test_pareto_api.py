@@ -351,8 +351,12 @@ async def test_serve_pareto_page_returns_html():
         assert "left.name.localeCompare(right.name)" in body
         assert "enrichment_distance:" in body
         assert "enrichmentDistanceByValueKey" in body
-        assert body.index("quality_weights:") < body.index("filters:")
-        assert "link.download = `pareto-${line}.json`" in body
+        assert "pareto_config: {" in body
+        assert "filters: {" not in body
+        assert "selected_providers:" not in body
+        assert "selected_models:" not in body
+        assert "include_untested:" not in body
+        assert "only_configured:" not in body
         assert 'handleOverlayNavButton("download")' in body
         assert "const downloadLeft = 118;" in body
         assert "const downloadLeft = showLineButtons ?" not in body
