@@ -381,9 +381,10 @@ async def test_serve_pareto_page_returns_html():
         assert "function computeParetoStripeLimit(price, stripePercent)" in body
         assert "return price + (price + 1) * stripePercent / 100;" in body
         assert "function filterOffers" not in body
-        assert "function isPointVisible(point, visibility)" in body
+        assert "function isOfferVisible(offer, visibility)" in body
+        assert "function isPointVisible(point, visibility)" not in body
         collect_start = body.index("function collectOffers()")
-        visible_start = body.index("function isPointVisible(point, visibility)", collect_start)
+        visible_start = body.index("function isOfferVisible(offer, visibility)", collect_start)
         collect_body = body[collect_start:visible_start]
         assert "selectedProviders.value" not in collect_body
         assert "selectedModels.value" not in collect_body
@@ -391,7 +392,8 @@ async def test_serve_pareto_page_returns_html():
         assert "includeUntested.value" not in collect_body
         assert "const maxima = {};" in body
         assert "maxima[key] = Math.max(0, ...offers.map" in body
-        assert ".filter(Boolean).filter(point => isPointVisible(point, visibility))" in body
+        assert "if (quality === null || !isOfferVisible(offer, visibility)) return null;" in body
+        assert "}).filter(Boolean);" in body
         assert (
             "const hasActiveFilter = (selectedProviders.value && selectedProviders.value.length > 0) || (selectedModels.value && selectedModels.value.length > 0);"
             in body

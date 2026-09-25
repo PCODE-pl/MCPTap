@@ -1657,11 +1657,11 @@ function handleQualitySliderChange(control, value) {
       return offers;
     }
 
-    function isPointVisible(point, visibility) {
-      if (visibility.selectedModelsSet && !visibility.selectedModelsSet.has(point.name)) return false;
-      if (visibility.selectedProviders.length && !visibility.selectedProviders.includes(point.provider)) return false;
-      if (visibility.onlyConfigured && !visibility.configuredProviders.has(point.provider)) return false;
-      if (!visibility.includeUntested && !visibility.testedKeys.has(`${point.name} ${point.provider} ${point.alias}`)) return false;
+    function isOfferVisible(offer, visibility) {
+      if (visibility.selectedModelsSet && !visibility.selectedModelsSet.has(offer.canonicalModel)) return false;
+      if (visibility.selectedProviders.length && !visibility.selectedProviders.includes(offer.provider)) return false;
+      if (visibility.onlyConfigured && !visibility.configuredProviders.has(offer.provider)) return false;
+      if (!visibility.includeUntested && !visibility.testedKeys.has(`${offer.canonicalModel} ${offer.provider} ${offer.alias}`)) return false;
       return true;
     }
 
@@ -1725,7 +1725,7 @@ function handleQualitySliderChange(control, value) {
       return offers.map(offer => {
         const stats = effectiveStats(offer.offer.stats);
         const quality = qualityScore(offer, maxima);
-        if (quality === null) return null;
+        if (quality === null || !isOfferVisible(offer, visibility)) return null;
         const weightedCost = (1 - costMix.value) * offer.input + costMix.value * offer.output;
         return {
           value: [displayXValue(weightedCost), quality * 100],
@@ -1738,7 +1738,7 @@ function handleQualitySliderChange(control, value) {
           cost: offer.offer.cost,
           isThinking: offer.offer.is_thinking,
         };
-      }).filter(Boolean).filter(point => isPointVisible(point, visibility));
+      }).filter(Boolean);
     }
 
     function preserveViewportForVisiblePoints(previousPoints, nextPoints, range) {
