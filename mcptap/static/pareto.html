@@ -1644,20 +1644,9 @@ function handleQualitySliderChange(control, value) {
 
     function collectOffers() {
       const offers = [];
-      const hasProviderFilter = selectedProviders.value.length > 0;
-      const hasModelFilter = selectedModels.value.length > 0;
-      const selectedModelsSet = hasModelFilter ? new Set(selectedModels.value) : null;
-      const testedData = rawTested.value;
-      const testedKeys = includeUntested.value ? null : buildTestedOfferKeys(testedData);
       for (const [canonicalModel, item] of Object.entries(paretoStats.value)) {
-        if (selectedModelsSet && !selectedModelsSet.has(canonicalModel)) continue;
         for (const [provider, aliases] of Object.entries(item.providers || {})) {
-          if (hasProviderFilter && !selectedProviders.value.includes(provider)) continue;
-          if (onlyConfigured.value && !configuredProviders.value.includes(provider)) continue;
-          const providerAliases = Object.keys(aliases || {});
-          if (testedKeys && !providerAliases.some(alias => testedKeys.has(`${canonicalModel} ${provider} ${alias}`))) continue;
           for (const [alias, offer] of Object.entries(aliases || {})) {
-            if (testedKeys && !testedKeys.has(`${canonicalModel} ${provider} ${alias}`)) continue;
             const input = numeric(offer.cost?.input);
             const output = numeric(offer.cost?.output);
             if (input === null || output === null) continue;
@@ -1666,6 +1655,15 @@ function handleQualitySliderChange(control, value) {
         }
       }
       return offers;
+    }
+
+    function isPointVisible(point) {
+      const selectedModelsSet = selectedModels.value.length ? new Set(selectedModels.value) : null;
+      if (selectedModelsSet && !selectedModelsSet.has(point.name)) return false;
+      if (selectedProviders.value.length && !selectedProviders.value.includes(point.provider)) return false;
+      if (onlyConfigured.value && !configuredProviders.value.includes(point.provider)) return false;
+      if (!includeUntested.value && !buildTestedOfferKeys(rawTested.value).has(`${point.name} ${point.provider} ${point.alias}`)) return false;
+      return true;
     }
 
     function qualityScore(offer, maxima) {
@@ -1733,7 +1731,7 @@ function handleQualitySliderChange(control, value) {
           cost: offer.offer.cost,
           isThinking: offer.offer.is_thinking,
         };
-      }).filter(Boolean);
+      }).filter(Boolean).filter(isPointVisible);
     }
 
     function preserveViewportForVisiblePoints(previousPoints, nextPoints, range) {
