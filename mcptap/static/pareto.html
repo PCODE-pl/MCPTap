@@ -369,6 +369,19 @@
                   @update:value="handleRouterParetoStripeChange"
                 />
               </div>
+              <div class="quality-slider" data-testid="router-slider-enrichment">
+                <label for="router-slider-enrichment">Enrichment</label>
+                <output for="router-slider-enrichment">{{ enrichment.toFixed(2) }}</output>
+                <n-slider
+                  id="router-slider-enrichment"
+                  v-model:value="enrichment"
+                  :min="0"
+                  :max="0.5"
+                  :step="0.05"
+                  :format-tooltip="formatTooltipTwoDecimals"
+                  data-testid="router-slider-enrichment-control"
+                />
+              </div>
             </div>
           </div>
         </aside>
@@ -507,6 +520,7 @@ const app = createApp({
     const routerMinQuality = ref(60);
     const routerCostSplit = ref(2);
     const routerParetoStripe = ref(30);
+    const enrichment = ref(0);
     const routerQualityMinBound = ref(0);
     const routerQualityMaxBound = ref(100);
     const routerAllPoints = ref([]);
@@ -2130,7 +2144,7 @@ function handleQualitySliderChange(control, value) {
       areaZoomActive, zoomSelectionStyle, loadData, renderChart,
       QUALITY_SLIDER_MAX, QUALITY_SLIDER_POSITIONS, QUALITY_SLIDER_MARKS, pairedSliderDefinitions, qualityControls, accuracySliderControl, handleAccuracySliderChange, costSliderControl, handleCostSliderChange, costMix, costMixLabel, handleCostMixChange, handleQualityChange, handleQualitySliderChange, handleFilterUpdate, formatTooltipTwoDecimals,
       formatTooltipThreeDecimals,
-      routerMinCost, routerMaxCost, routerMinQuality, routerCostSplit, routerParetoStripe, routerQualityMinBound, routerQualityMaxBound, handleRouterMinCostChange, handleRouterMaxCostChange, handleRouterMinQualityChange, handleRouterCostSplitChange, handleRouterParetoStripeChange,
+      routerMinCost, routerMaxCost, routerMinQuality, routerCostSplit, routerParetoStripe, enrichment, routerQualityMinBound, routerQualityMaxBound, handleRouterMinCostChange, handleRouterMaxCostChange, handleRouterMinQualityChange, handleRouterCostSplitChange, handleRouterParetoStripeChange,
       routerMinCostSliderPosition, routerMinCostSliderMin, routerMinCostSliderMax, routerMinCostSliderStep, formatRouterMinCostTooltip,
       costSplitSliderPosition, costSplitSliderMin, costSplitSliderMax, costSplitSliderStep, formatCostSplitTooltip,
       routerMaxCostSliderPosition, routerMaxCostSliderMin, routerMaxCostSliderMax, routerMaxCostSliderStep, formatRouterMaxCostTooltip,

@@ -405,6 +405,12 @@ async def test_serve_pareto_page_returns_html():
             in body
         )
         assert "lineStyle: { color: '#aaa', width: 1.5, type: 'dashed' }" in body
+        assert 'data-testid="router-slider-enrichment-control"' in body
+        assert 'v-model:value="enrichment"' in body
+        assert ':min="0"' in body
+        assert ':max="0.5"' in body
+        assert ':step="0.05"' in body
+        assert "const enrichment = ref(0);" in body
         assert "const QUALITY_SLIDER_POSITIONS = {" in body
         assert "const QUALITY_SLIDER_MARKS = {" in body
         assert 'step="mark"' in body
@@ -426,7 +432,7 @@ async def test_serve_pareto_page_returns_html():
         assert "function nearestQualityValue(positions, value)" in body
         assert "function handleQualitySliderChange(control, value)" in body
         assert "function handleCostSliderChange(value)" in body
-        assert ':step="0.05"' not in body
+        assert body.count(':step="0.05"') == 1
         assert ':value="qualityControls.accuracy"' in body
         assert ':value="costMix"' in body
         assert 'v-model:value="qualityControls[control.key]"' not in body
