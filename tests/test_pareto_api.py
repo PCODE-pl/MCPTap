@@ -439,8 +439,11 @@ async def test_serve_pareto_page_returns_html():
         assert "function formatEnrichmentTooltip(value)" in body
         assert "const ENRICHMENT_MAX = 0.15;" in body
         assert "const enrichmentSliderMax = computed(() => Math.sqrt(ENRICHMENT_MAX));" in body
+        assert "const ENRICHMENT_SLIDER_STEP = Math.sqrt(ENRICHMENT_MAX) / 15;" in body
         assert "const enrichmentSliderStep = ENRICHMENT_SLIDER_STEP;" in body
         assert "Math.max(0, Math.min(ENRICHMENT_MAX, v * v))" in body
+        assert "return formatTooltipThreeDecimals(value * value);" in body
+        assert "const ENRICHMENT_SLIDER_STEP = 0.05;" not in body
         assert "const ENRICHMENT_POSITIONS" not in body
         assert 'v-model:value="enrichmentSliderPosition"' in body
         assert ':min="0"' in body

@@ -430,7 +430,7 @@ const pairedSliderDefinitions = {
   throughput: QUALITY_SLIDER_DEFINITIONS.filter(control => control.key.startsWith('throughput-')),
 };
 const ENRICHMENT_MAX = 0.15;
-const ENRICHMENT_SLIDER_STEP = 0.05;
+const ENRICHMENT_SLIDER_STEP = Math.sqrt(ENRICHMENT_MAX) / 15;
 const DEFAULT_COST_MIX = 0.5;
 const DEFAULT_QUALITY_CONTROLS = {
   accuracy: 1,
@@ -579,7 +579,7 @@ const app = createApp({
     const enrichmentSliderMax = computed(() => Math.sqrt(ENRICHMENT_MAX));
     const enrichmentSliderStep = ENRICHMENT_SLIDER_STEP;
     function formatEnrichmentTooltip(value) {
-      return formatTooltipTwoDecimals(value * value);
+      return formatTooltipThreeDecimals(value * value);
     }
     const routerMinCostSliderPosition = computed({
       get: () => displayXValue(routerMinCost.value),
