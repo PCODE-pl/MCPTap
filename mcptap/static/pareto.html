@@ -2395,6 +2395,25 @@
             return `${pointValueKey(point)},${point.provider},${point.alias},${point.name}`;
           }
 
+          function enrichmentDistanceForOverlayPoint(line, point) {
+            return (
+              enrichmentDistanceByValueKey.get(`${line}:${pointValueKey(point)}`) ??
+              0
+            );
+          }
+
+          function sortCharacteristicOverlayPoints(line, points) {
+            return [...points].sort((left, right) => {
+              const distanceDifference =
+                enrichmentDistanceForOverlayPoint(line, left) -
+                enrichmentDistanceForOverlayPoint(line, right);
+              if (distanceDifference !== 0) return distanceDifference;
+              const providerDifference = left.provider.localeCompare(right.provider);
+              if (providerDifference !== 0) return providerDifference;
+              return left.name.localeCompare(right.name);
+            });
+          }
+
           function updateCharacteristicOverlayPoints(
             actPoints,
             planPoints,
@@ -2403,10 +2422,14 @@
             const currentPointKey = characteristicOverlayPoint.value
               ? characteristicOverlayPointKey(characteristicOverlayPoint.value)
               : null;
-            characteristicOverlayPointLists.act =
-              expandCharacteristicOverlayPoints(actPoints, allPoints);
-            characteristicOverlayPointLists.plan =
-              expandCharacteristicOverlayPoints(planPoints, allPoints);
+            characteristicOverlayPointLists.act = sortCharacteristicOverlayPoints(
+              "act",
+              expandCharacteristicOverlayPoints(actPoints, allPoints),
+            );
+            characteristicOverlayPointLists.plan = sortCharacteristicOverlayPoints(
+              "plan",
+              expandCharacteristicOverlayPoints(planPoints, allPoints),
+            );
             const effectiveLine = characteristicOverlayEffectiveLine.value;
             const nextPoints = characteristicOverlayPointLists[effectiveLine];
             characteristicOverlayIndex.value = nextPoints.findIndex(

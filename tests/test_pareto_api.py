@@ -345,8 +345,10 @@ async def test_serve_pareto_page_returns_html():
         assert "input:\n                    point.cost?.input == null" in body
         assert "output:\n                    point.cost?.output == null" in body
         assert "weighted: Number(point.weightedCost.toFixed(3))" in body
-        assert "function computeEnrichmentDistance(" in body
-        assert "_metadata: {" in body
+        assert "function sortCharacteristicOverlayPoints(" in body
+        assert "enrichmentDistanceForOverlayPoint" in body
+        assert "left.provider.localeCompare(right.provider)" in body
+        assert "left.name.localeCompare(right.name)" in body
         assert "enrichment_distance:" in body
         assert "enrichmentDistanceByValueKey" in body
         assert body.index("quality_weights:") < body.index("filters:")
