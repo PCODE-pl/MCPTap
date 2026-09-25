@@ -497,4 +497,4 @@ async def test_serve_pareto_page_returns_html():
         assert "const modelRemoved = models.length < prevModelCount.value;" in body
         assert "pendingQualityReset.value = providerRemoved || modelRemoved;" in body
         assert "if (pendingQualityReset.value) {" in body
-        assert "routerMinQuality.value = Math.max(routerQualityMinBound.value, 65);" in body
+        assert "routerMinQuality.value = Math.max(routerQualityMinBound.value, 60);" in body

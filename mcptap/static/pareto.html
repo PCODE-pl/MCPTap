@@ -480,7 +480,7 @@ const app = createApp({
     const costMix = ref(DEFAULT_COST_MIX);
     const routerMinCost = ref(0);
     const routerMaxCost = ref(70);
-    const routerMinQuality = ref(65);
+    const routerMinQuality = ref(60);
     const routerCostSplit = ref(2);
     const routerParetoStripe = ref(50);
     const routerQualityMinBound = ref(0);
@@ -1799,7 +1799,7 @@ const app = createApp({
       routerAllPoints.value = points;
       updateRouterQualityBounds();
       if (pendingQualityReset.value) {
-        routerMinQuality.value = Math.max(routerQualityMinBound.value, 65);
+        routerMinQuality.value = Math.max(routerQualityMinBound.value, 60);
         pendingQualityReset.value = false;
       }
       const displayPoints = points.filter(p => p.weightedCost >= routerMinCost.value && p.weightedCost <= routerMaxCost.value && (typeof p.accuracy !== 'number' || p.accuracy >= routerMinQuality.value));
