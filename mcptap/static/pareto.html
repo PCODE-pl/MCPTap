@@ -2020,11 +2020,14 @@ function handleQualitySliderChange(control, value) {
           name: '',
           type: 'scatter',
           symbolSize: characteristicRingSymbolSize,
-          data: fpts.map(p => ({
-            ...p,
-            itemStyle: { borderColor: planSet.has(p) ? '#8B4513' : '#63b3ed', borderWidth: frontierBorderWidth, color: 'transparent' },
-            emphasis: { scale: false, itemStyle: { borderColor: planSet.has(p) ? '#8B4513' : '#63b3ed', borderWidth: frontierBorderWidth, color: 'transparent' } },
-          })),
+          data: fpts.map(p => {
+            const ringBorderColor = p.weightedCost >= routerCostSplit.value - 1e-9 ? '#8B4513' : '#63b3ed';
+            return {
+              ...p,
+              itemStyle: { borderColor: ringBorderColor, borderWidth: frontierBorderWidth, color: 'transparent' },
+              emphasis: { scale: false, itemStyle: { borderColor: ringBorderColor, borderWidth: frontierBorderWidth, color: 'transparent' } },
+            };
+          }),
           silent: true,
           legendHoverLink: false,
           z: 6,

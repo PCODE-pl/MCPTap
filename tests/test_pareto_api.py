@@ -382,6 +382,10 @@ async def test_serve_pareto_page_returns_html():
             in body
         )
         assert "const characteristicBorderWidth = isCharacteristic ? 5.04 : 2.52;" not in body
+        assert "const characteristicRingSeries = providers.map((provider) => {" in body
+        assert "const ringBorderColor = p.weightedCost >= routerCostSplit.value - 1e-9 ? '#8B4513' : '#63b3ed';" in body
+        assert "borderColor: ringBorderColor" in body
+        assert "itemStyle: { borderColor: planSet.has(p) ? '#8B4513' : '#63b3ed'" not in body
         assert "const characteristicRingSymbolSize = frontierSymbolSize * 2;" in body
         assert "borderWidth: frontierBorderWidth" in body
         assert "color: 'transparent'" in body
