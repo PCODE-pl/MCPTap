@@ -429,10 +429,24 @@ async def test_serve_pareto_page_returns_html():
         assert 'data-testid="router-slider-enrichment-control"' in body
         assert '@update:value="handleEnrichmentChange"' in body
         assert "function handleEnrichmentChange(value)" in body
-        assert 'v-model:value="enrichment"' in body
+        assert "const enrichmentSliderPosition = computed({" in body
+        assert "get: () => Math.sqrt(enrichment.value)" in body
+        assert "set: (value) => handleEnrichmentChange(value * value)" in body
+        assert ':max="enrichmentSliderMax"' in body
+        assert ':step="0.01"' not in body
+        assert 'step="mark"' in body
+        assert ':marks="enrichmentSliderMarks"' in body
+        assert ':format-tooltip="formatEnrichmentTooltip"' in body
+        assert "function formatEnrichmentTooltip(value)" in body
+        assert "const ENRICHMENT_POSITIONS = [0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5];" in body
+        assert "Math.sqrt(value)" in body
+        assert "const enrichmentSliderMax = computed(() => Math.sqrt(0.5));" in body
+        assert "const enrichmentSliderMarks = computed(() => ENRICHMENT_SLIDER_MARKS);" in body
+        assert "const nearest = ENRICHMENT_POSITIONS.reduce" in body
+        assert 'v-model:value="enrichmentSliderPosition"' in body
         assert ':min="0"' in body
-        assert ':max="0.5"' in body
-        assert ':step="0.05"' in body
+        assert ':max="0.5"' not in body
+        assert ':step="0.05"' not in body
         assert "const enrichment = ref(0);" in body
         assert "const QUALITY_SLIDER_POSITIONS = {" in body
         assert "const QUALITY_SLIDER_MARKS = {" in body
@@ -455,7 +469,7 @@ async def test_serve_pareto_page_returns_html():
         assert "function nearestQualityValue(positions, value)" in body
         assert "function handleQualitySliderChange(control, value)" in body
         assert "function handleCostSliderChange(value)" in body
-        assert body.count(':step="0.05"') == 1
+        assert body.count(':step="0.05"') == 0
         assert ':value="qualityControls.accuracy"' in body
         assert ':value="costMix"' in body
         assert 'v-model:value="qualityControls[control.key]"' not in body
