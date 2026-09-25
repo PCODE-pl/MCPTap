@@ -338,7 +338,8 @@ async def test_serve_pareto_page_returns_html():
         assert response.status == 200
         body = await response.text()
         assert "MCPTap Pareto" in body
-        assert 'text: "Download"' in body
+        assert 'text: "JSON"' in body
+        assert 'text: "Download"' not in body
         assert "function downloadCharacteristicOverlayJson()" in body
         assert "quality_weights" in body
         assert "weighted: Number(point.weightedCost.toFixed(2))" in body
