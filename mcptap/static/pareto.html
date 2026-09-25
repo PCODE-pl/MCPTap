@@ -1646,6 +1646,62 @@
                 (characteristicOverlayIndex.value + 1) % count;
           }
 
+          function downloadCharacteristicOverlayJson() {
+            const line = characteristicOverlayEffectiveLine.value;
+            const points = characteristicOverlayPointLists[line];
+            if (!points.length) return;
+            const payload = {
+              line,
+              quality_weights: {
+                accuracy: qualityControls.accuracy,
+                cost: costMix.value,
+                "uptime-short": qualityControls["uptime-short"],
+                "uptime-long": qualityControls["uptime-long"],
+                "latency-short": qualityControls["latency-short"],
+                "latency-long": qualityControls["latency-long"],
+                "throughput-short": qualityControls["throughput-short"],
+                "throughput-long": qualityControls["throughput-long"],
+              },
+              filters: {
+                min_cost: routerMinCost.value,
+                max_cost: routerMaxCost.value,
+                min_accuracy: routerMinQuality.value,
+                plan_act_split: routerCostSplit.value,
+                pareto_stripe: routerParetoStripe.value,
+                enrichment: enrichment.value,
+                selected_providers: [...selectedProviders.value],
+                selected_models: [...selectedModels.value],
+                include_untested: includeUntested.value,
+                only_configured: onlyConfigured.value,
+              },
+              points: points.map((point) => ({
+                model: point.name,
+                provider: point.provider,
+                alias: point.alias,
+                cost: {
+                  input: point.cost?.input ?? null,
+                  output: point.cost?.output ?? null,
+                  weighted: point.weightedCost,
+                },
+                quality: point.value[1],
+                accuracy: point.accuracy,
+                thinking: Boolean(point.isThinking),
+              })),
+            };
+            const blob = new Blob([JSON.stringify(payload, null, 2)], {
+              type: "application/json",
+            });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = `pareto-${line}.json`;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 0);
+            showToast(`Downloaded pareto-${line}.json`, "ok");
+          }
+
           function overlayPointLines(point) {
             if (!point) return [];
             const fmt = (value) => {
@@ -1696,6 +1752,8 @@
               characteristicOverlayEffectiveLine.value === "act";
             const navigationTop =
               CHARACTERISTIC_OVERLAY_HEIGHT - NAV_BUTTON_TOP_MARGIN;
+            const downloadLeft = showLineButtons ? 106 : 8;
+            const downloadWidth = 76;
             // Clickable buttons are silent shapes with a pointer cursor; the overlay
             // group itself stays silent with the default cursor so only the buttons
             // suggest clickability. Clicks are handled by the zrender coordinate
@@ -1767,6 +1825,38 @@
                   ]
                 : []),
             ];
+            navigationControls.push(
+              {
+                type: "rect",
+                shape: {
+                  x: downloadLeft,
+                  y: navigationTop,
+                  width: downloadWidth,
+                  height: 22,
+                  r: 4,
+                },
+                silent: true,
+                style: {
+                  fill: "#25252c",
+                  stroke: "rgba(255,255,255,.2)",
+                  lineWidth: 1,
+                  ...buttonCursor,
+                },
+              },
+              {
+                type: "text",
+                style: {
+                  x: downloadLeft + downloadWidth / 2,
+                  y: navigationTop + 11,
+                  text: "Download",
+                  fill: "#ddd",
+                  font: "12px sans-serif",
+                  textAlign: "center",
+                  textVerticalAlign: "middle",
+                  ...buttonCursor,
+                },
+              },
+            );
             if (count > 1)
               navigationControls.push(
                 {
@@ -2192,6 +2282,8 @@
             const navigationTop =
               CHARACTERISTIC_OVERLAY_HEIGHT - NAV_BUTTON_TOP_MARGIN;
             const showLineButtons = hasBothCharacteristicOverlayLines.value;
+            const downloadLeft = showLineButtons ? 106 : 8;
+            const downloadWidth = 76;
             if (
               showLineButtons &&
               localX >= 8 &&
@@ -2208,6 +2300,13 @@
               localY <= navigationTop + 32
             )
               handleOverlayNavButton("plan");
+            else if (
+              localX >= downloadLeft &&
+              localX <= downloadLeft + downloadWidth &&
+              localY >= navigationTop + 10 &&
+              localY <= navigationTop + 32
+            )
+              handleOverlayNavButton("download");
             else if (
               localX >= CHARACTERISTIC_OVERLAY_WIDTH - 64 &&
               localX <= CHARACTERISTIC_OVERLAY_WIDTH - 38 &&
@@ -2236,7 +2335,8 @@
               if (characteristicOverlayLine.value !== action)
                 characteristicOverlayIndex.value = 0;
               characteristicOverlayLine.value = action;
-            } else return;
+            } else if (action === "download") downloadCharacteristicOverlayJson();
+            else return;
           }
 
           function expandCharacteristicOverlayPoints(

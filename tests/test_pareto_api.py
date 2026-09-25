@@ -338,6 +338,15 @@ async def test_serve_pareto_page_returns_html():
         assert response.status == 200
         body = await response.text()
         assert "MCPTap Pareto" in body
+        assert 'text: "Download"' in body
+        assert "function downloadCharacteristicOverlayJson()" in body
+        assert "quality_weights" in body
+        assert "qualityControls.accuracy" in body
+        assert "filters:" in body
+        assert body.index("quality_weights:") < body.index("filters:")
+        assert "link.download = `pareto-${line}.json`" in body
+        assert 'handleOverlayNavButton("download")' in body
+        assert "localX >= downloadLeft" in body
         assert "function computeEnrichmentPoints(" in body
         assert "costLowerBound" in body
         assert "costUpperBound" in body
