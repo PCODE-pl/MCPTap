@@ -381,18 +381,27 @@ async def test_serve_pareto_page_returns_html():
         assert "function computeParetoStripeLimit(price, stripePercent)" in body
         assert "return price + (price + 1) * stripePercent / 100;" in body
         assert "const QUALITY_SLIDER_POSITIONS = {" in body
+        assert "const QUALITY_SLIDER_MARKS = {" in body
+        assert 'step="mark"' in body
+        assert ':marks="control.marks"' in body
+        assert ':marks="accuracySliderControl.marks"' in body
+        assert ':marks="costSliderControl.marks"' in body
+        assert "https://unpkg.com/naive-ui@2.45.3/dist/index.prod.js" in body
+        assert "https://unpkg.com/vue@3.5.43/dist/vue.global.prod.js" in body
         assert "cost: [0, 0.25, 0.5, 0.75, 1]" in body
         assert "accuracy: [0.05, 0.25, 0.5, 0.75, 1]" in body
         assert "uptime: [0, 0.25, 0.5, 0.75, 1]" in body
         assert "latency: [0, 0.05, 0.25, 0.6, 1]" in body
         assert "throughput: [0, 0.05, 0.25, 0.6, 1]" in body
-        assert ':max="QUALITY_SLIDER_POSITIONS.accuracy.length - 1"' in body
-        assert ':max="QUALITY_SLIDER_POSITIONS.cost.length - 1"' in body
-        assert ':value="qualitySliderPosition(control)"' in body
-        assert "function qualitySliderValue(control, position)" in body
+        assert ':max="QUALITY_SLIDER_POSITIONS.accuracy[QUALITY_SLIDER_POSITIONS.accuracy.length - 1]"' in body
+        assert ':max="QUALITY_SLIDER_POSITIONS.cost[QUALITY_SLIDER_POSITIONS.cost.length - 1]"' in body
+        assert ':value="qualityControls[control.key]"' in body
+        assert "function nearestQualityValue(positions, value)" in body
         assert "function handleQualitySliderChange(control, value)" in body
         assert "function handleCostSliderChange(value)" in body
         assert ':step="0.05"' not in body
+        assert ':value="qualityControls.accuracy"' in body
+        assert ':value="costMix"' in body
         assert 'v-model:value="qualityControls[control.key]"' not in body
         assert "computeParetoCharacteristicPoints(paretoAct, routerParetoStripe.value)" in body
         assert "computeParetoCharacteristicPoints(paretoPlan, routerParetoStripe.value)" in body
