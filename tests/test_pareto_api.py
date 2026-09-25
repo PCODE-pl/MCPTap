@@ -338,3 +338,13 @@ async def test_serve_pareto_page_returns_html():
         assert response.status == 200
         body = await response.text()
         assert "MCPTap Pareto" in body
+        assert "function computeEnrichmentPoints(" in body
+        assert "costLowerBound" in body
+        assert "costUpperBound" in body
+        assert "const enrichedPlanPoints = computeEnrichmentPoints(" in body
+        assert "const planOverlayPoints = [" in body
+        assert "updateCharacteristicOverlayPoints(" in body
+        assert (
+            "routerMaxCost.value"
+            in body[body.index("const enrichedPlanPoints") : body.index("const characteristicPointSet")]
+        )

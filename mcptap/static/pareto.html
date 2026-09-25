@@ -3337,8 +3337,8 @@
             bounds,
             radius,
             minAccuracy,
-            minCost,
-            costSplit,
+            costLowerBound,
+            costUpperBound,
           ) {
             if (radius <= 0 || !characteristicPoint) return [];
             const characteristicCost = normalizeToUnit(
@@ -3356,8 +3356,8 @@
               if (!(candidate.accuracy >= minAccuracy)) return false;
               if (
                 !(
-                  candidate.weightedCost >= minCost &&
-                  candidate.weightedCost < costSplit
+                  candidate.weightedCost >= costLowerBound &&
+                  candidate.weightedCost < costUpperBound
                 )
               )
                 return false;
@@ -3566,13 +3566,32 @@
                 !actCharacteristicPoint ||
                 pointValueKey(point) !== pointValueKey(actCharacteristicPoint),
             );
+            const planCharacteristicPoint =
+              paretoPlanCharacteristicPoints[0] || null;
+            const enrichedPlanPoints = computeEnrichmentPoints(
+              planCharacteristicPoint,
+              displayPoints,
+              enrichmentBounds,
+              enrichment.value,
+              routerMinQuality.value,
+              routerCostSplit.value,
+              routerMaxCost.value + 1e-9,
+            ).filter(
+              (point) =>
+                !planCharacteristicPoint ||
+                pointValueKey(point) !== pointValueKey(planCharacteristicPoint),
+            );
             const actOverlayPoints = [
               ...paretoActCharacteristicPoints,
               ...enrichedActPoints,
             ];
+            const planOverlayPoints = [
+              ...paretoPlanCharacteristicPoints,
+              ...enrichedPlanPoints,
+            ];
             updateCharacteristicOverlayPoints(
               actOverlayPoints,
-              paretoPlanCharacteristicPoints,
+              planOverlayPoints,
               displayPoints,
             );
             const characteristicPointSet = new Set([
@@ -3582,6 +3601,7 @@
             const characteristicValueKeys = new Set([
               ...[...characteristicPointSet].map(pointValueKey),
               ...enrichedActPoints.map(pointValueKey),
+              ...enrichedPlanPoints.map(pointValueKey),
             ]);
             const frontierSet = new Set(paretoFrontier);
             const frontierValueKeys = new Set(
