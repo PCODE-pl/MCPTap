@@ -431,22 +431,31 @@ async def test_serve_pareto_page_returns_html():
         assert "function handleEnrichmentChange(value)" in body
         assert "const enrichmentSliderPosition = computed({" in body
         assert "get: () => Math.sqrt(enrichment.value)" in body
-        assert "set: (value) => handleEnrichmentChange(value * value)" in body
+        assert "set: (value) => handleEnrichmentChange(value)" in body
+        assert "set: (value) => handleEnrichmentChange(value * value)" not in body
         assert ':max="enrichmentSliderMax"' in body
-        assert ':step="0.01"' not in body
-        assert 'step="mark"' in body
-        assert ':marks="enrichmentSliderMarks"' in body
+        assert ':step="enrichmentSliderStep"' in body
         assert ':format-tooltip="formatEnrichmentTooltip"' in body
         assert "function formatEnrichmentTooltip(value)" in body
-        assert "const ENRICHMENT_POSITIONS = [0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5];" in body
-        assert "Math.sqrt(value)" in body
-        assert "const enrichmentSliderMax = computed(() => Math.sqrt(0.5));" in body
-        assert "const enrichmentSliderMarks = computed(() => ENRICHMENT_SLIDER_MARKS);" in body
-        assert "const nearest = ENRICHMENT_POSITIONS.reduce" in body
+        assert "const ENRICHMENT_MAX = 0.15;" in body
+        assert "const enrichmentSliderMax = computed(() => Math.sqrt(ENRICHMENT_MAX));" in body
+        assert "const enrichmentSliderStep = ENRICHMENT_SLIDER_STEP;" in body
+        assert "Math.max(0, Math.min(ENRICHMENT_MAX, v * v))" in body
+        assert "const ENRICHMENT_POSITIONS" not in body
         assert 'v-model:value="enrichmentSliderPosition"' in body
         assert ':min="0"' in body
         assert ':max="0.5"' not in body
         assert ':step="0.05"' not in body
+        assert (
+            'step="mark"'
+            not in body[
+                body.index('data-testid="router-slider-enrichment"') : body.index(
+                    'data-testid="router-slider-enrichment"'
+                )
+                + 800
+            ]
+        )
+        assert ':marks="enrichmentSliderMarks"' not in body
         assert "const enrichment = ref(0);" in body
         assert "const QUALITY_SLIDER_POSITIONS = {" in body
         assert "const QUALITY_SLIDER_MARKS = {" in body
