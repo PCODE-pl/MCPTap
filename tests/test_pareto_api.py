@@ -347,7 +347,8 @@ async def test_serve_pareto_page_returns_html():
         assert body.index("quality_weights:") < body.index("filters:")
         assert "link.download = `pareto-${line}.json`" in body
         assert 'handleOverlayNavButton("download")' in body
-        assert "localX >= downloadLeft" in body
+        assert "const downloadLeft = showLineButtons ? 108 : 8;" in body
+        assert "const downloadWidth = 44;" in body
         assert "function computeEnrichmentPoints(" in body
         assert "costLowerBound" in body
         assert "costUpperBound" in body
