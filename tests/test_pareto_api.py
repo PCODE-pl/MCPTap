@@ -383,6 +383,7 @@ async def test_serve_pareto_page_returns_html():
         assert "const QUALITY_SLIDER_POSITIONS = {" in body
         assert "const QUALITY_SLIDER_MARKS = {" in body
         assert 'step="mark"' in body
+        assert ".quality-slider .n-slider-marks { display: none; }" in body
         assert ':marks="control.marks"' in body
         assert ':marks="accuracySliderControl.marks"' in body
         assert ':marks="costSliderControl.marks"' in body
