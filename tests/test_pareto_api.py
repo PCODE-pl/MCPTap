@@ -380,6 +380,20 @@ async def test_serve_pareto_page_returns_html():
         assert "const stripeLimit = computeParetoStripeLimit(startCost, stripePercent);" in body
         assert "function computeParetoStripeLimit(price, stripePercent)" in body
         assert "return price + (price + 1) * stripePercent / 100;" in body
+        assert "const QUALITY_SLIDER_POSITIONS = {" in body
+        assert "cost: [0, 0.25, 0.5, 0.75, 1]" in body
+        assert "accuracy: [0.05, 0.25, 0.5, 0.75, 1]" in body
+        assert "uptime: [0, 0.25, 0.5, 0.75, 1]" in body
+        assert "latency: [0, 0.05, 0.25, 0.6, 1]" in body
+        assert "throughput: [0, 0.05, 0.25, 0.6, 1]" in body
+        assert ':max="QUALITY_SLIDER_POSITIONS.accuracy.length - 1"' in body
+        assert ':max="QUALITY_SLIDER_POSITIONS.cost.length - 1"' in body
+        assert ':value="qualitySliderPosition(control)"' in body
+        assert "function qualitySliderValue(control, position)" in body
+        assert "function handleQualitySliderChange(control, value)" in body
+        assert "function handleCostSliderChange(value)" in body
+        assert ':step="0.05"' not in body
+        assert 'v-model:value="qualityControls[control.key]"' not in body
         assert "computeParetoCharacteristicPoints(paretoAct, routerParetoStripe.value)" in body
         assert "computeParetoCharacteristicPoints(paretoPlan, routerParetoStripe.value)" in body
         assert 'data-testid="pareto-characteristic-overlay"' not in body

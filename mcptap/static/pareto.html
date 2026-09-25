@@ -210,27 +210,27 @@
               <output for="quality-slider-accuracy">{{ qualityControls.accuracy.toFixed(2) }}</output>
               <n-slider
                 id="quality-slider-accuracy"
-                v-model:value="qualityControls.accuracy"
-                :min="0.05"
-                :max="1"
-                :step="0.05"                  :format-tooltip="formatTooltipTwoDecimals"
+                :value="accuracySliderPosition"
+                :min="0"
+                :max="QUALITY_SLIDER_POSITIONS.accuracy.length - 1"
+                :step="1"                  :format-tooltip="value => formatQualityTooltip(accuracySliderControl, value)"
 
                 data-testid="quality-slider-accuracy"
-                @update:value="handleQualityChange"
+                @update:value="handleAccuracySliderChange"
               />
             </div>
             <div class="quality-slider">
-              <label for="quality-slider-cost-mix">Cost</label>
-              <output for="quality-slider-cost-mix" data-testid="quality-slider-cost-mix-output">{{ costMixLabel }}</output>
+            <label for="quality-slider-cost-mix">Cost</label>
+            <output for="quality-slider-cost-mix" data-testid="quality-slider-cost-mix-output">{{ costMix.toFixed(2) }}</output>
               <n-slider
                 id="quality-slider-cost-mix"
-                v-model:value="costMix"
+                :value="costSliderPosition"
                 :min="0"
-                :max="1"
-                :step="0.05"                  :format-tooltip="formatTooltipTwoDecimals"
+                :max="QUALITY_SLIDER_POSITIONS.cost.length - 1"
+                :step="1"                  :format-tooltip="value => formatQualityTooltip(costSliderControl, value)"
 
                 data-testid="quality-slider-cost-mix"
-                @update:value="handleCostMixChange"
+                @update:value="handleCostSliderChange"
               />
             </div>
           </div>
@@ -241,12 +241,13 @@
               <n-slider
                   :format-tooltip="formatTooltipTwoDecimals"
                 :id="`quality-slider-${control.key}`"
-                v-model:value="qualityControls[control.key]"
-                :min="control.min ?? 0"
-                :max="control.max ?? QUALITY_SLIDER_MAX"
-                :step="0.05"
+                :value="qualitySliderPosition(control)"
+                :min="0"
+                :max="control.positions.length - 1"
+                :step="1"
+                :format-tooltip="value => formatQualityTooltip(control, value)"
                 :data-testid="`quality-slider-${control.key}`"
-                @update:value="handleQualityChange"
+                @update:value="value => handleQualitySliderChange(control, value)"
               />
             </div>
           </div>
@@ -257,12 +258,13 @@
               <n-slider
                   :format-tooltip="formatTooltipTwoDecimals"
                 :id="`quality-slider-${control.key}`"
-                v-model:value="qualityControls[control.key]"
-                :min="control.min ?? 0"
-                :max="control.max ?? QUALITY_SLIDER_MAX"
-                :step="0.05"
+                :value="qualitySliderPosition(control)"
+                :min="0"
+                :max="control.positions.length - 1"
+                :step="1"
+                :format-tooltip="value => formatQualityTooltip(control, value)"
                 :data-testid="`quality-slider-${control.key}`"
-                @update:value="handleQualityChange"
+                @update:value="value => handleQualitySliderChange(control, value)"
               />
             </div>
           </div>
@@ -273,12 +275,13 @@
               <n-slider
                   :format-tooltip="formatTooltipTwoDecimals"
                 :id="`quality-slider-${control.key}`"
-                v-model:value="qualityControls[control.key]"
-                :min="control.min ?? 0"
-                :max="control.max ?? QUALITY_SLIDER_MAX"
-                :step="0.05"
+                :value="qualitySliderPosition(control)"
+                :min="0"
+                :max="control.positions.length - 1"
+                :step="1"
+                :format-tooltip="value => formatQualityTooltip(control, value)"
                 :data-testid="`quality-slider-${control.key}`"
-                @update:value="handleQualityChange"
+                @update:value="value => handleQualitySliderChange(control, value)"
               />
             </div>
           </div>
@@ -377,14 +380,21 @@ const { createApp, ref, computed, reactive, watch, onMounted, onBeforeUnmount } 
 const COST_INPUT_TOKENS = 1000000;
 const COST_OUTPUT_TOKENS = 1000000;
 const QUALITY_SLIDER_MAX = 1;
+const QUALITY_SLIDER_POSITIONS = {
+  cost: [0, 0.25, 0.5, 0.75, 1],
+  accuracy: [0.05, 0.25, 0.5, 0.75, 1],
+  uptime: [0, 0.25, 0.5, 0.75, 1],
+  latency: [0, 0.05, 0.25, 0.6, 1],
+  throughput: [0, 0.05, 0.25, 0.6, 1],
+};
 const QUALITY_SLIDER_DEFINITIONS = [
-  { key: 'accuracy', label: 'Accuracy', min: 0.05 },
-  { key: 'uptime-short', label: 'Uptime short' },
-  { key: 'uptime-long', label: 'Uptime long' },
-  { key: 'latency-short', label: 'Latency short' },
-  { key: 'latency-long', label: 'Latency long' },
-  { key: 'throughput-short', label: 'Speed short' },
-  { key: 'throughput-long', label: 'Speed long' },
+  { key: 'accuracy', label: 'Accuracy', positions: QUALITY_SLIDER_POSITIONS.accuracy },
+  { key: 'uptime-short', label: 'Uptime short', positions: QUALITY_SLIDER_POSITIONS.uptime },
+  { key: 'uptime-long', label: 'Uptime long', positions: QUALITY_SLIDER_POSITIONS.uptime },
+  { key: 'latency-short', label: 'Latency short', positions: QUALITY_SLIDER_POSITIONS.latency },
+  { key: 'latency-long', label: 'Latency long', positions: QUALITY_SLIDER_POSITIONS.latency },
+  { key: 'throughput-short', label: 'Speed short', positions: QUALITY_SLIDER_POSITIONS.throughput },
+  { key: 'throughput-long', label: 'Speed long', positions: QUALITY_SLIDER_POSITIONS.throughput },
 ];
 const pairedSliderDefinitions = {
   uptime: QUALITY_SLIDER_DEFINITIONS.filter(control => control.key.startsWith('uptime-')),
@@ -1109,6 +1119,58 @@ const app = createApp({
       return [...models].sort().map(value => ({ label: value, value }));
     });
 
+    function qualitySliderIndex(control, value = qualityControls[control.key]) {
+      const positions = control.positions;
+      const target = numeric(value) ?? positions[0];
+      let nearestIndex = 0;
+      let nearestDistance = Infinity;
+      positions.forEach((position, index) => {
+        const distance = Math.abs(position - target);
+        if (distance < nearestDistance) {
+          nearestIndex = index;
+          nearestDistance = distance;
+        }
+      });
+      return nearestIndex;
+    }
+
+    function qualitySliderPosition(control) {
+      return qualitySliderIndex(control);
+    }
+
+    function qualitySliderValue(control, position) {
+      const index = Math.max(0, Math.min(control.positions.length - 1, Math.round(numeric(position) ?? 0)));
+      return control.positions[index];
+    }
+
+    function formatQualityTooltip(control, position) {
+      return formatTooltipTwoDecimals(qualitySliderValue(control, position));
+    }
+
+    const accuracySliderControl = QUALITY_SLIDER_DEFINITIONS.find(control => control.key === 'accuracy');
+    const accuracySliderPosition = computed(() => qualitySliderPosition(accuracySliderControl));
+
+    function handleAccuracySliderChange(value) {
+      qualityControls.accuracy = qualitySliderValue(accuracySliderControl, value);
+      handleQualityChange();
+    }
+
+    const costSliderControl = { key: 'cost', positions: QUALITY_SLIDER_POSITIONS.cost };
+    const costSliderPosition = computed({
+      get: () => qualitySliderIndex(costSliderControl, costMix.value),
+      set: value => handleCostSliderChange(value),
+    });
+
+    function handleCostSliderChange(value) {
+      costMix.value = qualitySliderValue(costSliderControl, value);
+      scheduleRenderChart(true);
+    }
+
+    function handleQualitySliderChange(control, value) {
+      qualityControls[control.key] = qualitySliderValue(control, value);
+      handleQualityChange();
+    }
+
     const costMixLabel = Vue.computed(() => {
       if (costMix.value <= 0) return 'In';
       if (costMix.value >= 1) return 'Out';
@@ -1531,8 +1593,7 @@ const app = createApp({
     }
 
     function handleCostMixChange(value) {
-      costMix.value = numeric(value) ?? DEFAULT_COST_MIX;
-      scheduleRenderChart(true);
+      handleCostSliderChange(qualitySliderIndex(costSliderControl, numeric(value) ?? DEFAULT_COST_MIX));
     }
 
     function handleUntestedChange(checked) {
@@ -2063,7 +2124,7 @@ const app = createApp({
       seriesCount, canvasCount, chartState, renderer, renderError, viewRange,
       formatDiagnosticNumber, formatRange,
       areaZoomActive, zoomSelectionStyle, loadData, renderChart,
-      QUALITY_SLIDER_MAX, pairedSliderDefinitions, qualityControls, costMix, costMixLabel, handleCostMixChange, handleQualityChange, handleFilterUpdate, formatTooltipTwoDecimals,
+      QUALITY_SLIDER_MAX, QUALITY_SLIDER_POSITIONS, pairedSliderDefinitions, qualityControls, qualitySliderPosition, formatQualityTooltip, accuracySliderControl, accuracySliderPosition, handleAccuracySliderChange, costSliderControl, costSliderPosition, handleCostSliderChange, costMix, costMixLabel, handleCostMixChange, handleQualityChange, handleQualitySliderChange, handleFilterUpdate, formatTooltipTwoDecimals,
       formatTooltipThreeDecimals,
       routerMinCost, routerMaxCost, routerMinQuality, routerCostSplit, routerParetoStripe, routerQualityMinBound, routerQualityMaxBound, handleRouterMinCostChange, handleRouterMaxCostChange, handleRouterMinQualityChange, handleRouterCostSplitChange, handleRouterParetoStripeChange,
       routerMinCostSliderPosition, routerMinCostSliderMin, routerMinCostSliderMax, routerMinCostSliderStep, formatRouterMinCostTooltip,
