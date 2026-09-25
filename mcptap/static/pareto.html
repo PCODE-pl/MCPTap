@@ -1697,7 +1697,7 @@
                 min_accuracy: routerMinQuality.value,
                 plan_act_split: routerCostSplit.value,
                 pareto_stripe: routerParetoStripe.value,
-                enrichment: enrichment.value,
+                enrichment: Number(enrichment.value.toFixed(3)),
               },
               points: points.map((point) => ({
                 _metadata: {

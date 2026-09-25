@@ -356,6 +356,7 @@ async def test_serve_pareto_page_returns_html():
         assert "left.name.localeCompare(right.name)" in body
         assert "enrichment_distance:" in body
         assert "enrichmentDistanceByValueKey" in body
+        assert "enrichment: Number(enrichment.value.toFixed(3))" in body
         assert "pareto_config: {" in body
         assert "filters: {" not in body
         assert "selected_providers:" not in body
