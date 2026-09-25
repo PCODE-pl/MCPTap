@@ -342,6 +342,9 @@ async def test_serve_pareto_page_returns_html():
         assert 'text: "Download"' not in body
         assert "function downloadCharacteristicOverlayJson()" in body
         assert "quality_weights" in body
+        assert "input:\n                    point.cost?.input == null" in body
+        assert "output:\n                    point.cost?.output == null" in body
+        assert "weighted: Number(point.weightedCost.toFixed(3))" in body
         assert "function computeEnrichmentDistance(" in body
         assert "_metadata: {" in body
         assert "enrichment_distance:" in body

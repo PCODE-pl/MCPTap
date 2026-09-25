@@ -1717,9 +1717,15 @@
                 provider: point.provider,
                 alias: point.alias,
                 cost: {
-                  input: point.cost?.input ?? null,
-                  output: point.cost?.output ?? null,
-                  weighted: Number(point.weightedCost.toFixed(2)),
+                  input:
+                    point.cost?.input == null
+                      ? null
+                      : Number(point.cost.input.toFixed(3)),
+                  output:
+                    point.cost?.output == null
+                      ? null
+                      : Number(point.cost.output.toFixed(3)),
+                  weighted: Number(point.weightedCost.toFixed(3)),
                 },
                 quality: Number(point.value[1].toFixed(2)),
                 accuracy: point.accuracy,
