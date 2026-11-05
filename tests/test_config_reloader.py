@@ -53,6 +53,7 @@ def _make_settings(**overrides) -> Settings:
         provider_env_file="openrouter.env",
         api_key="key",
         use_chat_completions=False,
+        requesty_add_responses_suffix=False,
         model="m",
         plan_mode_model="pm",
         plan_mode_trigger="max",

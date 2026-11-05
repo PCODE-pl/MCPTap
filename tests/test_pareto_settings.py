@@ -231,3 +231,31 @@ def test_chat_completions_mode_defaults_to_disabled(monkeypatch):
     monkeypatch.delenv("MCPTAP_USE_CHAT_COMPLETIONS", raising=False)
 
     assert _build_settings().use_chat_completions is False
+
+
+def test_requesty_responses_suffix_defaults_to_disabled(monkeypatch):
+    monkeypatch.setenv("MCPTAP_UPSTREAM_PROVIDER", "requesty")
+    monkeypatch.setenv("MCPTAP_API_KEY", "requesty-test")
+    monkeypatch.setenv("MCPTAP_MODEL", "openai/gpt-5.6")
+    monkeypatch.setenv("MCPTAP_PLAN_MODE_MODEL", "openai/gpt-5.6")
+    monkeypatch.delenv("MCPTAP_REQUESTY_ADD_RESPONSES_SUFFIX", raising=False)
+
+    settings = _build_settings()
+
+    assert settings.requesty_add_responses_suffix is False
+    assert settings.model == "openai/gpt-5.6"
+    assert settings.plan_mode_model == "openai/gpt-5.6"
+
+
+def test_requesty_responses_suffix_can_be_enabled(monkeypatch):
+    monkeypatch.setenv("MCPTAP_UPSTREAM_PROVIDER", "requesty")
+    monkeypatch.setenv("MCPTAP_API_KEY", "requesty-test")
+    monkeypatch.setenv("MCPTAP_MODEL", "openai/gpt-5.6:floor")
+    monkeypatch.setenv("MCPTAP_PLAN_MODE_MODEL", "openai/gpt-5.6:floor")
+    monkeypatch.setenv("MCPTAP_REQUESTY_ADD_RESPONSES_SUFFIX", "true")
+
+    settings = _build_settings()
+
+    assert settings.requesty_add_responses_suffix is True
+    assert settings.model == "openai-responses/gpt-5.6"
+    assert settings.plan_mode_model == "openai-responses/gpt-5.6"

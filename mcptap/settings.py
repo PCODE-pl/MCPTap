@@ -825,6 +825,7 @@ class Settings:
     provider_env_file: str
     api_key: str
     use_chat_completions: bool
+    requesty_add_responses_suffix: bool
 
     # Model forcing
     model: str
@@ -951,14 +952,23 @@ def _build_settings() -> Settings:
     if not model or not plan_mode_model:
         raise RuntimeError("MCPTAP_MODEL and MCPTAP_PLAN_MODE_MODEL must not be empty")
 
+    requesty_add_responses_suffix = os.environ.get("MCPTAP_REQUESTY_ADD_RESPONSES_SUFFIX", "0").lower() not in {
+        "0",
+        "false",
+        "no",
+        "off",
+        "",
+    }
+
     # Requesty model name normalization
     if PROVIDER_REQUESTY == upstream_provider:
-        if model.startswith("openai") and "-responses" not in model:
-            vendor, mdl = model.split("/", 1)
-            model = f"{vendor}-responses/{mdl}"
-        if plan_mode_model.startswith("openai") and "-responses" not in plan_mode_model:
-            vendor, mdl = plan_mode_model.split("/", 1)
-            plan_mode_model = f"{vendor}-responses/{mdl}"
+        if requesty_add_responses_suffix:
+            if model.startswith("openai") and "-responses" not in model:
+                vendor, mdl = model.split("/", 1)
+                model = f"{vendor}-responses/{mdl}"
+            if plan_mode_model.startswith("openai") and "-responses" not in plan_mode_model:
+                vendor, mdl = plan_mode_model.split("/", 1)
+                plan_mode_model = f"{vendor}-responses/{mdl}"
         model = model.split(":")[0]
         plan_mode_model = plan_mode_model.split(":")[0]
 
@@ -994,6 +1004,7 @@ def _build_settings() -> Settings:
         provider_env_file=provider_env_file,
         api_key=api_key,
         use_chat_completions=use_chat_completions,
+        requesty_add_responses_suffix=requesty_add_responses_suffix,
         model=model,
         plan_mode_model=plan_mode_model,
         plan_mode_trigger=(os.environ.get("MCPTAP_PLAN_MODE_TRIGGER") or "max").strip(),

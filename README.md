@@ -636,6 +636,7 @@ The list of issues that MCPTap addresses (at least partially): [docs/ISSUES.md](
 | `MCPTAP_UPSTREAM_PROVIDER` | required | `openrouter`, `requesty`, `meta`, `nano-gpt`, or `llmtr`. |
 | `MCPTAP_LISTEN_HOST` | `127.0.0.1` | Local host/interface to bind. |
 | `MCPTAP_LISTEN_PORT` | `8787` | Local port to listen on. |
+| `MCPTAP_REQUESTY_ADD_RESPONSES_SUFFIX` | `false` | Add the `-responses` suffix to OpenAI model names when using Requesty. |
 | `MCPTAP_OPENROUTER_PROVIDER` | empty | Optional OpenRouter provider slug. |
 | `MCPTAP_OPENROUTER_DISABLE_PROVIDER_FALLBACKS` | `1` | Disable OpenRouter provider fallback when true. |
 | `MCPTAP_PLAN_MODE_TRIGGER` | `max` | Reasoning effort value that activates plan mode model. |
