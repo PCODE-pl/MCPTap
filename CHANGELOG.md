@@ -1,6 +1,16 @@
 <!-- markdownlint-disable MD024 -->
 # Changelog
 
+## [2.11.2]
+
+### Changed
+
+- **Release metadata** — recorded the 2.11.2 release; no source changes were introduced after version 2.11.1.
+
+### Full Changelog
+
+[https://github.com/PCODE-pl/MCPTap/compare/v2.11.1...v2.11.2](https://github.com/PCODE-pl/MCPTap/compare/v2.11.1...v2.11.2)
+
 ## [2.11.1]
 
 ### Added
