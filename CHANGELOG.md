@@ -3,9 +3,9 @@
 
 ## [2.11.2]
 
-### Changed
+### Added
 
-- **Release metadata** — recorded the 2.11.2 release; no source changes were introduced after version 2.11.1.
+- **Requesty Responses suffix configuration** — added `MCPTAP_REQUESTY_ADD_RESPONSES_SUFFIX` to control whether OpenAI model names routed through Requesty receive the `-responses` suffix. The default is `false`.
 
 ### Full Changelog
 
@@ -17,7 +17,7 @@
 
 - **Upstream provider coverage** — added configuration, registration, hot-reload, and installer support for more than 200 additional OpenAI-compatible providers, including OrcaRouter, AIHubMix, TokenRouter, InferX, Kilo, Pendra, Vercel, ZenMux, Tempr, and many others.
 - **Pareto exploration and enrichment** — added Act/Plan frontier views, quality and router controls, cost scaling, characteristic-point overlays, tested-model data, configured-provider filtering, live refresh, provider/model switching, and enriched JSON downloads with quality weights and distance metadata.
-- **Compatibility and configuration options** — added Chat Completions upstream mode with bounded persistent histories, per-model `disable_reasoning_effort`, and `MCPTAP_REQUESTY_ADD_RESPONSES_SUFFIX` for Requesty model routing.
+- **Compatibility and configuration options** — added Chat Completions upstream mode with bounded persistent histories and per-model `disable_reasoning_effort`.
 - **Request logging and protection features** — added persistent SQLite request logs with retention controls, expanded credit monitoring, and stronger LD_PRELOAD file-access blocking and tool-hook integration.
 
 ### Changed
