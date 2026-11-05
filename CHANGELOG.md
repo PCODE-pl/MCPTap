@@ -1,6 +1,35 @@
 <!-- markdownlint-disable MD024 -->
 # Changelog
 
+## [2.11.1]
+
+### Added
+
+- **Upstream provider coverage** — added configuration, registration, hot-reload, and installer support for more than 200 additional OpenAI-compatible providers, including OrcaRouter, AIHubMix, TokenRouter, InferX, Kilo, Pendra, Vercel, ZenMux, Tempr, and many others.
+- **Pareto exploration and enrichment** — added Act/Plan frontier views, quality and router controls, cost scaling, characteristic-point overlays, tested-model data, configured-provider filtering, live refresh, provider/model switching, and enriched JSON downloads with quality weights and distance metadata.
+- **Compatibility and configuration options** — added Chat Completions upstream mode with bounded persistent histories, per-model `disable_reasoning_effort`, and `MCPTAP_REQUESTY_ADD_RESPONSES_SUFFIX` for Requesty model routing.
+- **Request logging and protection features** — added persistent SQLite request logs with retention controls, expanded credit monitoring, and stronger LD_PRELOAD file-access blocking and tool-hook integration.
+
+### Changed
+
+- **Configuration namespace** — migrated runtime, provider, installer, examples, documentation, and file-block integration variables from the `MCP_TAP_` prefix to `MCPTAP_`.
+- **Pareto interface** — redesigned the interactive visualization with a denser responsive layout, discrete quality sliders, Act/Plan split controls, improved overlays and navigation, clearer cost/quality formatting, and more stable zooming and filtering.
+- **Provider and model handling** — generalized provider registries and environment templates, added configured-provider detection and live provider/model selection, and updated OpenCode and NanoGPT integration paths.
+- **OpenCode request handling** — updated client fingerprint, session, request, streaming, and tool behaviour to satisfy current OpenCode-compatible upstream requirements.
+- **Chat/Responses adaptation** — expanded conversion and streaming handling for providers that require Chat Completions while preserving Responses-compatible output, usage, tool calls, and conversation state.
+
+### Fixed
+
+- **Responses/Chat SSE compatibility** — detect and convert upstream Chat Completions SSE responses that masquerade as Responses streams in both buffered and forwarding paths.
+- **Tool-call history replay** — remove duplicate function-call outputs and synthesize missing outputs for orphaned function calls before sending requests upstream.
+- **OpenCode and model compatibility** — preserve session affinity and forwarded headers, apply the required client fingerprint, handle unsupported reasoning parameters, and improve NanoGPT Muse routing and tool compatibility.
+- **Pareto interactions and exports** — fixed overlay hit testing and layering, Act/Plan navigation, split-line and slider resets, filtering, zoom anchoring, characteristic-point rendering, cost rounding, export labels, and JSON export configuration.
+- **Provider and operational reliability** — fixed private GitHub data downloads, provider credential detection, credit-baseline handling, error logging, configuration reload coverage, and file-block environment wiring.
+
+### Full Changelog
+
+[https://github.com/PCODE-pl/MCPTap/compare/v2.11.0...v2.11.1](https://github.com/PCODE-pl/MCPTap/compare/v2.11.0...v2.11.1)
+
 ## [2.11.0]
 
 ### Added
