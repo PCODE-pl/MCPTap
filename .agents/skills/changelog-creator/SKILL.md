@@ -12,9 +12,10 @@ latest git tag and `master` in the MCPTap repository, in english.
 ## When to use
 
 Use this skill when the user asks to prepare, draft, or generate a new
-changelog entry for an upcoming release. The skill is read-only: it produces
-the entry as text output only — it does not modify `CHANGELOG.md` or any
-other file, and it does not commit or push.
+changelog entry for an upcoming release. The changelog task may update only
+`CHANGELOG.md`; never modify the skill library as part of preparing a release
+entry. Follow the repository delivery workflow: validate, commit, and push the
+changelog unless the user explicitly asks for a draft only.
 
 ## Prompt template
 
@@ -30,15 +31,19 @@ git tag -l 'v*' --sort=-v:refname | head -1
 
 This yields the latest released tag (e.g. `v2.2.0`).
 
-### Step 2 — Compute the next minor version
+### Step 2 — Resolve the release version and source baseline
 
-Increment the **minor** position by 1, keeping the major and patch positions:
+Use the version explicitly requested by the user. Strip a leading `v` for the
+heading, for example `v2.11.2` becomes `## [2.11.2]`. Do not silently assign a
+feature to the next version inferred from the latest tag: a patch release may
+contain source commits that landed after an earlier changelog-only release
+commit.
 
-- `v2.2.0` → `2.3.0`
-- `v1.3.4` → `1.4.0`
-- `v3.0.0` → `3.1.0`
-
-Strip the leading `v` for use in the changelog heading: `## [2.3.0]`.
+Identify both the previous release heading and the source baseline. Inspect
+release/changelog commits and the actual source commits, then use the range
+that contains the changes intended for the requested version. Exclude prior
+changelog-only commits from the feature summary, but do not exclude a source
+feature merely because it was committed before the previous changelog entry.
 
 ### Step 3 — Gather commit information
 
@@ -48,8 +53,10 @@ git diff <latest_tag>..master --stat
 ```
 
 For each non-merge commit, read the subject and body to understand what
-changed. Use `git diff <latest_tag>..master -- <file>` for detailed diffs
-of specific files when needed.
+changed. Use `git diff <source_baseline>..master -- <file>` for detailed diffs
+of specific files when needed. Reconcile the commit range with the requested
+release: inspect the actual diff for user-mentioned features and place them in
+the requested version rather than trusting an earlier release-note summary.
 
 ### Step 4 — Classify changes
 
@@ -100,13 +107,18 @@ Format the entry following the existing `CHANGELOG.md` style:
    files (e.g. push verification markers).
 5. Include a `### Full Changelog` link at the end comparing the previous
    tag to the new version.
-6. Do **not** write the entry to `CHANGELOG.md` — output it as text only.
-7. Do **not** commit, push, or modify any files.
+6. Insert the entry at the top of `CHANGELOG.md` while preserving existing
+   historical entries.
+7. Do not modify `.agents/skills/` or any other skill-library file while doing
+   changelog work.
+8. Unless the user explicitly requests draft-only output, commit and push only
+   `CHANGELOG.md` after validation.
 
 ### Step 6 — Output
 
 Print the complete changelog entry as a Markdown block in the chat response.
-Also write it to CHANGELOG.md file. The user will review and commit it manually.
+After writing, validating, committing, and pushing `CHANGELOG.md`, report the
+commit, remote synchronization, and clean working tree.
 
 ## Example invocation
 
